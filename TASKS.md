@@ -20,7 +20,7 @@
 
 ## P1 — Sprint [PHASE-1 / PHASE-2]
 
-- [ ] **[PHASE-1] TEST-API**: ≥ 10 testes integração pytest passando em `api/tests/integration/`
+- [x] **[PHASE-1] TEST-API**: 18 testes integração pytest em `api/tests/integration/` (test_health.py, test_search.py, test_public.py)
 - [ ] **[PHASE-1] CICD-001**: GitHub Actions: lint + build + pytest + gitleaks em cada PR
 - [ ] **[PHASE-1] PII-001**: Smoke test: CPF/CNPJ mascarado em 100% das respostas de API
 - [ ] **[PHASE-2] NER-001**: `POST /api/v1/nlp/extract-entities` → expor `bertimbau_ner.py`
