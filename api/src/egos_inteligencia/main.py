@@ -52,13 +52,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             "JWT secret is weak or default"
             " — set JWT_SECRET_KEY env var (>= 32 chars)"
         )
-    driver = await init_driver()
-    app.state.neo4j_driver = driver
-    await ensure_schema(driver)
+    if settings.app_env == "test":
+        _logger.warning("APP_ENV=test — skipping Neo4j init (smoke test mode)")
+        app.state.neo4j_driver = None
+    else:
+        driver = await init_driver()
+        app.state.neo4j_driver = driver
+        await ensure_schema(driver)
     await cache.connect()
     yield
     await cache.close()
-    await close_driver()
+    if settings.app_env != "test":
+        await close_driver()
 
 
 app = FastAPI(
