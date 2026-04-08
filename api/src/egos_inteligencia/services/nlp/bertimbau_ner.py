@@ -255,6 +255,10 @@ def get_ner_engine(model_name: Optional[str] = None) -> BERTimbauNER:
     return _ner_engine
 
 
+# NER-001: Alias for router compatibility
+get_bertimbau_ner = get_ner_engine
+
+
 def extract_entities(text: str, min_confidence: float = 0.5) -> List[Entity]:
     """
     Convenience function to extract entities

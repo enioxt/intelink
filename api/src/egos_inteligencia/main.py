@@ -30,9 +30,11 @@ from bracc.routers import (
     investigation,
     meta,
     monitor,
+    nlp,  # NER-001
     patterns,
     public,
     search,
+    templates,  # TEMPLATE-001
 )
 from bracc.services.cache import cache
 from bracc.services.neo4j_service import ensure_schema
@@ -101,6 +103,8 @@ app.include_router(entity.router)
 app.include_router(search.router)
 app.include_router(graph.router)
 app.include_router(patterns.router)
+app.include_router(nlp.router)  # NER-001: /api/v1/nlp/*
+app.include_router(templates.router)  # TEMPLATE-001: /api/v1/templates/*
 app.include_router(baseline.router)
 app.include_router(investigation.router)
 app.include_router(investigation.shared_router)

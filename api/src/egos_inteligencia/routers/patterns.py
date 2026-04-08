@@ -1,7 +1,8 @@
-from typing import Annotated
+from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from neo4j import AsyncDriver, AsyncSession
+from pydantic import BaseModel
 from starlette.requests import Request
 
 from bracc.config import settings
@@ -9,7 +10,22 @@ from bracc.dependencies import get_driver, get_intelligence_provider, get_sessio
 from bracc.middleware.rate_limit import limiter
 from bracc.models.pattern import PatternResponse, PatternResult
 from bracc.services.intelligence_provider import IntelligenceProvider
+from bracc.services.patterns.pattern_detector import get_pattern_engine, PatternMatch
 from bracc.services.public_guard import enforce_entity_lookup_enabled
+
+
+# PATTERN-001: Request/Response models for POST /detect
+class PatternDetectRequest(BaseModel):
+    text: str
+    min_confidence: float = 0.618
+    categories: List[str] | None = None
+
+
+class PatternDetectResponse(BaseModel):
+    patterns: List[dict]
+    total: int
+    risk_level: str
+    text_length: int
 
 router = APIRouter(prefix="/api/v1/patterns", tags=["patterns"])
 
@@ -125,3 +141,33 @@ async def list_patterns(
 ) -> dict[str, list[dict[str, str]]]:
     _enforce_patterns_enabled()
     return {"patterns": provider.list_patterns()}
+
+
+# PATTERN-001: POST /api/v1/patterns/detect — detect patterns in text
+@router.post("/detect", response_model=PatternDetectResponse)
+@limiter.limit("60/minute")
+async def detect_patterns_in_text(
+    request: Request,
+    detect_req: PatternDetectRequest,
+) -> PatternDetectResponse:
+    """
+    Detect behavioral patterns in provided text.
+    
+    Uses pattern detection engine to identify criminal/psychological
+    patterns with confidence scoring based on Sacred Mathematics (φ).
+    """
+    _enforce_patterns_enabled()
+    
+    engine = get_pattern_engine()
+    matches = engine.detect_patterns(
+        text=detect_req.text,
+        min_confidence=detect_req.min_confidence,
+        categories=detect_req.categories
+    )
+    
+    return PatternDetectResponse(
+        patterns=[match.to_dict() for match in matches],
+        total=len(matches),
+        risk_level=engine.get_risk_level(matches),
+        text_length=len(detect_req.text)
+    )
