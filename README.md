@@ -65,6 +65,104 @@ docker compose up -d
 
 📖 Veja [`.env.example`](.env.example) para todas as variáveis necessárias.
 
+---
+
+## 🤖 Configuração de Inteligência Artificial (Multi-Provider)
+
+O Intelink é **agnóstico de provedor de IA** — você escolhe qual usar ou configurar múltiplos para fallback automático.
+
+### 🎯 Guia Rápido: Comece de Graça
+
+| Provedor | Custo | Melhor Para | Link |
+|----------|-------|-------------|------|
+| **🥇 DashScope (Alibaba)** | **1M tokens GRÁTIS** | Português, custo-benefício | [dashscope.console.aliyun.com](https://dashscope.console.aliyun.com) |
+| **🥈 Google AI Studio** | **1,500 req/dia GRÁTIS** | Desenvolvimento, prototipagem | [aistudio.google.com](https://aistudio.google.com/app/apikey) |
+| **🥉 OpenRouter** | Modelos gratuitos disponíveis | Acesso a múltiplos modelos | [openrouter.ai](https://openrouter.ai) |
+
+### 💰 Tabela de Modelos Custo-Benefício (Preços por 1M tokens)
+
+| Modelo | Provedor | Input | Output | Qualidade | PT-BR |
+|--------|----------|-------|--------|-----------|-------|
+| **Kimi K2.5** | OpenRouter | ~$0.50 | ~$1.50 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
+| **MiniMax** | OpenRouter | ~$0.18 | ~$1.09 | ⭐⭐⭐⭐ | ⭐⭐⭐ |
+| **Nemotron-4** | OpenRouter | ~$0.20 | ~$0.20 | ⭐⭐⭐⭐ | ⭐⭐⭐ |
+| **Gemini 2.0 Flash** | Google/OpenRouter | **GRÁTIS** / $0.35 | **GRÁTIS** / $1.05 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Qwen-Plus** | DashScope | ~$0.50 | ~$1.00 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Qwen-Turbo** | DashScope | ~$0.12 | ~$0.25 | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
+| **Claude 3.5 Sonnet** | Anthropic | $3.00 | $15.00 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
+| **GPT-4o-mini** | OpenAI | $0.15 | $0.60 | ⭐⭐⭐⭐ | ⭐⭐⭐ |
+
+> 💡 **Dica:** Para investigações em português, recomendamos **Qwen-Plus** (DashScope) ou **Gemini 2.0 Flash** — ambos têm excelente compreensão de contexto jurídico brasileiro.
+
+### 📋 Passo a Passo: Obter APIs Gratuitas
+
+#### 🥇 DashScope (Alibaba) — 1M Tokens Grátis
+
+1. Acesse: https://dashscope.console.aliyun.com
+2. Clique em **"Get API Key"** ou **"创建API Key"** (Criar API Key)
+3. Faça login com Google, GitHub ou crie conta Alibaba
+4. Copie a chave (formato: `sk-...`)
+5. Cole em `.env`: `DASHSCOPE_API_KEY=sk-sua-chave`
+
+**Modelos recomendados:**
+- `qwen-plus` — melhor custo-benefício geral
+- `qwen-turbo` — mais barato para tarefas simples
+- `qwen-max` — máxima qualidade (mais caro)
+
+#### 🥈 Google AI Studio — 1,500 Requests/Dia Grátis
+
+1. Acesse: https://aistudio.google.com/app/apikey
+2. Faça login com sua conta Google
+3. Clique em **"Create API Key"**
+4. Selecione projeto (ou crie "Intelink")
+5. Copie a chave (formato: `AIza...`)
+6. Cole em `.env`: `GOOGLE_AI_API_KEY=AIza-sua-chave`
+
+**Vantagens:**
+- ✅ Não precisa de cartão de crédito
+- ✅ 1,500 requests/dia no tier gratuito
+- ✅ Gemini 2.0 Flash muito capaz
+- ✅ Funciona diretamente (sem proxy)
+
+#### 🥉 OpenRouter — Acesso Universal
+
+1. Acesse: https://openrouter.ai
+2. Crie conta (email ou GitHub)
+3. Vá em **"Keys"** → **"Create Key"**
+4. Copie a chave (formato: `sk-or-v1-...`)
+5. Cole em `.env`: `OPENROUTER_API_KEY=sk-or-v1-sua-chave`
+
+**Modelos gratuitos OpenRouter (limitados por dia):**
+- `google/gemini-2.0-flash-exp:free` — 20 req/min
+- `meta-llama/llama-3.2-3b-instruct:free` — 20 req/min
+- `nousresearch/hermes-3-llama-3.1-405b:free` — 20 req/min
+
+### ⚙️ Configuração Multi-Provider (Fallback Automático)
+
+Configure múltiplas APIs no `.env` para redundância:
+
+```bash
+# Configure todas as que tiver
+DASHSCOPE_API_KEY=sk-...
+GOOGLE_AI_API_KEY=AIza...
+OPENROUTER_API_KEY=sk-or-v1-...
+
+# Defina ordem de prioridade
+AI_PROVIDER_PRIORITY=dashscope,google,openrouter
+```
+
+O Intelink tentará na ordem: se DashScope falhar, usa Google, depois OpenRouter.
+
+### 🎓 Recomendações por Cenário
+
+| Cenário | Provedor Recomendado | Modelo | Por Quê |
+|---------|---------------------|--------|---------|
+| **Investigação policial** | DashScope | `qwen-plus` | Excelente em português jurídico |
+| **Análise de documentos** | Google AI | `gemini-2.0-flash` | Grande contexto (128k tokens) |
+| **Chat com cidadão** | OpenRouter (free) | `gemini-2.0-flash:free` | Custo zero |
+| **Relatório formal** | Anthropic | `claude-3-5-sonnet` | Qualidade superior de redação |
+| **Processamento em massa** | DashScope | `qwen-turbo` | Preço competitivo |
+
 ## 📁 Estrutura do Projeto
 
 ```
