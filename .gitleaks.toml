@@ -65,4 +65,5 @@ paths = [
     '''frontend/src/lib/intelligence/evidence-validation''',
     '''frontend/src/lib/intelligence/system-prompt''',
     '''api/scripts/seed_synthetic_data\.py''',
+    '''docs/security/INCIDENT.*\.md''',
 ]
