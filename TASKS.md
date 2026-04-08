@@ -1,6 +1,6 @@
 # TASKS.md — EGOS Inteligência
 
-> **UPDATED:** 2026-04-09 | **SSOT:** backlog atômico vivo
+> **UPDATED:** 2026-04-08 | **SSOT:** backlog atômico vivo
 > **Roadmap estratégico:** `docs/ROADMAP.md` (fases, não tickets)
 > **Sync:** tasks referenciam fase — ex: `[PHASE-1] feat: deploy prod`
 > **MAX:** 200 linhas. Arquivar concluídos quando ultrapassar 180.
@@ -26,7 +26,11 @@
 - [x] **[PHASE-2] NER-001**: `POST /api/v1/nlp/extract-entities` + `GET /api/v1/nlp/info` + `POST /api/v1/nlp/batch-extract` — BERTimbau NER exposto ✅
 - [x] **[PHASE-2] PATTERN-001**: `POST /api/v1/patterns/detect` — detecção de padrões comportamentais em texto ✅
 - [x] **[PHASE-2] TEMPLATE-001**: `GET /api/v1/templates` + `/{id}` + `/apply` + `/categories` — templates de investigação expostos ✅
-- [ ] **[PHASE-2] PORT-CONNECT**: Ligar `intelligence/`, `analysis/`, `detectors/` às rotas FastAPI
+- [x] **[PHASE-2] PORT-CONNECT**: Ligar `intelligence/` (provider), `analysis/` (patterns), `detectors/` (NLP) às rotas FastAPI ✅
+  - `intelligence_provider.py` → `patterns.router` (GET /api/v1/patterns/{entity_id})
+  - `patterns/pattern_detector.py` → `patterns.router` (POST /api/v1/patterns/detect)
+  - `nlp/bertimbau_ner.py` + `spacy_ner.py` → `nlp.router` (POST /api/v1/nlp/extract-entities)
+  - `investigation_templates.py` → `templates.router` (GET /api/v1/templates)
 
 ---
 
