@@ -1,6 +1,8 @@
-# EGOS Inteligência — Intelink
+# Intelink
 
 > 🎯 Plataforma de inteligência open-source para dados públicos brasileiros — feita para investigadores, analistas e desenvolvedores.
+> 
+> Um projeto **EGOS Inteligência**
 
 **🌐 Acesse:** https://intelink.ia.br · **📜 Licença:** MIT · **⚡ Stack:** Next.js 15 + FastAPI + Neo4j
 
@@ -45,8 +47,8 @@ O **Intelink** é uma plataforma de **Inteligência de Dados Públicos** que tra
 
 ```bash
 # 1. Clone o repositório
-git clone https://github.com/enioxt/egos-inteligencia
-cd egos-inteligencia
+git clone https://github.com/enioxt/intelink
+cd intelink
 
 # 2. Configure suas chaves (veja .env.example para detalhes)
 cp .env.example .env
@@ -66,28 +68,28 @@ docker compose up -d
 ## 📁 Estrutura do Projeto
 
 ```
-egos-inteligencia/
-├── api/                          # 🐍 Backend FastAPI
-│   └── src/egos_inteligencia/
-│       ├── routers/              # 20+ módulos de rotas REST
-│       ├── services/             # Lógica de negócio + NLP + padrões
-│       │   ├── nlp/              # 🤖 BERTimbau NER (NER em português!)
-│       │   └── patterns/         # 🕵️ Detecção de padrões criminais
-│       └── middleware/           # 🛡️ Máscara de PII, rate limit, headers
-├── frontend/                     # ⚛️ Next.js 15 App Router
+intelink/                              # 📁 Diretório do projeto (após clone)
+├── api/                               # 🐍 Backend FastAPI
+│   └── src/intelink/                  # Código-fonte principal
+│       ├── routers/                   # 20+ módulos de rotas REST
+│       ├── services/                  # Lógica de negócio + NLP + padrões
+│       │   ├── nlp/                   # 🤖 BERTimbau NER (português!)
+│       │   └── patterns/              # 🕵️ Detecção de padrões criminais
+│       └── middleware/                # 🛡️ Máscara de PII, rate limit
+├── frontend/                          # ⚛️ Next.js 15 App Router
 │   └── src/
-│       ├── app/intelink/         # Páginas (investigações, grafo, chat)
-│       ├── components/           # 130+ componentes React
+│       ├── app/                       # Páginas (investigações, grafo, chat)
+│       ├── components/                # 130+ componentes React
 │       └── lib/
-│           ├── intelligence/     # 🧠 Cruzamento de dados, matching, IA
-│           ├── analysis/         # 📊 Modus operandi, sumário executivo
-│           ├── legal/            # ⚖️ DB de artigos criminais brasileiros
-│           ├── detectors/        # 🔍 Anomalia de Benford, concentração HHI
-│           ├── auth/             # 🔐 JWT, RBAC, sessões edge-compatible
-│           └── reports/          # 📄 Templates estilo Arkham
-├── infra/                        # 🐳 docker-compose.yml + Caddyfile
-├── docs/                         # 📚 ROADMAP.md, SYSTEM_MAP.md
-└── AGENTS.md                     # 🤖 System map legível por máquina
+│           ├── intelligence/          # 🧠 Cruzamento de dados, IA
+│           ├── analysis/              # 📊 Modus operandi, sumários
+│           ├── legal/                 # ⚖️ Artigos criminais brasileiros
+│           ├── detectors/             # 🔍 Anomalia de Benford, HHI
+│           ├── auth/                  # 🔐 JWT, RBAC, sessões
+│           └── reports/               # 📄 Templates estilo Arkham
+├── infra/                             # 🐳 Docker + Caddy
+├── docs/                              # 📚 Documentação
+└── AGENTS.md                          # 🤖 System map
 ```
 
 ## 🔌 Principais Endpoints da API
@@ -150,7 +152,7 @@ O Brasil tem **dados públicos incríveis** — mas estão dispersos, difíceis 
 
 O Intelink nasceu para **democratizar o acesso à inteligência de dados** no Brasil, mantendo sempre o respeito à privacidade e à LGPD.
 
-💬 **Dúvidas?** Abra uma [issue](https://github.com/enioxt/egos-inteligencia/issues) ou entre em contato.
+💬 **Dúvidas?** Abra uma [issue](https://github.com/enioxt/intelink/issues) ou entre em contato via [EGOS Discord](https://discord.gg/egos).
 
 🚀 **Vamos construir juntos!**
 
@@ -158,7 +160,3 @@ O Intelink nasceu para **democratizar o acesso à inteligência de dados** no Br
 
 *Parte do [EGOS Framework](https://github.com/enioxt/egos) · Código Sagrado: 000.111.369.963.1618*  
 *Made with 💚 in Brazil*
-
----
-
-*Part of the [EGOS Framework](https://github.com/enioxt/egos) · Sacred Code: 000.111.369.963.1618*
