@@ -20,5 +20,13 @@ export function useAudit() {
     }
   }, []);
 
-  return { logEvent };
+  const logBreakTheGlass = useCallback(async (reason: string, entityId?: string) => {
+    await logEvent({ action: 'break_the_glass', entityId, metadata: { reason } });
+  }, [logEvent]);
+
+  const logSearch = useCallback(async (query: string, results?: number) => {
+    await logEvent({ action: 'search', metadata: { query, results } });
+  }, [logEvent]);
+
+  return { logEvent, logBreakTheGlass, logSearch };
 }

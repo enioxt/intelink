@@ -11,7 +11,7 @@
  * const similar = cache.findSimilar([0.1, 0.2, 0.3], 0.8);
  */
 
-import { getCache as getIndexedDBCache } from './indexed-db-cache';
+import { getIndexedDBCache } from './indexed-db-cache';
 
 // ============================================================================
 // TYPES
@@ -329,7 +329,7 @@ export async function getOrComputeEmbedding(
     apiEndpoint?: string
 ): Promise<number[]> {
     const cache = getEmbeddingCache();
-    
+
     // Check cache first
     const cached = cache.get(text);
     if (cached) {
@@ -339,7 +339,7 @@ export async function getOrComputeEmbedding(
     // Compute and cache
     const embedding = await computeEmbedding(text, apiEndpoint);
     cache.set(text, embedding);
-    
+
     return embedding;
 }
 

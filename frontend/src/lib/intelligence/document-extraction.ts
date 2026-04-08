@@ -17,7 +17,7 @@ let mammoth: any = null;
 async function getPdfParse() {
     if (!pdfParse) {
         const module = await import('pdf-parse');
-        pdfParse = module.default || module;
+        pdfParse = (module as any).default || module;
     }
     return pdfParse;
 }
@@ -33,7 +33,7 @@ async function getMammoth() {
 // TYPES
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-export type DocumentType = 
+export type DocumentType =
     | 'reds'           // REDS - Registro de Eventos de Defesa Social
     | 'relatorio'      // Relatório de Serviço
     | 'depoimento'     // Depoimento/Testemunho
@@ -363,18 +363,18 @@ const PROMPTS_BY_TYPE: Record<DocumentType, string> = {
 export async function extractTextFromFile(filePath: string): Promise<{ text: string; type: string }> {
     const ext = path.extname(filePath).toLowerCase();
     const buffer = fs.readFileSync(filePath);
-    
+
     switch (ext) {
         case '.pdf':
             const pdf = await getPdfParse();
             const pdfData = await pdf(buffer);
             return { text: pdfData.text, type: 'pdf' };
-            
+
         case '.docx':
             const mammothLib = await getMammoth();
             const docxResult = await mammothLib.extractRawText({ buffer });
             return { text: docxResult.value, type: 'docx' };
-            
+
         case '.doc':
             // .doc files are trickier - mammoth doesn't support them directly
             // For now, we'll try mammoth and fall back to error
@@ -385,10 +385,10 @@ export async function extractTextFromFile(filePath: string): Promise<{ text: str
             } catch {
                 throw new Error('Arquivos .doc antigos não são suportados diretamente. Converta para .docx ou PDF.');
             }
-            
+
         case '.txt':
             return { text: buffer.toString('utf-8'), type: 'txt' };
-            
+
         default:
             throw new Error(`Formato não suportado: ${ext}`);
     }
@@ -404,7 +404,7 @@ export async function extractWithLLM(
     documentHint?: DocumentType
 ): Promise<ExtractionResult> {
     const start = Date.now();
-    
+
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
         return {
@@ -422,12 +422,12 @@ export async function extractWithLLM(
         };
     }
 
-    const userPrompt = documentHint 
+    const userPrompt = documentHint
         ? `Tipo de documento: ${documentHint.toUpperCase()}\n\nConteúdo:\n${text}`
         : `Analise o documento abaixo e identifique seu tipo:\n\n${text}`;
 
     // Selecionar prompt baseado no tipo de documento
-    const systemPrompt = documentHint 
+    const systemPrompt = documentHint
         ? PROMPTS_BY_TYPE[documentHint] || SYSTEM_PROMPT_EXTRACTION
         : SYSTEM_PROMPT_EXTRACTION;
 
@@ -458,7 +458,7 @@ export async function extractWithLLM(
 
         const data = await response.json();
         const content = data.choices?.[0]?.message?.content || '';
-        
+
         // Parse JSON from response
         let parsed: Record<string, unknown>;
         try {
@@ -527,7 +527,7 @@ export async function processDocument(
     documentHint?: DocumentType
 ): Promise<ExtractionResult> {
     let text: string;
-    
+
     if (typeof input === 'string') {
         // Free mode - direct text input
         text = input;
@@ -571,15 +571,15 @@ export async function compareModels(
     documentHint?: DocumentType
 ): Promise<ModelComparisonResult[]> {
     const results: ModelComparisonResult[] = [];
-    
+
     for (const model of models) {
         console.log(`\n🔄 Testing with ${model.name}...`);
         const result = await processDocument(input, model, documentHint);
         results.push({ model: model.name, result });
-        
+
         // Small delay between API calls
         await new Promise(resolve => setTimeout(resolve, 1000));
     }
-    
+
     return results;
 }

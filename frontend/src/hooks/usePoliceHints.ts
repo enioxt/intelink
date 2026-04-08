@@ -483,5 +483,5 @@ export function usePoliceHints(text?: string) {
     return message.replace(re, hint.suggestion)
   }
 
-  return { suggestions: hints, hasError, hasWarn, applySuggestion, clear: () => { }, checkInput: (text: string) => hints }
+  return { suggestions: hints, hints, hasError, hasWarn, applySuggestion, clear: () => { }, checkInput: (text: string) => hints }
 }

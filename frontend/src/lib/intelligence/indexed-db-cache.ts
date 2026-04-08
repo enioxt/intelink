@@ -53,3 +53,17 @@ export async function clearCache(): Promise<void> {
     });
   } catch { /* silently fail */ }
 }
+
+export interface IDBCacheClient {
+  get<T = unknown>(key: string): Promise<T | null>;
+  set(key: string, value: unknown, ttlMs?: number): Promise<void>;
+  clear(): Promise<void>;
+}
+
+export function getIndexedDBCache(): IDBCacheClient {
+  return {
+    get: <T = unknown>(key: string) => getCache(key) as Promise<T | null>,
+    set: (key: string, value: unknown, _ttlMs?: number) => setCache(key, value),
+    clear: clearCache,
+  };
+}

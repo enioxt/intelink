@@ -9,6 +9,16 @@ export async function startRecording(): Promise<MediaRecorder> {
   return new MediaRecorder(stream);
 }
 
+export async function transcribeAudioBlob(blob: Blob): Promise<string> {
+  const formData = new FormData();
+  formData.append('audio', blob, 'recording.webm');
+  try {
+    const res = await fetch('/api/v1/transcribe', { method: 'POST', body: formData });
+    const data = await res.json();
+    return data.text ?? '';
+  } catch { return ''; }
+}
+
 export function stopRecording(recorder: MediaRecorder): Promise<AudioRecordingResult> {
   return new Promise((resolve) => {
     const chunks: BlobPart[] = [];

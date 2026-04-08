@@ -2,10 +2,20 @@ import { useState, useCallback } from 'react';
 
 export type GuardianResult = GuardianAnalysisResult;
 
+export interface GuardianCrime {
+  name: string;
+  article?: string;
+  description?: string;
+  confidence?: number;
+}
+
 export interface GuardianAnalysisResult {
   riskScore: number;
   flags: string[];
   recommendation: string;
+  crimes?: GuardianCrime[];
+  flagrancy?: boolean;
+  summary?: string;
 }
 
 export function useGuardianAnalysis() {
@@ -29,5 +39,5 @@ export function useGuardianAnalysis() {
     }
   }, []);
 
-  return { result, loading, analyze };
+  return { result, loading, isLoading: loading, error: null, analyze };
 }

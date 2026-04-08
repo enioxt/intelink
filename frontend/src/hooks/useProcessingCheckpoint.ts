@@ -14,6 +14,7 @@ export interface CheckpointState {
   total: number;
   label: string;
   done: boolean;
+  data?: Record<string, unknown>;
 }
 
 export function useProcessingCheckpoint(total: number) {
@@ -35,5 +36,6 @@ export function useProcessingCheckpoint(total: number) {
   const saveCheckpoint = useCallback((label: string) => advance(label), [advance]);
   const clearCheckpoint = useCallback(() => reset(), [reset]);
 
-  return { checkpoint, advance, reset, saveCheckpoint, clearCheckpoint };
+  const hasUnfinishedWork = !checkpoint.done && checkpoint.step > 0;
+  return { checkpoint, advance, reset, saveCheckpoint, clearCheckpoint, hasUnfinishedWork };
 }

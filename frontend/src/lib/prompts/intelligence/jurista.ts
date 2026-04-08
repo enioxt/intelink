@@ -5,12 +5,26 @@ Seja preciso, cite as leis, artigos e alíneas. Não faça acusações — apres
 export const JURISTA_ANALYSIS_PROMPT = (context: string) =>
   `Analise juridicamente o seguinte contexto:\n\n${context}\n\nIdentifique: tipos penais, artigos aplicáveis, elementares do tipo, e gaps probatórios.`;
 
+export interface JuristaFlagrancy {
+  detected: boolean;
+  type?: string;
+  description?: string;
+}
+
 export interface JuristaCrime {
   type: string;
+  crime?: string;
+  tipificacao?: string;
+  name?: string;
+  article?: string;
   articles: string[];
   description: string;
   confidence: number;
   penalties?: string;
+  pena_base?: string;
+  qualificadoras?: string[];
+  evidencias_no_texto?: string[];
+  flagrancy?: JuristaFlagrancy | boolean;
 }
 
 export interface JuristaAnalysis {
