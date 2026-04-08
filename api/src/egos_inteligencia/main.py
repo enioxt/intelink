@@ -21,6 +21,7 @@ from bracc.routers import (
     analytics,
     auth,
     baseline,
+    benford,  # BENFORD-001
     chat,
     conversations,
     entity,
@@ -105,6 +106,7 @@ app.include_router(graph.router)
 app.include_router(patterns.router)
 app.include_router(nlp.router)  # NER-001: /api/v1/nlp/*
 app.include_router(templates.router)  # TEMPLATE-001: /api/v1/templates/*
+app.include_router(benford.router)  # BENFORD-001: /api/v1/benford/*
 app.include_router(baseline.router)
 app.include_router(investigation.router)
 app.include_router(investigation.shared_router)
