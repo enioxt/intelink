@@ -115,7 +115,7 @@ export async function getAccessibleInvestigations(memberId: string): Promise<str
         .eq('unit_id', memberUnitId);
     
     if (error || !data) return [];
-    return data.map(inv => inv.id);
+    return data.map((inv: any) => inv.id);
 }
 
 /**

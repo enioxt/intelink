@@ -11,8 +11,8 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { 
-    X, Users, Car, MapPin, FileText, Phone, IdCard,
+import {
+    X, Users, Car, MapPin, FileText, Phone, CreditCard as IdCard,
     Calendar, Shield, AlertTriangle, ExternalLink,
     Fingerprint, Home, Briefcase, UserCircle,
     Building2, Target, Loader2, ArrowLeft, ChevronRight, Map
@@ -107,7 +107,7 @@ export interface EntityDetailModalProps {
     entityType?: string;
     investigationId?: string;
     investigationTitle?: string;
-    
+
     // Cross-case alert context (opcional)
     isFromAlert?: boolean;
     matchConfidence?: number;
@@ -157,13 +157,13 @@ export default function EntityDetailModal({
     const [currentEntityId, setCurrentEntityId] = useState(entityId);
     const [navigationHistory, setNavigationHistory] = useState<string[]>([]);
     const [showIndirectModal, setShowIndirectModal] = useState(false);
-    
+
     // Journey tracking (Investigation Diary)
     const { addStep, isRecording } = useJourneySafe();
-    
+
     // Ref to track current fetch and prevent race conditions
     const fetchIdRef = useRef<string | null>(null);
-    
+
     // Telemetry tracking
     const trackClick = async (action: string, targetId: string, targetName: string, targetType: string) => {
         try {
@@ -184,12 +184,12 @@ export default function EntityDetailModal({
             console.error('Telemetry error:', e);
         }
     };
-    
+
     // Handle navigation to another entity (cascade)
     const navigateToEntity = (newEntityId: string, name: string, type: string, relationshipType?: string) => {
         trackClick('navigate_to_entity', newEntityId, name, type);
         setNavigationHistory(prev => [...prev, currentEntityId]);
-        
+
         // Add step to Investigation Journey
         if (isRecording && entity) {
             addStep({
@@ -207,10 +207,10 @@ export default function EntityDetailModal({
                 })) || [],
             });
         }
-        
+
         setCurrentEntityId(newEntityId);
     };
-    
+
     // Go back in navigation history
     const navigateBack = () => {
         if (navigationHistory.length > 0) {
@@ -219,20 +219,20 @@ export default function EntityDetailModal({
             setCurrentEntityId(previousId);
         }
     };
-    
+
     // Open location in Google Maps
     const openGoogleMaps = () => {
         const locationName = entity?.name || entityName || '';
         const query = encodeURIComponent(locationName);
         window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
     };
-    
+
     // Reset when modal opens with new entityId
     useEffect(() => {
         if (isOpen && entityId) {
             setCurrentEntityId(entityId);
             setNavigationHistory([]);
-            
+
             // Track initial entity view in Journey (if recording and we have basic info)
             if (isRecording && entityName && entityType) {
                 addStep({
@@ -265,21 +265,21 @@ export default function EntityDetailModal({
         // Store the entity ID we're fetching to prevent race conditions
         const fetchingId = currentEntityId;
         fetchIdRef.current = fetchingId;
-        
+
         setLoading(true);
         setEntity(null); // Clear previous entity immediately
-        
+
         try {
             // Use API route instead of direct Supabase (bypasses RLS, more reliable)
             console.log('[EntityDetailModal] Loading data for entity:', fetchingId);
             const response = await fetch(`/api/entity/${fetchingId}/related`);
-            
+
             // Check if this fetch is still relevant (user may have clicked another entity)
             if (fetchIdRef.current !== fetchingId) {
                 console.log('[EntityDetailModal] Fetch cancelled - different entity requested');
                 return;
             }
-            
+
             if (!response.ok) {
                 console.error('[EntityDetailModal] API error:', response.status);
                 // Fallback: usar dados passados por props
@@ -294,13 +294,13 @@ export default function EntityDetailModal({
             }
 
             const apiData = await response.json();
-            
+
             // Double-check race condition after async operation
             if (fetchIdRef.current !== fetchingId) {
                 console.log('[EntityDetailModal] Fetch cancelled after response - different entity requested');
                 return;
             }
-            
+
             console.log('[EntityDetailModal] API response:', {
                 entity: apiData.entity?.name,
                 relatedPeople: apiData.relatedPeople?.length,
@@ -368,7 +368,7 @@ export default function EntityDetailModal({
     const colors = ENTITY_COLORS[entity?.type || entityType || 'PERSON'] || ENTITY_COLORS.PERSON;
     const Icon = ENTITY_ICONS[entity?.type || entityType || 'PERSON'] || UserCircle;
     const rawMeta = entity?.metadata || {};
-    
+
     // Normalize field names (support both Portuguese and English field names)
     const meta = {
         ...rawMeta,
@@ -402,7 +402,7 @@ export default function EntityDetailModal({
 
     // Use Portal to render modal at document root (avoids z-index issues in nested containers)
     const modalContent = (
-        <div 
+        <div
             className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999] p-4"
             onClick={(e) => e.target === e.currentTarget && onClose()}
         >
@@ -425,7 +425,7 @@ export default function EntityDetailModal({
                             </span>
                         </div>
                     )}
-                    
+
                     <div className="flex justify-between items-start">
                         <div className="flex items-start gap-4">
                             <div className={`p-3 ${colors.bg} rounded-xl`}>
@@ -501,7 +501,7 @@ export default function EntityDetailModal({
                                             {matchedEntityName && targetInvestigationTitle && (
                                                 <p className="text-xs text-slate-400 mt-1">
                                                     Pode ser a mesma pessoa que <strong className="text-white">{matchedEntityName}</strong> em{' '}
-                                                    <Link 
+                                                    <Link
                                                         href={`/investigation/${targetInvestigationId}`}
                                                         className="text-amber-400 hover:underline"
                                                     >
@@ -513,7 +513,7 @@ export default function EntityDetailModal({
                                     </div>
                                 </div>
                             )}
-                            
+
                             {/* Dados Pessoais (se PERSON) */}
                             {(entity?.type === 'PERSON' || entityType === 'PERSON') && (
                                 <Section
@@ -570,9 +570,9 @@ export default function EntityDetailModal({
                                     colorKey="purple"
                                 >
                                     {groupedRelationships.PERSON.map(r => (
-                                        <RelatedItem 
-                                            key={r.id} 
-                                            item={r} 
+                                        <RelatedItem
+                                            key={r.id}
+                                            item={r}
                                             onClick={() => navigateToEntity(r.relatedEntity.id, r.relatedEntity.name, r.relatedEntity.type)}
                                         />
                                     ))}
@@ -588,9 +588,9 @@ export default function EntityDetailModal({
                                     colorKey="emerald"
                                 >
                                     {groupedRelationships.LOCATION.map(r => (
-                                        <RelatedItem 
-                                            key={r.id} 
-                                            item={r} 
+                                        <RelatedItem
+                                            key={r.id}
+                                            item={r}
                                             onClick={() => navigateToEntity(r.relatedEntity.id, r.relatedEntity.name, r.relatedEntity.type)}
                                         />
                                     ))}
@@ -606,9 +606,9 @@ export default function EntityDetailModal({
                                     colorKey="pink"
                                 >
                                     {groupedRelationships.VEHICLE.map(r => (
-                                        <RelatedItem 
-                                            key={r.id} 
-                                            item={r} 
+                                        <RelatedItem
+                                            key={r.id}
+                                            item={r}
                                             onClick={() => navigateToEntity(r.relatedEntity.id, r.relatedEntity.name, r.relatedEntity.type)}
                                         />
                                     ))}
@@ -624,9 +624,9 @@ export default function EntityDetailModal({
                                     colorKey="amber"
                                 >
                                     {groupedRelationships.ORGANIZATION.map(r => (
-                                        <RelatedItem 
-                                            key={r.id} 
-                                            item={r} 
+                                        <RelatedItem
+                                            key={r.id}
+                                            item={r}
                                             onClick={() => navigateToEntity(r.relatedEntity.id, r.relatedEntity.name, r.relatedEntity.type)}
                                         />
                                     ))}
@@ -642,9 +642,9 @@ export default function EntityDetailModal({
                                     colorKey="rose"
                                 >
                                     {groupedRelationships.WEAPON.map(r => (
-                                        <RelatedItem 
-                                            key={r.id} 
-                                            item={r} 
+                                        <RelatedItem
+                                            key={r.id}
+                                            item={r}
                                             onClick={() => navigateToEntity(r.relatedEntity.id, r.relatedEntity.name, r.relatedEntity.type)}
                                         />
                                     ))}
@@ -708,16 +708,16 @@ export default function EntityDetailModal({
             </div>
         </div>
     );
-    
+
     // Render modal using Portal to avoid z-index issues in nested containers
-    const portalContent = typeof document !== 'undefined' 
+    const portalContent = typeof document !== 'undefined'
         ? createPortal(modalContent, document.body)
         : modalContent;
-    
+
     return (
         <>
             {portalContent}
-            
+
             {/* Indirect Connections Modal (2nd degree - Mycelium) */}
             <IndirectConnectionsModal
                 isOpen={showIndirectModal}
@@ -770,10 +770,10 @@ function Section({ icon, title, subtitle, colorKey, children }: {
     );
 }
 
-function InfoField({ icon, label, value, className = '' }: { 
-    icon: React.ReactNode; 
-    label: string; 
-    value?: string; 
+function InfoField({ icon, label, value, className = '' }: {
+    icon: React.ReactNode;
+    label: string;
+    value?: string;
     className?: string;
 }) {
     return (
@@ -790,7 +790,7 @@ function InfoField({ icon, label, value, className = '' }: {
 function RelatedItem({ item, onClick }: { item: any; onClick?: () => void }) {
     const Icon = ENTITY_ICONS[item.relatedEntity?.type] || UserCircle;
     const colors = ENTITY_COLORS[item.relatedEntity?.type] || ENTITY_COLORS.PERSON;
-    
+
     // Humanize relationship type
     const humanizeType = (type: string) => {
         const translations: Record<string, string> = {

@@ -178,7 +178,7 @@ export async function getLeaderboard(limit: number = 10): Promise<{
     }
     
     return {
-        members: members.map((m, i) => ({
+        members: members.map((m: any, i: number) => ({
             id: m.id,
             name: m.name,
             points: m.points || 0,
@@ -212,7 +212,7 @@ export async function getMemberXPHistory(
         return [];
     }
     
-    return history.map(h => ({
+    return history.map((h: any) => ({
         eventType: h.event_type,
         pointsAwarded: h.points_awarded,
         createdAt: h.created_at,

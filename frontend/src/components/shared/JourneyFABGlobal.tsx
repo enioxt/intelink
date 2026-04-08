@@ -387,7 +387,7 @@ export function JourneyFABGlobal() {
                                 <div className="mb-4">
                                     <div className="text-xs text-slate-400 mb-2">Últimos passos</div>
                                     <div className="space-y-1.5">
-                                        {lastSteps.map((step, i) => (
+                                        {lastSteps.map((step: any, i: number) => (
                                             <div 
                                                 key={`step-${step.stepNumber}-${i}`}
                                                 className="flex items-center gap-2 text-xs bg-slate-900/30 rounded-lg px-3 py-2"

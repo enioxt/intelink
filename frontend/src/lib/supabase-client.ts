@@ -4,6 +4,8 @@
  */
 let client: unknown = null;
 
+export const getSupabase = () => getSupabaseClient();
+
 export function getSupabaseClient() {
   if (client) return client;
 

@@ -22,6 +22,53 @@ export interface CommandDeps {
     };
 }
 
+export interface CommandContext {
+    chatId: number;
+    text: string;
+    userId?: string;
+    investigationId?: string;
+}
+
+export interface CommandDependencies {
+    supabase: SupabaseClient;
+    sendMessage: (chatId: number, text: string, replyMarkup?: unknown) => Promise<void>;
+}
+
+export interface ParsedCommand {
+    command: string;
+    args: string[];
+}
+
+export function parseCommand(text: string): ParsedCommand | null {
+    const trimmed = text.trim();
+    if (!trimmed.startsWith('/')) return null;
+    const parts = trimmed.slice(1).split(/\s+/);
+    return { command: parts[0].toLowerCase(), args: parts.slice(1) };
+}
+
+type CommandHandler = (ctx: CommandContext, deps: CommandDependencies) => Promise<string | void>;
+
+class CommandRegistry {
+    private handlers = new Map<string, CommandHandler>();
+
+    register(command: string, handler: CommandHandler) {
+        this.handlers.set(command, handler);
+    }
+
+    has(command: string): boolean {
+        return this.handlers.has(command);
+    }
+
+    async execute(command: string, ctx: CommandContext, deps: CommandDependencies): Promise<boolean> {
+        const handler = this.handlers.get(command);
+        if (!handler) return false;
+        await handler(ctx, deps);
+        return true;
+    }
+}
+
+export const commandRegistry = new CommandRegistry();
+
 // ============================================
 // MENU FUNCTIONS
 // ============================================
@@ -30,7 +77,7 @@ export interface CommandDeps {
  * Envia menu principal com ações disponíveis
  */
 export async function sendMainMenu(
-    chatId: number, 
+    chatId: number,
     text: string,
     sendMessage: (chatId: number, text: string, replyMarkup?: any) => Promise<void>
 ): Promise<void> {
@@ -67,18 +114,18 @@ export async function sendPromptMenu(
  * Analisa rede de entidades e calcula centralidade
  */
 export async function handleAnalyzeCommand(
-    chatId: number, 
+    chatId: number,
     _text: string,
     deps: CommandDeps
 ): Promise<void> {
     const { supabase, sendMessage, visual } = deps;
-    
+
     const { data: session } = await supabase
         .from('intelink_sessions')
         .select('investigation_id')
         .eq('chat_id', chatId)
         .single();
-        
+
     if (!session?.investigation_id) {
         await sendMessage(chatId, '⚠️ Selecione um caso primeiro.');
         return;
@@ -91,7 +138,7 @@ export async function handleAnalyzeCommand(
         .from('intelink_entities')
         .select('id, name, type')
         .eq('investigation_id', session.investigation_id);
-        
+
     const { data: edges } = await supabase
         .from('intelink_relationships')
         .select('source_id, target_id')
@@ -105,7 +152,7 @@ export async function handleAnalyzeCommand(
     // 2. Build Graph (Adjacency List)
     const graph = new Map<string, string[]>();
     const nodeData = new Map<string, { name: string; type: string }>();
-    
+
     nodes.forEach(n => {
         graph.set(n.id, []);
         nodeData.set(n.id, { name: n.name, type: n.type });
@@ -179,13 +226,13 @@ export async function handleFindingsCommand(
     deps: CommandDeps
 ): Promise<void> {
     const { supabase, sendMessage, visual } = deps;
-    
+
     const { data: session } = await supabase
         .from('intelink_sessions')
         .select('investigation_id')
         .eq('chat_id', chatId)
         .single();
-    
+
     if (!session?.investigation_id) {
         await sendMessage(chatId, '⚠️ Selecione um caso primeiro com `/investigacoes`');
         return;
@@ -253,7 +300,7 @@ _Observações do investigador - NÃO são provas periciais_
         const typeLabel = typeLabels[f.finding_type] || f.finding_type;
         const priority = f.action_priority ? priorityLabels[f.action_priority] || '' : '';
         const confidence = Math.round((f.confidence || 0) * 100);
-        
+
         msg += `${typeLabel}
 **${f.title}**
 ${f.description?.substring(0, 150)}${f.description?.length > 150 ? '...' : ''}

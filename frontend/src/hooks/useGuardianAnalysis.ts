@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
 
+export type GuardianResult = GuardianAnalysisResult;
+
 export interface GuardianAnalysisResult {
   riskScore: number;
   flags: string[];

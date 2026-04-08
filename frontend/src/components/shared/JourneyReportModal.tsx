@@ -212,7 +212,7 @@ export function JourneyReportModal({ isOpen, onClose }: JourneyReportModalProps)
                         </h3>
                         
                         <div className="space-y-2">
-                            {journey?.steps.map((step, i) => (
+                            {journey?.steps.map((step: any, i: number) => (
                                 <div 
                                     key={i}
                                     className="flex items-start gap-2 p-2 bg-slate-800/50 rounded-lg"

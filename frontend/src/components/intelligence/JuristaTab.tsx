@@ -437,7 +437,7 @@ Exemplo: O autor, usando de arma de fogo, abordou a vítima no centro da cidade 
                                                 <div>
                                                     <span className="text-sm text-slate-400">Qualificadoras:</span>
                                                     <div className="flex flex-wrap gap-2 mt-1">
-                                                        {crime.qualificadoras.map((q, i) => (
+                                                        {crime.qualificadoras.map((q: string, i: number) => (
                                                             <span key={i} className="px-2 py-1 bg-red-500/20 text-red-300 text-xs rounded">
                                                                 {q}
                                                             </span>

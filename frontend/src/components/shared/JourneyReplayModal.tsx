@@ -377,7 +377,7 @@ export function JourneyReplayModal({
                                                             Conexões visíveis ({currentStep.visibleConnectionsSnapshot.length})
                                                         </p>
                                                         <div className="flex flex-wrap gap-1 justify-center">
-                                                            {currentStep.visibleConnectionsSnapshot.slice(0, 5).map((conn, idx) => (
+                                                            {currentStep.visibleConnectionsSnapshot.slice(0, 5).map((conn: any, idx: number) => (
                                                                 <span 
                                                                     key={idx}
                                                                     className="px-2 py-0.5 bg-slate-700 rounded text-xs text-slate-300"

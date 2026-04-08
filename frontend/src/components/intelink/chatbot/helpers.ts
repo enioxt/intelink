@@ -286,7 +286,7 @@ async function callTranscribe(audio: Blob): Promise<string> {
 export async function submitSuggestions(hints: ReturnType<typeof usePoliceHints>['hints']) {
   try {
     const API_URL = process.env.NEXT_PUBLIC_INTELINK_API || 'http://localhost:8042/api/v1/intelink';
-    await Promise.all(hints.slice(0,4).map(async (h) => {
+    await Promise.all(hints.slice(0,4).map(async (h: any) => {
       const payload = { term: h.phrase, suggestion: h.suggestion, severity: h.severity };
       await fetch(`${API_URL}/suggestions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     }));

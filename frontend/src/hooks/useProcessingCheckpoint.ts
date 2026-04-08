@@ -1,5 +1,14 @@
 import { useState, useCallback } from 'react';
 
+const CHECKPOINT_STORAGE_KEY = 'egos-processing-checkpoints';
+
+export function getAllCheckpoints(): Record<string, CheckpointState> {
+  if (typeof window === 'undefined') return {};
+  try {
+    return JSON.parse(localStorage.getItem(CHECKPOINT_STORAGE_KEY) ?? '{}');
+  } catch { return {}; }
+}
+
 export interface CheckpointState {
   step: number;
   total: number;

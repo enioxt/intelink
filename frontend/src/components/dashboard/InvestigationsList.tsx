@@ -283,7 +283,7 @@ function InvestigationCard({
                                                 Dados Incompletos
                                             </div>
                                             <ul className="text-xs text-slate-300 space-y-1 mb-3">
-                                                {incompleteInfo.reasons.map((reason, idx) => (
+                                                {incompleteInfo.reasons.map((reason: string, idx: number) => (
                                                     <li key={idx} className="flex items-center gap-2">
                                                         <span className="w-1.5 h-1.5 bg-amber-400 rounded-full"></span>
                                                         {reason}

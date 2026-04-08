@@ -1,4 +1,5 @@
 export type UserRole = 'admin' | 'analyst' | 'viewer';
+export type SystemRole = UserRole;
 
 export function useRole(): { role: UserRole; can: (action: string) => boolean } {
   // TODO: derive from JWT claims

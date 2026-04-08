@@ -149,7 +149,7 @@ export default function AIActionButton({
                                 </div>
                                 {analysisResult.crimes.length > 0 ? (
                                     <div className="space-y-1">
-                                        {analysisResult.crimes.slice(0, 3).map((crime, idx) => (
+                                        {analysisResult.crimes.slice(0, 3).map((crime: any, idx: number) => (
                                             <div key={idx} className="text-xs text-slate-300">
                                                 • {crime.name} ({crime.article})
                                             </div>
