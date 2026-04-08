@@ -21,8 +21,8 @@
 ## P1 — Sprint [PHASE-1 / PHASE-2]
 
 - [x] **[PHASE-1] TEST-API**: 18 testes integração pytest em `api/tests/integration/` (test_health.py, test_search.py, test_public.py)
-- [ ] **[PHASE-1] CICD-001**: GitHub Actions: lint + build + pytest + gitleaks em cada PR
-- [ ] **[PHASE-1] PII-001**: Smoke test: CPF/CNPJ mascarado em 100% das respostas de API
+- [x] **[PHASE-1] CICD-001**: GitHub Actions: lint + build + pytest + gitleaks em cada PR ✅
+- [x] **[PHASE-1] PII-001**: Smoke test: CPF/CNPJ mascarado em 100% das respostas de API — test_health.py L80-86, test_search.py L30-35, test_public.py L45-52
 - [ ] **[PHASE-2] NER-001**: `POST /api/v1/nlp/extract-entities` → expor `bertimbau_ner.py`
 - [ ] **[PHASE-2] PATTERN-001**: `POST /api/v1/patterns/detect` → expor `pattern_detector.py`
 - [ ] **[PHASE-2] TEMPLATE-001**: `GET /api/v1/templates` → expor `investigation_templates.py`
