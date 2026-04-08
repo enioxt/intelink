@@ -73,3 +73,16 @@
 - [ ] **OSINT-004 [P1]**: Módulo de análise de imagens (metadata + geolocalização)
 - [ ] **OSINT-005 [P1]**: Capacitação analistas GeoGuessr + exercícios
 
+
+### Multi-Provider AI Configuration (2026-04-08)
+**SSOT:** `.env.example`, `README.md` | **Status:** ✅ All Complete
+
+- [x] **AI-CONFIG-001**: README.md — Seção multi-provider IA com tabela de preços
+- [x] **AI-CONFIG-002**: .env.example — Documentar 5 provedores de IA
+- [x] **AI-CONFIG-003**: Guia DashScope 1M tokens grátis (passo a passo)
+- [x] **AI-CONFIG-004**: Guia Google AI Studio 1,500 req/dia grátis
+- [x] **AI-CONFIG-005**: Guia OpenRouter modelos gratuitos
+- [x] **AI-CONFIG-006**: Tabela comparativa — Kimi, MiniMax, Nemotron, Gemini, Qwen, Claude, GPT
+- [x] **AI-CONFIG-007**: Recomendações por cenário (polícia, documentos, chat, relatórios)
+- [x] **AI-CONFIG-008**: Configuração multi-provider com fallback automático
+
