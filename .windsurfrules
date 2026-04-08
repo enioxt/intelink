@@ -1,3 +1,6 @@
+# EGOS-KERNEL-PROPAGATED: 2026-04-08
+# Extends: EGOS Kernel (~/.claude/CLAUDE.md) — kernel wins on conflict.
+
 # .windsurfrules — EGOS Inteligência
 # VERSION: 1.0.0 | MAX_LINES: 120 (HARD LIMIT)
 # Extends: EGOS Kernel rules (egos/.guarani/) — kernel wins on conflict.
@@ -42,6 +45,13 @@ public_repo: "github.com/enioxt/intelink"
 - Dark mode first. Tailwind CSS. Lucide icons. Min 40x40px hit areas.
 - No em-dashes in public copy.
 - `docker-compose.yml` is SSOT for runtime. Never use `restart: always`.
+
+## 🌐 DOCUMENTATION RULE (MANDATORY)
+
+- **README.md MUST be in Portuguese** — Primary language is Brazilian Portuguese.
+- **Tone:** inviting, explanatory, welcoming to Brazilian developers.
+- **Include:** emojis for readability, clear quick-start, contribution guidelines.
+- Exception: Code comments may be English; user-facing docs must be PT-BR.
 
 ## 📋 SSOT MAP
 
