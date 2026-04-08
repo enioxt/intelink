@@ -24,6 +24,7 @@ from bracc.routers import (
     benford,  # BENFORD-001
     bnmp,  # BNMP — Mandados de Prisão
     chat,
+    cross_reference,  # Vínculos e Cross-Case
     conversations,
     entity,
     gazette_monitor,
@@ -109,6 +110,7 @@ app.include_router(nlp.router)  # NER-001: /api/v1/nlp/*
 app.include_router(templates.router)  # TEMPLATE-001: /api/v1/templates/*
 app.include_router(benford.router)  # BENFORD-001: /api/v1/benford/*
 app.include_router(bnmp.router)  # BNMP: /api/v1/bnmp/*
+app.include_router(cross_reference.router)  # Cross-Reference: /api/v1/cross-reference/*
 app.include_router(baseline.router)
 app.include_router(investigation.router)
 app.include_router(investigation.shared_router)
