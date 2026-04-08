@@ -1,0 +1,353 @@
+{
+  "investigation": {
+    "id": "INV-2024-003",
+    "title": "Operação Digital Shield", 
+    "description": "Investigação de rede de crimes cibernéticos, fraudes bancárias e ataques ransomware",
+    "status": "ativa",
+    "priority": "alta",
+    "type": "cybercrime",
+    "creation_date": "2024-03-10",
+    "last_update": "2024-08-06",
+    "estimated_damage": "R$ 32.000.000,00",
+    "lead_investigator": "Del. Tech Marcos Vieira",
+    "team": [
+      "Perito Digital Ana Clara",
+      "Inv. Cibernético Paulo Henrique", 
+      "Analista Forense Digital Beatriz Costa",
+      "Agente Federal Cybercrime Lucas Silva"
+    ]
+  },
+  "entities": [
+    {
+      "id": "PER-020",
+      "name": "Gabriel Santos Oliveira",
+      "type": "person",
+      "role": "main_suspect",
+      "description": "Hacker especialista em sistemas bancários e ransomware",
+      "details": {
+        "cpf": "321.654.987-00",
+        "alias": ["GhostCode", "Phantom07", "BankBreaker"],
+        "birth_date": "1992-11-08",
+        "education": "Ciência da Computação - UFRJ (não concluído)",
+        "address": "Apartamento alugado - Tijuca/RJ",
+        "skills": [
+          "Engenharia Social",
+          "Exploits bancários",
+          "Ransomware development",
+          "Cryptocurrency laundering",
+          "Network penetration"
+        ],
+        "equipment": [
+          "15 computadores high-end",
+          "Servidores VPS internacionais",
+          "Hardware de mineração crypto"
+        ]
+      }
+    },
+    {
+      "id": "PER-021", 
+      "name": "Larissa Mendoza",
+      "type": "person",
+      "role": "money_mule",
+      "description": "Operadora financeira, intermediária para lavagem via criptomoedas",
+      "details": {
+        "cpf": "654.987.321-00",
+        "nationality": "Argentina (naturalizada brasileira)",
+        "profession": "Trader de criptomoedas",
+        "address": "São Paulo/SP - Vila Madalena",
+        "specialties": [
+          "Exchanges descentralizadas",
+          "Mixing services",
+          "P2P cryptocurrency trading",
+          "Privacy coins (Monero, Zcash)"
+        ],
+        "wallets": [
+          "Bitcoin: 1A1zP1e...XY (principal)",
+          "Ethereum: 0x742d35C...AB",
+          "Monero: 45ttEik...CD (privacy)"
+        ]
+      }
+    },
+    {
+      "id": "PER-022",
+      "name": "Viktor Petrov",
+      "type": "person",
+      "role": "international_contact",
+      "description": "Hacker russo, fornecedor de malware e infraestrutura",
+      "details": {
+        "nationality": "Russo",
+        "alias": ["RedBear", "MoscowGhost"],
+        "known_locations": [
+          "São Petersburgo, Rússia",
+          "Tallin, Estônia",
+          "Praga, República Tcheca"
+        ],
+        "services": [
+          "Botnet as a Service",
+          "Custom ransomware",
+          "Stolen data marketplace",
+          "VPN and proxy networks"
+        ]
+      }
+    },
+    {
+      "id": "COM-020",
+      "name": "TechSecurity Solutions Ltda",
+      "type": "company",
+      "role": "front_company",
+      "description": "Empresa de fachada para operações cibernéticas",
+      "details": {
+        "cnpj": "11.222.333/0001-44",
+        "founded": "2022-08-20",
+        "capital": "R$ 100.000,00",
+        "declared_activity": "Consultoria em segurança digital",
+        "real_activity": "Base para ataques cibernéticos e lavagem",
+        "address": "Centro Empresarial - Belo Horizonte/MG",
+        "employees": "3 (todos envolvidos)",
+        "infrastructure": [
+          "Servidores dedicados",
+          "Conexões VPN múltiplas",
+          "Hardware especializado"
+        ]
+      }
+    },
+    {
+      "id": "SYS-001",
+      "name": "PhantomLock Ransomware",
+      "type": "malware",
+      "role": "attack_tool",
+      "description": "Ransomware customizado desenvolvido pelo grupo",
+      "details": {
+        "type": "Ransomware-as-a-Service",
+        "encryption": "AES-256 + RSA-4096",
+        "targets": [
+          "Sistemas bancários",
+          "Hospitais",
+          "Prefeituras",
+          "Empresas médias/grandes"
+        ],
+        "ransom_amount": "0.5 - 50 BTC (dependendo da vítima)",
+        "victims": "127 organizações identificadas",
+        "total_damage": "R$ 28.000.000,00"
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "source": "PER-020",
+      "target": "COM-020",
+      "type": "control",
+      "description": "Gabriel usa empresa como base para operações",
+      "strength": 0.90,
+      "evidence": [
+        "Documentos de constituição",
+        "Presença física constante",
+        "Controle dos equipamentos"
+      ]
+    },
+    {
+      "source": "PER-020",
+      "target": "PER-021",
+      "type": "financial_partnership",
+      "description": "Gabriel usa Larissa para lavar produtos dos crimes",
+      "strength": 0.85,
+      "evidence": [
+        "Transferências de criptomoedas",
+        "Comunicações criptografadas",
+        "Cronologia de ataques x movimentações"
+      ]
+    },
+    {
+      "source": "PER-022",
+      "target": "PER-020",
+      "type": "supplier",
+      "description": "Viktor fornece malware e infraestrutura",
+      "strength": 0.88,
+      "evidence": [
+        "Análise de código malicioso",
+        "Pagamentos via cryptocurrency",
+        "Dark web communications"
+      ]
+    },
+    {
+      "source": "PER-020",
+      "target": "SYS-001",
+      "type": "developer",
+      "description": "Gabriel desenvolveu e opera o ransomware",
+      "strength": 0.95,
+      "evidence": [
+        "Análise forense do código",
+        "Padrões de programação",
+        "Chaves de criptografia encontradas"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "EV-020",
+      "type": "digital_forensics",
+      "description": "Análise forense de equipamentos apreendidos",
+      "details": {
+        "devices_analyzed": [
+          "15 computadores",
+          "8 HDs externos",
+          "12 pendrives",
+          "3 smartphones"
+        ],
+        "data_recovered": "47 TB",
+        "key_findings": [
+          "Código fonte do PhantomLock",
+          "Lista de 2.847 vítimas potenciais",
+          "Chaves privadas de wallets",
+          "Comunicações com Viktor"
+        ],
+        "timeline_reconstruction": "completa (2022-2024)"
+      }
+    },
+    {
+      "id": "EV-021", 
+      "type": "financial",
+      "description": "Rastreamento de criptomoedas",
+      "details": {
+        "total_traced": "847 BTC (~R$ 25.000.000)",
+        "exchanges_used": [
+          "Binance",
+          "KuCoin", 
+          "Bisq (descentralizada)",
+          "LocalBitcoins"
+        ],
+        "laundering_methods": [
+          "Coin mixing",
+          "Multiple wallet hops",
+          "Privacy coins conversion",
+          "P2P trading"
+        ],
+        "recovered_funds": "R$ 3.200.000,00"
+      }
+    },
+    {
+      "id": "EV-022",
+      "type": "network_analysis",
+      "description": "Análise de tráfego de rede e infraestrutura",
+      "details": {
+        "command_control_servers": [
+          "185.159.157.13 (Rússia)",
+          "94.142.241.194 (Estônia)",
+          "198.54.117.200 (EUA - VPS)"
+        ],
+        "communication_protocols": [
+          "Tor hidden services",
+          "Encrypted IRC channels",
+          "Custom P2P protocol"
+        ],
+        "attack_patterns": {
+          "peak_activity": "21h-03h UTC-3",
+          "preferred_targets": "Sextas-feiras",
+          "average_dwell_time": "72 horas"
+        }
+      }
+    },
+    {
+      "id": "EV-023",
+      "type": "victim_impact",
+      "description": "Relatórios de vítimas e danos causados",
+      "details": {
+        "total_victims": 127,
+        "victim_categories": [
+          "Bancos (8 casos)",
+          "Hospitais (23 casos)",
+          "Prefeituras (15 casos)",
+          "Empresas privadas (81 casos)"
+        ],
+        "most_significant": [
+          "Hospital São José - Sistemas por 5 dias",
+          "Prefeitura de Nova Esperança - R$ 890K",
+          "Banco Regional - R$ 12M em perdas"
+        ]
+      }
+    }
+  ],
+  "timeline": [
+    {
+      "date": "2022-08-01",
+      "event": "Primeiro contato com Viktor",
+      "description": "Gabriel estabelece parceria para obter ferramentas"
+    },
+    {
+      "date": "2022-10-15",
+      "event": "Desenvolvimento do PhantomLock",
+      "description": "Criação da primeira versão do ransomware"
+    },
+    {
+      "date": "2023-01-20",
+      "event": "Primeiro ataque bem-sucedido",
+      "description": "Ataque ao Hospital Santa Cruz - R$ 150K"
+    },
+    {
+      "date": "2023-06-10",
+      "event": "Parceria com Larissa",
+      "description": "Início da lavagem via criptomoedas"
+    },
+    {
+      "date": "2023-11-30",
+      "event": "Ataque de grande porte",
+      "description": "Banco Regional - maior ataque da organização"
+    },
+    {
+      "date": "2024-02-28",
+      "event": "Denúncia da vítima",
+      "description": "Hospital São José reporta ataque às autoridades"
+    },
+    {
+      "date": "2024-03-10",
+      "event": "Investigação iniciada",
+      "description": "Abertura oficial da investigação"
+    },
+    {
+      "date": "2024-05-15",
+      "event": "Identificação dos suspeitos",
+      "description": "Análise forense leva aos primeiros suspeitos"
+    },
+    {
+      "date": "2024-07-20",
+      "event": "Operação deflagrada",
+      "description": "Busca e apreensão simultânea em 5 locais"
+    }
+  ],
+  "analysis": {
+    "technical_assessment": {
+      "sophistication_level": "Alto",
+      "attack_vectors": [
+        "Spear phishing",
+        "RDP brute force",
+        "Supply chain attacks",
+        "Zero-day exploits"
+      ],
+      "defensive_evasion": [
+        "Anti-forensics techniques",
+        "Encrypted communications",
+        "Distributed infrastructure",
+        "Privacy-focused tools"
+      ]
+    },
+    "financial_impact": {
+      "direct_ransom": "R$ 18.500.000,00",
+      "operational_losses": "R$ 13.500.000,00", 
+      "total_damage": "R$ 32.000.000,00",
+      "recovered": "R$ 3.200.000,00"
+    },
+    "prosecution_outlook": {
+      "strength_of_case": "Muito forte",
+      "key_evidence": [
+        "Código fonte apreendido",
+        "Chaves criptográficas",
+        "Rastreamento financeiro completo"
+      ],
+      "estimated_sentences": [
+        "Gabriel: 15-20 anos",
+        "Larissa: 8-12 anos",
+        "Viktor: Extradição improvável"
+      ]
+    }
+  }
+}

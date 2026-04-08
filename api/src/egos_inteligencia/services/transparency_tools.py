@@ -1,0 +1,1372 @@
+"""Transparency & web search tools for the EGOS Inteligência chatbot.
+
+Tools:
+- web_search: DuckDuckGo HTML search (no API key needed)
+- search_emendas: Portal da Transparência emendas by city/state
+- search_transferencias: Federal transfers to municipalities
+- search_ceap: CEAP parliamentary expenses
+- search_pep_city: Politically exposed persons by city
+"""
+
+import logging
+import os
+import re
+from typing import Any
+from urllib.parse import quote_plus
+
+import httpx
+
+from bracc.services.circuit_breaker import circuit_breaker
+
+logger = logging.getLogger(__name__)
+
+
+async def safe_get(
+    url: str,
+    params: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+    timeout: float = 15.0,
+) -> httpx.Response | None:
+    """HTTP GET with circuit breaker. Returns None if circuit is open or request fails."""
+    from urllib.parse import urlparse
+    host = urlparse(url).hostname or url
+    if not circuit_breaker.allow(host):
+        logger.info("Circuit OPEN for %s — skipping request", host)
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.get(url, params=params, headers=headers or _HEADERS)
+            if resp.status_code < 500:
+                circuit_breaker.record_success(host)
+            else:
+                circuit_breaker.record_failure(host)
+            return resp
+    except Exception as e:
+        circuit_breaker.record_failure(host)
+        logger.warning("Request to %s failed: %s", host, e)
+        return None
+
+
+_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/json",
+    "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+}
+
+# Portal da Transparência base (public, no key needed for HTML scraping)
+_PT_BASE = "https://api.portaldatransparencia.gov.br/api-de-dados"
+# TransfereGov API
+_TG_BASE = "https://api.transferegov.gestao.gov.br"
+
+
+async def tool_web_search(query: str, max_results: int = 8) -> list[dict[str, str]]:
+    """Web search: Brave Search API primary, DuckDuckGo fallback."""
+    results: list[dict[str, str]] = []
+    brave_key = os.environ.get("BRAVE_API_KEY", "")
+
+    # Try Brave Search first
+    if brave_key:
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.get(
+                    "https://api.search.brave.com/res/v1/web/search",
+                    params={"q": query, "count": max_results, "search_lang": "pt-br"},
+                    headers={"Accept": "application/json", "X-Subscription-Token": brave_key},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    for r in data.get("web", {}).get("results", [])[:max_results]:
+                        results.append({
+                            "title": r.get("title", ""),
+                            "url": r.get("url", ""),
+                            "snippet": r.get("description", "")[:300],
+                        })
+                    if results:
+                        return results
+        except Exception as e:
+            logger.warning("Brave search failed, falling back to DDG: %s", e)
+
+    # Fallback: DuckDuckGo HTML (multiple regex patterns for resilience)
+    url = f"https://html.duckduckgo.com/html/?q={quote_plus(query)}"
+    try:
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            resp = await client.get(url, headers=_HEADERS)
+            html = resp.text
+
+        # Pattern 1: Classic DDG HTML (class="result__a" + class="result__snippet")
+        snippets = re.findall(
+            r'<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>(.+?)</a>.*?'
+            r'<a[^>]+class="result__snippet"[^>]*>(.+?)</a>',
+            html, re.DOTALL,
+        )
+        # Pattern 2: Alternative DDG layout (result-link + result-snippet)
+        if not snippets:
+            snippets = re.findall(
+                r'<a[^>]+class="[^"]*result[_-]?link[^"]*"[^>]+href="([^"]+)"[^>]*>(.+?)</a>.*?'
+                r'<[^>]+class="[^"]*result[_-]?snippet[^"]*"[^>]*>(.+?)</[^>]+>',
+                html, re.DOTALL,
+            )
+        # Pattern 3: Generic link + text extraction from result divs
+        if not snippets:
+            blocks = re.findall(
+                r'<div[^>]+class="[^"]*result[^"]*"[^>]*>(.+?)</div>\s*</div>',
+                html, re.DOTALL,
+            )
+            for block in blocks[:max_results]:
+                link_m = re.search(r'href="(https?://[^"]+)"', block)
+                title_m = re.search(r'>([^<]{10,})<', block)
+                if link_m and title_m:
+                    snippets.append((link_m.group(1), title_m.group(1), block[:300]))
+
+        from urllib.parse import unquote
+        for href, title, snippet in snippets[:max_results]:
+            actual_url = href
+            if "uddg=" in href:
+                m = re.search(r"uddg=([^&]+)", href)
+                if m:
+                    actual_url = unquote(m.group(1))
+            results.append({
+                "title": re.sub(r"<[^>]+>", "", title).strip()[:200],
+                "url": actual_url,
+                "snippet": re.sub(r"<[^>]+>", "", snippet).strip()[:300],
+            })
+    except Exception as e:
+        logger.warning("DDG search also failed: %s", e)
+
+    # Fallback 3: If both Brave and DDG failed, return empty with message
+    if not results:
+        results.append({"title": f"Busca web indisponível para: {query[:80]}", "url": "", "snippet": "Brave API e DuckDuckGo falharam. Tente novamente em alguns minutos."})
+
+    return results
+
+
+async def tool_search_emendas(municipio: str, uf: str = "", ano: int = 2024) -> dict[str, Any]:
+    """Search parliamentary amendments (emendas) for a municipality.
+    Uses Portal da Transparência web scraping."""
+    query = f"emendas parlamentares {municipio} {uf} {ano} site:portaldatransparencia.gov.br"
+    web_results = await tool_web_search(query, max_results=3)
+
+    # Also search for actual data via TransfereGov if possible
+    tg_results: list[dict[str, Any]] = []
+    try:
+        search_url = f"https://api.transferegov.gestao.gov.br/transferenciasespeciais/transferencia?nome_municipio=ilike.*{quote_plus(municipio)}*&limit=10"
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(search_url, headers={"Accept": "application/json"})
+            if resp.status_code == 200:
+                data = resp.json()
+                if isinstance(data, list):
+                    for item in data[:10]:
+                        tg_results.append({
+                            "parlamentar": item.get("nome_parlamentar", ""),
+                            "valor": item.get("valor_transferencia", 0),
+                            "municipio": item.get("nome_municipio", ""),
+                            "uf": item.get("sigla_uf", ""),
+                            "objeto": item.get("objeto", "")[:200],
+                            "ano": item.get("ano_emenda", ""),
+                        })
+    except Exception as e:
+        logger.warning("TransfereGov API failed: %s", e)
+
+    return {
+        "municipio": municipio,
+        "uf": uf,
+        "ano": ano,
+        "transferegov_results": tg_results,
+        "web_references": web_results,
+        "fonte": "TransfereGov API + Portal da Transparência",
+    }
+
+
+async def tool_search_transferencias(municipio: str, uf: str = "", ano: int = 2024) -> dict[str, Any]:
+    """Search federal transfers to a municipality."""
+    query = f"transferencias federais {municipio} {uf} {ano} site:portaldatransparencia.gov.br OR site:tesourotransparente.gov.br"
+    web_results = await tool_web_search(query, max_results=3)
+
+    # Try TransfereGov convenios API
+    convenios: list[dict[str, Any]] = []
+    try:
+        conv_url = f"https://api.transferegov.gestao.gov.br/convenio?nome_municipio=ilike.*{quote_plus(municipio)}*&limit=10&order=valor_global.desc"
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(conv_url, headers={"Accept": "application/json"})
+            if resp.status_code == 200:
+                data = resp.json()
+                if isinstance(data, list):
+                    for item in data[:10]:
+                        convenios.append({
+                            "proponente": item.get("nome_proponente", ""),
+                            "valor_global": item.get("valor_global", 0),
+                            "objeto": item.get("objeto_proposta", "")[:200],
+                            "situacao": item.get("situacao_proposta", ""),
+                            "orgao": item.get("nome_orgao_concedente", ""),
+                        })
+    except Exception as e:
+        logger.warning("TransfereGov convenios failed: %s", e)
+
+    return {
+        "municipio": municipio,
+        "convenios": convenios,
+        "web_references": web_results,
+        "fonte": "TransfereGov API + Tesouro Transparente",
+    }
+
+
+async def tool_search_ceap(parlamentar: str = "", uf: str = "", ano: int = 2024) -> dict[str, Any]:
+    """Search CEAP (Cota para Exercício da Atividade Parlamentar) expenses.
+    Uses Dados Abertos da Câmara API."""
+    results: list[dict[str, Any]] = []
+    try:
+        # Câmara dos Deputados API - public, no key needed
+        params = {"ano": ano, "itens": 10, "ordem": "DESC", "ordenarPor": "dataDocumento"}
+        if uf:
+            params["siglaUf"] = uf.upper()
+
+        # First find the deputado by name
+        if parlamentar:
+            dep_url = f"https://dadosabertos.camara.leg.br/api/v2/deputados?nome={quote_plus(parlamentar)}&ordem=ASC&ordenarPor=nome"
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.get(dep_url, headers={"Accept": "application/json"})
+                if resp.status_code == 200:
+                    deps = resp.json().get("dados", [])
+                    for dep in deps[:3]:
+                        dep_id = dep.get("id")
+                        dep_name = dep.get("nome", "")
+                        dep_party = dep.get("siglaPartido", "")
+                        dep_uf = dep.get("siglaUf", "")
+
+                        # Get expenses for this deputado
+                        exp_url = f"https://dadosabertos.camara.leg.br/api/v2/deputados/{dep_id}/despesas?ano={ano}&itens=15&ordem=DESC&ordenarPor=dataDocumento"
+                        exp_resp = await client.get(exp_url, headers={"Accept": "application/json"})
+                        if exp_resp.status_code == 200:
+                            expenses = exp_resp.json().get("dados", [])
+                            total = sum(float(e.get("valorDocumento", 0)) for e in expenses)
+                            top_categories: dict[str, float] = {}
+                            for e in expenses:
+                                cat = e.get("tipoDespesa", "Outros")
+                                top_categories[cat] = top_categories.get(cat, 0) + float(e.get("valorDocumento", 0))
+
+                            results.append({
+                                "deputado": dep_name,
+                                "partido": dep_party,
+                                "uf": dep_uf,
+                                "total_amostra": round(total, 2),
+                                "num_despesas": len(expenses),
+                                "top_categorias": dict(sorted(top_categories.items(), key=lambda x: -x[1])[:5]),
+                                "despesas_recentes": [
+                                    {
+                                        "tipo": e.get("tipoDespesa", ""),
+                                        "fornecedor": e.get("nomeFornecedor", ""),
+                                        "cnpj_fornecedor": e.get("cnpjCpfFornecedor", ""),
+                                        "valor": float(e.get("valorDocumento", 0)),
+                                        "data": e.get("dataDocumento", ""),
+                                    }
+                                    for e in expenses[:5]
+                                ],
+                            })
+        else:
+            # No specific parlamentar - list top spenders from UF
+            if uf:
+                try:
+                    dep_url = f"https://dadosabertos.camara.leg.br/api/v2/deputados?siglaUf={uf.upper()}&ordem=ASC&ordenarPor=nome&itens=15"
+                    async with httpx.AsyncClient(timeout=15.0) as client:
+                        resp = await client.get(dep_url, headers={"Accept": "application/json"})
+                        if resp.status_code == 200:
+                            deps = resp.json().get("dados", [])
+                            for dep in deps[:8]:
+                                dep_id = dep.get("id")
+                                dep_name = dep.get("nome", "")
+                                dep_party = dep.get("siglaPartido", "")
+                                exp_url = f"https://dadosabertos.camara.leg.br/api/v2/deputados/{dep_id}/despesas?ano={ano}&itens=10&ordem=DESC&ordenarPor=dataDocumento"
+                                exp_resp = await client.get(exp_url, headers={"Accept": "application/json"})
+                                if exp_resp.status_code == 200:
+                                    expenses = exp_resp.json().get("dados", [])
+                                    total = sum(float(e.get("valorDocumento", 0)) for e in expenses)
+                                    if total > 0:
+                                        results.append({
+                                            "deputado": dep_name,
+                                            "partido": dep_party,
+                                            "uf": uf.upper(),
+                                            "total_amostra": round(total, 2),
+                                            "num_despesas": len(expenses),
+                                        })
+                except Exception as e:
+                    logger.warning("CEAP UF search failed: %s", e)
+            if not results:
+                query = f"CEAP despesas parlamentares {uf} {ano}"
+                web_results = await tool_web_search(query, max_results=3)
+                return {"uf": uf, "ano": ano, "web_references": web_results, "fonte": "Dados Abertos da Câmara"}
+
+    except Exception as e:
+        logger.warning("CEAP search failed: %s", e)
+
+    return {
+        "parlamentar": parlamentar,
+        "uf": uf,
+        "ano": ano,
+        "resultados": results,
+        "fonte": "Dados Abertos da Câmara dos Deputados (dadosabertos.camara.leg.br)",
+    }
+
+
+async def tool_search_pep_city(cidade: str, uf: str = "") -> dict[str, Any]:
+    """Search politically exposed persons (PEPs) and public figures for a city.
+    Combines Neo4j graph data with web search."""
+    # Search for politicians, judges, prosecutors in this city
+    queries = [
+        f"prefeito vereador {cidade} {uf} 2024",
+        f"politicos investigados {cidade} {uf}",
+        f"deputado federal {uf} emendas {cidade}",
+    ]
+
+    all_results: list[dict[str, str]] = []
+    for q in queries:
+        results = await tool_web_search(q, max_results=2)
+        all_results.extend(results)
+
+    # Search Câmara API for deputies from this state
+    deputados: list[dict[str, str]] = []
+    if uf:
+        try:
+            dep_url = f"https://dadosabertos.camara.leg.br/api/v2/deputados?siglaUf={uf.upper()}&ordem=ASC&ordenarPor=nome&itens=50"
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.get(dep_url, headers={"Accept": "application/json"})
+                if resp.status_code == 200:
+                    deps = resp.json().get("dados", [])
+                    for dep in deps:
+                        deputados.append({
+                            "nome": dep.get("nome", ""),
+                            "partido": dep.get("siglaPartido", ""),
+                            "uf": dep.get("siglaUf", ""),
+                            "email": dep.get("email", ""),
+                            "id_camara": str(dep.get("id", "")),
+                        })
+        except Exception as e:
+            logger.warning("Deputados API failed: %s", e)
+
+    return {
+        "cidade": cidade,
+        "uf": uf,
+        "deputados_federais": deputados,
+        "web_references": all_results,
+        "dica": f"Use search_ceap com o nome do deputado para ver gastos. Use search_emendas com '{cidade}' para ver emendas direcionadas.",
+        "fonte": "Dados Abertos da Câmara + Web Search",
+    }
+
+
+# Querido Diário API (Open Knowledge Brasil) — free, no API key
+_QD_BASE = "https://api.queridodiario.ok.org.br"
+
+# IBGE codes for major cities (expand as needed)
+_IBGE_CODES: dict[str, str] = {
+    "uberlandia": "3170206", "sao paulo": "3550308", "rio de janeiro": "3304557",
+    "belo horizonte": "3106200", "brasilia": "5300108", "curitiba": "4106902",
+    "salvador": "2927408", "fortaleza": "2304400", "recife": "2611606",
+    "porto alegre": "4314902", "goiania": "5208707", "manaus": "1302603",
+    "campinas": "3509502", "patos de minas": "3148004", "uberaba": "3170107",
+    "juiz de fora": "3136702", "florianopolis": "4205407", "vitoria": "3205309",
+    "natal": "2408102", "joao pessoa": "2507507", "maceio": "2704302",
+    "campo grande": "5002704", "teresina": "2211001", "sao luis": "2111300",
+    "aracaju": "2800308", "cuiaba": "5103403", "belem": "1501402",
+    "macapa": "1600303", "palmas": "1721000", "boa vista": "1400100",
+    "porto velho": "1100205", "rio branco": "1200401",
+}
+
+
+async def tool_search_gazettes(municipio: str, query: str = "", max_results: int = 5) -> dict[str, Any]:
+    """Search municipal official gazettes via Querido Diário API."""
+    municipio_lower = municipio.lower().strip()
+
+    # Try to find IBGE code
+    territory_id = _IBGE_CODES.get(municipio_lower, "")
+
+    results: list[dict[str, Any]] = []
+    try:
+        # If we don't have the IBGE code, search for the city first
+        if not territory_id:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                city_resp = await client.get(f"{_QD_BASE}/cities?city_name={quote_plus(municipio)}")
+                if city_resp.status_code == 200:
+                    cities = city_resp.json().get("cities", [])
+                    if cities:
+                        territory_id = cities[0].get("territory_id", "")
+
+        if not territory_id:
+            return {"municipio": municipio, "error": "Cidade nao encontrada no Querido Diario", "dica": "Tente o nome completo da cidade"}
+
+        # Search gazettes
+        search_query = query if query else municipio
+        params = {
+            "territory_ids": territory_id,
+            "querystring": search_query,
+            "excerpt_size": 300,
+            "number_of_excerpts": 2,
+            "size": min(max_results, 10),
+            "sort_by": "descending_date",
+        }
+
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.get(f"{_QD_BASE}/gazettes", params=params)
+            if resp.status_code == 200:
+                data = resp.json()
+                total = data.get("total_gazettes", 0)
+                for gz in data.get("gazettes", [])[:max_results]:
+                    excerpts = gz.get("excerpts", [])
+                    results.append({
+                        "data": gz.get("date", ""),
+                        "municipio": gz.get("territory_name", municipio),
+                        "uf": gz.get("state_code", ""),
+                        "url": gz.get("url", ""),
+                        "trechos": [e[:300] for e in excerpts[:2]],
+                        "edicao": gz.get("edition", ""),
+                    })
+
+                return {
+                    "municipio": municipio,
+                    "territory_id": territory_id,
+                    "query": search_query,
+                    "total_resultados": total,
+                    "resultados": results,
+                    "fonte": "Querido Diário (queridodiario.ok.org.br) — Open Knowledge Brasil",
+                }
+
+    except Exception as e:
+        logger.warning("Querido Diario search failed: %s", e)
+
+    return {"municipio": municipio, "query": query, "resultados": results, "fonte": "Querido Diário"}
+
+
+async def tool_cnpj_info(cnpj: str) -> dict[str, Any]:
+    """Get company info and partners by CNPJ via Querido Diário API."""
+    # Clean CNPJ
+    cnpj_clean = re.sub(r"[^0-9]", "", cnpj)
+    if len(cnpj_clean) != 14:
+        return {"error": f"CNPJ invalido: {cnpj}. Deve ter 14 digitos."}
+
+    info: dict[str, Any] = {}
+    partners: list[dict[str, str]] = []
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            # Company info
+            resp = await client.get(f"{_QD_BASE}/company/info/{cnpj_clean}")
+            if resp.status_code == 200:
+                data = resp.json()
+                info = {
+                    "cnpj": data.get("cnpj_basico", cnpj_clean),
+                    "razao_social": data.get("razao_social", ""),
+                    "nome_fantasia": data.get("nome_fantasia", ""),
+                    "situacao": data.get("situacao_cadastral", ""),
+                    "natureza_juridica": data.get("natureza_juridica", ""),
+                    "porte": data.get("porte_empresa", ""),
+                    "capital_social": data.get("capital_social", 0),
+                    "cnae_principal": data.get("cnae_fiscal_principal", ""),
+                    "municipio": data.get("municipio", ""),
+                    "uf": data.get("uf", ""),
+                    "data_inicio": data.get("data_inicio_atividade", ""),
+                }
+
+            # Partners
+            resp2 = await client.get(f"{_QD_BASE}/company/partners/{cnpj_clean}")
+            if resp2.status_code == 200:
+                data2 = resp2.json()
+                for p in data2.get("socios", data2 if isinstance(data2, list) else []):
+                    if isinstance(p, dict):
+                        partners.append({
+                            "nome": p.get("nome_socio", p.get("nome", "")),
+                            "qualificacao": p.get("qualificacao_socio", ""),
+                            "data_entrada": p.get("data_entrada_sociedade", ""),
+                        })
+
+    except Exception as e:
+        logger.warning("CNPJ lookup failed: %s", e)
+
+    return {
+        "cnpj": cnpj_clean,
+        "empresa": info,
+        "socios": partners,
+        "dica": "Use search_entities com o nome dos sócios para encontrar conexões no grafo. Use search_gazettes com o CNPJ para ver menções em diários oficiais.",
+        "fonte": "Querido Diário (CNPJ) + Receita Federal",
+    }
+
+
+
+async def tool_search_votacoes(parlamentar: str = "", proposicao: str = "", ano: int = 2024) -> dict[str, Any]:
+    """Search roll call votes (votações nominais) from Câmara dos Deputados API."""
+    results: list[dict[str, Any]] = []
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            if parlamentar:
+                # Find deputy first
+                dep_url = f"https://dadosabertos.camara.leg.br/api/v2/deputados?nome={quote_plus(parlamentar)}&ordem=ASC&ordenarPor=nome"
+                resp = await client.get(dep_url, headers={"Accept": "application/json"})
+                if resp.status_code == 200:
+                    deps = resp.json().get("dados", [])
+                    for dep in deps[:2]:
+                        dep_id = dep.get("id")
+                        dep_name = dep.get("nome", "")
+                        # Get recent votes
+                        # First get recent votações
+                        vot_url = "https://dadosabertos.camara.leg.br/api/v2/votacoes?ordem=DESC&ordenarPor=dataHoraRegistro&itens=5"
+                        vot_resp = await client.get(vot_url, headers={"Accept": "application/json"})
+                        if vot_resp.status_code == 200:
+                            votacoes = vot_resp.json().get("dados", [])
+                            for vot in votacoes[:5]:
+                                vot_id = vot.get("id", "")
+                                # Check how this deputy voted
+                                votos_url = f"https://dadosabertos.camara.leg.br/api/v2/votacoes/{vot_id}/votos"
+                                votos_resp = await client.get(votos_url, headers={"Accept": "application/json"})
+                                if votos_resp.status_code == 200:
+                                    votos = votos_resp.json().get("dados", [])
+                                    dep_voto = next((v for v in votos if v.get("deputado_", {}).get("id") == dep_id), None)
+                                    if dep_voto:
+                                        results.append({
+                                            "deputado": dep_name,
+                                            "votacao": vot.get("descricao", "")[:150],
+                                            "data": vot.get("dataHoraRegistro", "")[:10],
+                                            "voto": dep_voto.get("tipoVoto", ""),
+                                            "proposicao": vot.get("proposicao_", {}).get("ementa", "")[:200] if vot.get("proposicao_") else "",
+                                        })
+            else:
+                # List recent votações
+                vot_url = "https://dadosabertos.camara.leg.br/api/v2/votacoes?ordem=DESC&ordenarPor=dataHoraRegistro&itens=10"
+                resp = await client.get(vot_url, headers={"Accept": "application/json"})
+                if resp.status_code == 200:
+                    votacoes = resp.json().get("dados", [])
+                    for vot in votacoes[:10]:
+                        # Count votes
+                        vot_id = vot.get("id", "")
+                        sim = nao = abst = 0
+                        votos_url = f"https://dadosabertos.camara.leg.br/api/v2/votacoes/{vot_id}/votos"
+                        votos_resp = await client.get(votos_url, headers={"Accept": "application/json"})
+                        if votos_resp.status_code == 200:
+                            votos = votos_resp.json().get("dados", [])
+                            for v in votos:
+                                tipo = v.get("tipoVoto", "")
+                                if tipo == "Sim":
+                                    sim += 1
+                                elif tipo in ("Não", "Nao"):
+                                    nao += 1
+                                else:
+                                    abst += 1
+
+                        results.append({
+                            "descricao": vot.get("descricao", "")[:200],
+                            "data": vot.get("dataHoraRegistro", "")[:10],
+                            "aprovada": vot.get("aprovacao", None),
+                            "sim": sim,
+                            "nao": nao,
+                            "abstencoes": abst,
+                        })
+
+    except Exception as e:
+        logger.warning("Votacoes search failed: %s", e)
+
+    return {
+        "parlamentar": parlamentar,
+        "ano": ano,
+        "votacoes": results,
+        "fonte": "Dados Abertos da Câmara dos Deputados (votações nominais)",
+        "dica": "Use com o nome de um deputado para ver como ele votou em cada proposição.",
+    }
+
+
+
+# ─── Portal da Transparência (with API key) ───────────────────────────
+
+PORTAL_API_KEY = os.environ.get("PORTAL_TRANSPARENCIA_API_KEY", "")
+PORTAL_BASE = "https://api.portaldatransparencia.gov.br/api-de-dados"
+PORTAL_HEADERS = {
+    "Accept": "application/json",
+    "chave-api-dados": PORTAL_API_KEY,
+}
+
+
+async def tool_search_servidores(nome: str = "", cpf: str = "", orgao: str = "") -> dict[str, Any]:
+    """Search federal public servants — name, salary, position, org."""
+    # SIAPE org codes for common searches (supersalários)
+    SIAPE_CODES = {
+        "senado": "11001", "camara": "1001", "tcu": "3001",
+        "stf": "10001", "stj": "10002", "tse": "10003",
+        "presidencia": "20101", "mre": "30101", "fazenda": "25101",
+        "defesa": "52101", "saude": "36101", "educacao": "26101",
+        "justica": "30901", "planejamento": "47101", "cgu": "20109",
+        "agu": "56101", "mpf": "34101", "dpf": "30107",
+    }
+    results: list[dict[str, Any]] = []
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            params: dict[str, str] = {"pagina": "1"}
+            if cpf:
+                params["cpfServidor"] = cpf.replace(".", "").replace("-", "")
+            elif orgao:
+                # Try to resolve org name to SIAPE code
+                orgao_lower = orgao.lower().strip()
+                resolved_code = SIAPE_CODES.get(orgao_lower, orgao)
+                params["codigoOrgaoServidorExercicio"] = resolved_code
+            elif nome:
+                # Name-only search: try top organs for supersalários
+                for org_name, org_code in [("senado", "11001"), ("stf", "10001"), ("camara", "1001")]:
+                    params_try = {"pagina": "1", "codigoOrgaoServidorExercicio": org_code}
+                    resp = await client.get(
+                        f"{PORTAL_BASE}/servidores",
+                        params=params_try,
+                        headers=PORTAL_HEADERS,
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        if isinstance(data, list):
+                            for s in data[:5]:
+                                srv_nome = s.get("nome", "")
+                                if nome.upper() in srv_nome.upper() or not nome:
+                                    results.append({
+                                        "nome": srv_nome,
+                                        "cargo": s.get("cargo", {}).get("descricao", "") if isinstance(s.get("cargo"), dict) else "",
+                                        "orgao_exercicio": s.get("orgaoServidorExercicio", {}).get("nome", "") if isinstance(s.get("orgaoServidorExercicio"), dict) else org_name.upper(),
+                                        "situacao": s.get("situacaoServidor", {}).get("descricao", "") if isinstance(s.get("situacaoServidor"), dict) else "",
+                                    })
+                    if len(results) >= 10:
+                        break
+                return {
+                    "query": nome,
+                    "servidores": results[:10],
+                    "fonte": "Portal da Transparência — Servidores do Poder Executivo Federal",
+                    "nota": "Busca por nome pesquisa nos 3 maiores órgãos (Senado, STF, Câmara). Use CPF para busca exata.",
+                }
+            else:
+                # No filters: search Senado (highest salaries)
+                params["codigoOrgaoServidorExercicio"] = "11001"
+
+            resp = await client.get(
+                f"{PORTAL_BASE}/servidores",
+                params=params,
+                headers=PORTAL_HEADERS,
+            )
+            if resp.status_code == 200:
+                for s in resp.json()[:10]:
+                    results.append({
+                        "nome": s.get("nome", ""),
+                        "cpf": s.get("cpf", ""),
+                        "cargo": s.get("cargo", {}).get("descricao", "") if isinstance(s.get("cargo"), dict) else s.get("descricaoCargo", ""),
+                        "orgao_exercicio": s.get("orgaoServidorExercicio", {}).get("nome", "") if isinstance(s.get("orgaoServidorExercicio"), dict) else "",
+                        "orgao_lotacao": s.get("orgaoServidorLotacao", {}).get("nome", "") if isinstance(s.get("orgaoServidorLotacao"), dict) else "",
+                        "situacao": s.get("situacaoServidor", {}).get("descricao", "") if isinstance(s.get("situacaoServidor"), dict) else "",
+                        "remuneracao_bruta": s.get("remuneracaoBruta", ""),
+                        "remuneracao_liquida": s.get("remuneracaoAposDeducoes", ""),
+                    })
+            else:
+                logger.warning("Portal servidores HTTP %s", resp.status_code)
+    except Exception as e:
+        logger.warning("Portal servidores failed: %s", e)
+
+    return {
+        "query": nome or cpf,
+        "servidores": results,
+        "fonte": "Portal da Transparência — Servidores do Poder Executivo Federal",
+        "dica": "Use o CPF para busca exata. Combine com CNPJ para investigar servidores donos de empresas.",
+    }
+
+
+async def tool_search_licitacoes(orgao: str = "", uf: str = "", modalidade: str = "", ano: int = 2024) -> dict[str, Any]:
+    """Search federal government procurement/bids."""
+    results: list[dict[str, Any]] = []
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            params: dict[str, str] = {"pagina": "1", "dataInicial": f"01/01/{ano}", "dataFinal": f"31/12/{ano}"}
+            # Licitacoes requires codigoOrgao — use contratos endpoint which is more flexible
+            if orgao:
+                params["codigoOrgao"] = orgao
+            # Try contratos endpoint instead (more flexible filters)
+            resp = await client.get(
+                f"{PORTAL_BASE}/contratos",
+                params=params,
+                headers=PORTAL_HEADERS,
+            )
+            if resp.status_code == 200:
+                for l in resp.json()[:10]:
+                    results.append({
+                        "numero": l.get("numero", ""),
+                        "objeto": l.get("objeto", "")[:200],
+                        "orgao": l.get("orgao", {}).get("nome", "") if isinstance(l.get("orgao"), dict) else "",
+                        "modalidade": l.get("modalidadeLicitacao", {}).get("descricao", "") if isinstance(l.get("modalidadeLicitacao"), dict) else "",
+                        "valor_estimado": l.get("valorEstimado", ""),
+                        "situacao": l.get("situacao", {}).get("descricao", "") if isinstance(l.get("situacao"), dict) else "",
+                        "data_abertura": l.get("dataAbertura", ""),
+                    })
+            else:
+                logger.warning("Portal licitacoes HTTP %s", resp.status_code)
+    except Exception as e:
+        logger.warning("Portal licitacoes failed: %s", e)
+
+    return {
+        "uf": uf,
+        "ano": ano,
+        "licitacoes": results,
+        "fonte": "Portal da Transparência — Licitações do Poder Executivo Federal",
+    }
+
+
+async def tool_search_cpgf(nome: str = "", orgao: str = "", mes: int = 0, ano: int = 2024) -> dict[str, Any]:
+    """Search government credit card (CPGF) expenses."""
+    results: list[dict[str, Any]] = []
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            params: dict[str, str] = {"pagina": "1"}
+            if nome:
+                params["nomePortadorCartao"] = nome
+            if orgao:
+                params["codigoOrgao"] = orgao
+            if mes:
+                params["mesExtrato"] = str(mes)
+            params["anoExtrato"] = str(ano)
+
+            resp = await client.get(
+                f"{PORTAL_BASE}/cartoes",
+                params=params,
+                headers=PORTAL_HEADERS,
+            )
+            if resp.status_code == 200:
+                for c in resp.json()[:10]:
+                    results.append({
+                        "portador": c.get("nomePortadorCartao", ""),
+                        "cpf_portador": c.get("cpfPortadorCartao", ""),
+                        "orgao": c.get("orgao", {}).get("nome", "") if isinstance(c.get("orgao"), dict) else "",
+                        "valor_transacao": c.get("valorTransacao", ""),
+                        "nome_favorecido": c.get("nomeFavorecido", ""),
+                        "data_transacao": c.get("dataTransacao", ""),
+                        "tipo_transacao": c.get("tipoTransacao", ""),
+                    })
+            else:
+                logger.warning("Portal CPGF HTTP %s", resp.status_code)
+    except Exception as e:
+        logger.warning("Portal CPGF failed: %s", e)
+
+    return {
+        "query": nome or orgao,
+        "ano": ano,
+        "gastos_cartao": results,
+        "fonte": "Portal da Transparência — Gastos por Cartão de Pagamento (CPGF)",
+        "dica": "CPGF = cartão corporativo do governo. Investigue gastos suspeitos: restaurantes caros, viagens, compras pessoais.",
+    }
+
+
+async def tool_search_viagens(nome: str = "", orgao: str = "", ano: int = 2024) -> dict[str, Any]:
+    """Search government travel expenses."""
+    results: list[dict[str, Any]] = []
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            params: dict[str, str] = {"pagina": "1"}
+            if nome:
+                params["nomeProposto"] = nome
+            if orgao:
+                params["codigoOrgao"] = orgao
+            params["anoViagem"] = str(ano)
+
+            resp = await client.get(
+                f"{PORTAL_BASE}/viagens",
+                params=params,
+                headers=PORTAL_HEADERS,
+            )
+            if resp.status_code == 200:
+                for v in resp.json()[:10]:
+                    results.append({
+                        "nome": v.get("nomeProposto", ""),
+                        "cargo": v.get("cargo", ""),
+                        "orgao": v.get("orgao", {}).get("nome", "") if isinstance(v.get("orgao"), dict) else "",
+                        "destino": v.get("destino", ""),
+                        "data_ida": v.get("dataIdaViagem", ""),
+                        "data_volta": v.get("dataVoltaViagem", ""),
+                        "valor_diarias": v.get("valorDiarias", ""),
+                        "valor_passagens": v.get("valorPassagens", ""),
+                        "motivo": v.get("motivo", "")[:150],
+                    })
+            else:
+                logger.warning("Portal viagens HTTP %s", resp.status_code)
+    except Exception as e:
+        logger.warning("Portal viagens failed: %s", e)
+
+    return {
+        "query": nome or orgao,
+        "ano": ano,
+        "viagens": results,
+        "fonte": "Portal da Transparência — Viagens a Serviço do Governo Federal",
+        "dica": "Compare viagens com votações: servidor viajou mas não estava no órgão? Viagens repetidas ao mesmo destino?",
+    }
+
+
+async def tool_search_contratos(orgao: str = "", fornecedor: str = "", ano: int = 2024) -> dict[str, Any]:
+    """Search federal government contracts."""
+    results: list[dict[str, Any]] = []
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            params: dict[str, str] = {"pagina": "1"}
+            if fornecedor:
+                params["nomeFornecedor"] = fornecedor
+            if orgao:
+                params["codigoOrgao"] = orgao
+            params["dataInicial"] = f"01/01/{ano}"
+            params["dataFinal"] = f"31/12/{ano}"
+
+            resp = await client.get(
+                f"{PORTAL_BASE}/contratos",
+                params=params,
+                headers=PORTAL_HEADERS,
+            )
+            if resp.status_code == 200:
+                for c in resp.json()[:10]:
+                    results.append({
+                        "numero": c.get("numero", ""),
+                        "objeto": c.get("objeto", "")[:200],
+                        "orgao": c.get("orgao", {}).get("nome", "") if isinstance(c.get("orgao"), dict) else "",
+                        "fornecedor": c.get("fornecedor", {}).get("nome", "") if isinstance(c.get("fornecedor"), dict) else "",
+                        "cnpj_fornecedor": c.get("fornecedor", {}).get("cnpjCpf", "") if isinstance(c.get("fornecedor"), dict) else "",
+                        "valor_inicial": c.get("valorInicial", ""),
+                        "valor_final": c.get("valorFinal", ""),
+                        "data_inicio": c.get("dataInicioVigencia", ""),
+                        "data_fim": c.get("dataFimVigencia", ""),
+                    })
+            else:
+                logger.warning("Portal contratos HTTP %s", resp.status_code)
+    except Exception as e:
+        logger.warning("Portal contratos failed: %s", e)
+
+    return {
+        "query": fornecedor or orgao,
+        "ano": ano,
+        "contratos": results,
+        "fonte": "Portal da Transparência — Contratos do Poder Executivo Federal",
+        "dica": "Investigue: mesmo fornecedor com múltiplos contratos? Valor final >> valor inicial (aditivos)?",
+    }
+
+
+async def tool_search_sancoes(cnpj: str = "", nome: str = "") -> dict[str, Any]:
+    """Search CEIS (inidôneas) + CNEP (punidas) sanctions."""
+    results: list[dict[str, Any]] = []
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            for endpoint, label in [("ceis", "CEIS - Empresa Inidônea"), ("cnep", "CNEP - Empresa Punida")]:
+                params: dict[str, str] = {"pagina": "1"}
+                if cnpj:
+                    params["cnpjSancionado"] = cnpj.replace(".", "").replace("/", "").replace("-", "")
+                if nome:
+                    params["nomeSancionado"] = nome
+
+                resp = await client.get(
+                    f"{PORTAL_BASE}/{endpoint}",
+                    params=params,
+                    headers=PORTAL_HEADERS,
+                )
+                if resp.status_code == 200:
+                    for s in resp.json()[:5]:
+                        results.append({
+                            "cadastro": label,
+                            "nome": s.get("nomeSancionado", "") or s.get("sancionado", {}).get("nome", ""),
+                            "cnpj_cpf": s.get("cnpjSancionado", "") or s.get("cpfSancionado", ""),
+                            "orgao_sancionador": s.get("orgaoSancionador", {}).get("nome", "") if isinstance(s.get("orgaoSancionador"), dict) else "",
+                            "tipo_sancao": s.get("tipoSancao", {}).get("descricaoResumida", "") if isinstance(s.get("tipoSancao"), dict) else "",
+                            "data_inicio": s.get("dataInicioSancao", ""),
+                            "data_fim": s.get("dataFimSancao", ""),
+                        })
+    except Exception as e:
+        logger.warning("Portal sancoes failed: %s", e)
+
+    # Filter by CNPJ/name if provided (API sometimes ignores filters)
+    if cnpj:
+        clean_cnpj = cnpj.replace(".", "").replace("/", "").replace("-", "")
+        results = [s for s in results if clean_cnpj in str(s.get("cnpj_cpf", "")).replace(".", "").replace("/", "").replace("-", "")]
+    if nome and not cnpj:
+        nome_upper = nome.upper()
+        results = [s for s in results if nome_upper in str(s.get("nome", "")).upper()]
+
+    return {
+        "query": cnpj or nome,
+        "sancoes": results,
+        "fonte": "Portal da Transparência — CEIS + CNEP (Empresas Inidôneas e Punidas)",
+        "dica": "Empresa sancionada ainda ganha contratos? Isso é irregularidade grave.",
+    }
+
+
+# ─── DataJud (Processos Judiciais - CNJ) ──────────────────────────────
+
+DATAJUD_API_KEY = os.environ.get("DATAJUD_API_KEY", "")
+DATAJUD_BASE = "https://api-publica.datajud.cnj.jus.br"
+DATAJUD_HEADERS = {
+    "Authorization": f"APIKey {DATAJUD_API_KEY}",
+    "Content-Type": "application/json",
+}
+
+# Map of tribunals for common searches
+DATAJUD_TRIBUNAIS = {
+    "STJ": "api_publica_stj",
+    "TST": "api_publica_tst",
+    "TSE": "api_publica_tse",
+    "TRF1": "api_publica_trf1",  # DF, GO, MT, BA, MA, PI, PA, AM, RR, AP, TO, AC, RO
+    "TRF2": "api_publica_trf2",  # RJ, ES
+    "TRF3": "api_publica_trf3",  # SP, MS
+    "TRF4": "api_publica_trf4",  # PR, SC, RS
+    "TRF5": "api_publica_trf5",  # PE, CE, RN, PB, AL, SE
+    "TRF6": "api_publica_trf6",  # MG
+    "TJSP": "api_publica_tjsp",
+    "TJRJ": "api_publica_tjrj",
+    "TJMG": "api_publica_tjmg",
+    "TJRS": "api_publica_tjrs",
+    "TJPR": "api_publica_tjpr",
+    "TJSC": "api_publica_tjsc",
+    "TJBA": "api_publica_tjba",
+    "TJGO": "api_publica_tjgo",
+    "TJPE": "api_publica_tjpe",
+    "TJCE": "api_publica_tjce",
+    "TJDF": "api_publica_tjdft",
+    "TJMA": "api_publica_tjma",
+    "TJPA": "api_publica_tjpa",
+    "TJAM": "api_publica_tjam",
+    "TJMT": "api_publica_tjmt",
+    "TJMS": "api_publica_tjms",
+    "TJES": "api_publica_tjes",
+    "TJPI": "api_publica_tjpi",
+}
+
+# UF -> TRF mapping
+UF_TO_TRF = {
+    "DF": "TRF1", "GO": "TRF1", "MT": "TRF1", "BA": "TRF1", "MA": "TRF1",
+    "PI": "TRF1", "PA": "TRF1", "AM": "TRF1", "RR": "TRF1", "AP": "TRF1",
+    "TO": "TRF1", "AC": "TRF1", "RO": "TRF1",
+    "RJ": "TRF2", "ES": "TRF2",
+    "SP": "TRF3", "MS": "TRF3",
+    "PR": "TRF4", "SC": "TRF4", "RS": "TRF4",
+    "PE": "TRF5", "CE": "TRF5", "RN": "TRF5", "PB": "TRF5", "AL": "TRF5", "SE": "TRF5",
+    "MG": "TRF6",
+}
+
+
+async def tool_search_processos(numero_processo: str = "", nome_parte: str = "", tribunal: str = "TJSP", classe: str = "") -> dict[str, Any]:
+    """Search judicial processes via DataJud (CNJ)."""
+    results: list[dict[str, Any]] = []
+    try:
+        alias = DATAJUD_TRIBUNAIS.get(tribunal.upper(), f"api_publica_{tribunal.lower()}")
+        url = f"{DATAJUD_BASE}/{alias}/_search"
+
+        if numero_processo:
+            query = {
+                "query": {
+                    "match": {"numeroProcesso": numero_processo.replace(".", "").replace("-", "")}
+                },
+                "size": 5,
+            }
+        elif nome_parte:
+            query = {
+                "query": {
+                    "match": {"movimentos.complementosTabelados.descricao": nome_parte}
+                },
+                "size": 5,
+            }
+        elif classe:
+            query = {
+                "query": {
+                    "match_phrase": {"classe.nome": classe}
+                },
+                "size": 5,
+                "sort": [{"dataAjuizamento": {"order": "desc"}}],
+            }
+        else:
+            query = {
+                "query": {"match_all": {}},
+                "size": 5,
+                "sort": [{"dataAjuizamento": {"order": "desc"}}],
+            }
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(url, json=query, headers=DATAJUD_HEADERS)
+            if resp.status_code == 200:
+                hits = resp.json().get("hits", {}).get("hits", [])
+                for hit in hits[:5]:
+                    src = hit.get("_source", {})
+                    movs = src.get("movimentos", [])
+                    last_mov = movs[0] if movs else {}
+                    results.append({
+                        "numero": src.get("numeroProcesso", ""),
+                        "classe": src.get("classe", {}).get("nome", ""),
+                        "assuntos": [a.get("nome", "") for a in src.get("assuntos", [])[:3]],
+                        "orgao_julgador": src.get("orgaoJulgador", {}).get("nome", ""),
+                        "data_ajuizamento": src.get("dataAjuizamento", ""),
+                        "grau": src.get("grau", ""),
+                        "nivel_sigilo": src.get("nivelSigilo", 0),
+                        "ultimo_movimento": last_mov.get("nome", ""),
+                        "data_ultimo_movimento": last_mov.get("dataHora", ""),
+                    })
+            else:
+                logger.warning("DataJud HTTP %s: %s", resp.status_code, resp.text[:200])
+    except Exception as e:
+        logger.warning("DataJud search failed: %s", e)
+
+    return {
+        "query": numero_processo or nome_parte or classe or "recentes",
+        "tribunal": tribunal,
+        "processos": results,
+        "fonte": f"DataJud (CNJ) — {tribunal}",
+        "tribunais_disponiveis": list(DATAJUD_TRIBUNAIS.keys())[:10],
+        "dica": "Use número do processo para busca exata. Busque por classe: 'Recuperação Judicial', 'Ação de Improbidade', 'Execução Fiscal'.",
+    }
+
+
+# ─── BNMP — Mandados de Prisão (CNJ) ──────────────────────────────────
+
+async def tool_bnmp_mandados(nome: str) -> dict[str, Any]:
+    """Search arrest warrants in BNMP (Banco Nacional de Mandados de Prisão)."""
+    results: list[dict[str, Any]] = []
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(
+                "https://portalbnmp.cnj.jus.br/bnmpportal/api/pesquisa-pecas/filter",
+                json={
+                    "blespidasDesdeDataFato": False,
+                    "nomePessoa": nome,
+                    "page": 0,
+                    "size": 10,
+                    "sort": ["dataExpedicao,DESC"],
+                },
+                headers={"Content-Type": "application/json", "Accept": "application/json"},
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                content = data.get("content", []) if isinstance(data, dict) else []
+                for item in content[:10]:
+                    results.append({
+                        "nome": item.get("nomePessoa", ""),
+                        "tipo_peca": item.get("tipoPeca", ""),
+                        "orgao_expeditor": item.get("orgaoExpeditor", ""),
+                        "data_expedicao": item.get("dataExpedicao", ""),
+                        "situacao": item.get("situacao", ""),
+                        "municipio": item.get("municipio", ""),
+                        "uf": item.get("uf", ""),
+                    })
+            else:
+                logger.warning("BNMP HTTP %s", resp.status_code)
+    except Exception as e:
+        logger.warning("BNMP search failed: %s", e)
+
+    if not results:
+        web = await tool_web_search(f"mandado prisão {nome} site:cnj.jus.br OR site:jusbrasil.com.br", 3)
+        return {
+            "query": nome,
+            "mandados": [],
+            "web_references": web,
+            "fonte": "BNMP (CNJ) + busca web",
+            "nota": "Nenhum mandado encontrado no BNMP público. Verifique referências web.",
+        }
+
+    return {
+        "query": nome,
+        "mandados": results,
+        "fonte": "BNMP — Banco Nacional de Mandados de Prisão (CNJ)",
+        "nota": "Dados públicos. Mandados sob sigilo não aparecem nesta busca.",
+    }
+
+
+# ─── Procurados — Polícia Federal + Interpol ──────────────────────────
+
+async def tool_procurados_lookup(nome: str) -> dict[str, Any]:
+    """Search wanted persons — PF and Interpol Brazil."""
+    results: list[dict[str, Any]] = []
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            parts = nome.split() if nome else [""]
+            resp = await client.get(
+                "https://ws-public.interpol.int/notices/v1/red",
+                params={"forename": parts[0], "name": parts[-1], "nationality": "BR", "resultPerPage": 5},
+                headers={"Accept": "application/json"},
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                for notice in data.get("_embedded", {}).get("notices", []):
+                    results.append({
+                        "nome": notice.get("forename", "") + " " + notice.get("name", ""),
+                        "nacionalidade": ", ".join(notice.get("nationalities", [])),
+                        "data_nascimento": notice.get("date_of_birth", ""),
+                        "fonte": "Interpol Red Notice",
+                        "link": notice.get("_links", {}).get("self", {}).get("href", ""),
+                    })
+    except Exception as e:
+        logger.warning("Interpol search failed: %s", e)
+
+    web = await tool_web_search(f"procurado polícia federal {nome} site:gov.br/pf OR site:jusbrasil.com.br", 3)
+
+    return {
+        "query": nome,
+        "interpol_notices": results,
+        "web_references": web,
+        "fonte": "Interpol Red Notices + Polícia Federal (web)",
+    }
+
+
+# ─── Lista Suja — Trabalho Escravo (MTE) ──────────────────────────────
+
+async def tool_lista_suja(nome: str, uf: str = "") -> dict[str, Any]:
+    """Search the 'Lista Suja' (dirty list) of slave labor employers."""
+    results: list[dict[str, Any]] = []
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            params: dict[str, str] = {"pagina": "1"}
+            if nome:
+                params["nomeEmpregador"] = nome
+            if uf:
+                params["uf"] = uf.upper()
+            resp = await client.get(
+                f"{PORTAL_BASE}/empregadores",
+                params=params,
+                headers=PORTAL_HEADERS,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if isinstance(data, list):
+                    for item in data[:10]:
+                        results.append({
+                            "empregador": item.get("nomeEmpregador", ""),
+                            "cnpj_cpf": item.get("cpfCnpjEmpregador", ""),
+                            "uf": item.get("uf", ""),
+                            "municipio": item.get("municipio", ""),
+                            "ano_acao_fiscal": item.get("anoAcaoFiscal", ""),
+                            "trabalhadores_resgatados": item.get("qtdTrabalhadores", 0),
+                        })
+            else:
+                logger.warning("Lista Suja HTTP %s", resp.status_code)
+    except Exception as e:
+        logger.warning("Lista Suja search failed: %s", e)
+
+    if not results:
+        web = await tool_web_search(f"lista suja trabalho escravo {nome} {uf}", 3)
+        return {
+            "query": nome,
+            "empregadores": [],
+            "web_references": web,
+            "fonte": "Portal da Transparência — Lista Suja + busca web",
+        }
+
+    return {
+        "query": nome,
+        "empregadores": results,
+        "fonte": "Portal da Transparência — Cadastro de Empregadores (Lista Suja do Trabalho Escravo)",
+        "nota": "Empregador na Lista Suja = flagrado pelo MTE com trabalho análogo à escravidão.",
+    }
+
+
+# ─── PNCP — Portal Nacional de Contratações Públicas ──────────────────
+
+async def tool_pncp_licitacoes(cnpj_orgao: str = "", uf: str = "", data_inicio: str = "20240101", data_fim: str = "20241231") -> dict[str, Any]:
+    """Search national procurement portal (federal + state + municipal)."""
+    results: list[dict[str, Any]] = []
+
+    # Normalize dates to YYYYMMDD format
+    di = data_inicio.replace("-", "")[:8]
+    df = data_fim.replace("-", "")[:8]
+    date_ini = f"{di[:4]}{di[4:6]}{di[6:8]}"
+    date_end = f"{df[:4]}{df[4:6]}{df[6:8]}"
+
+    # PNCP API v1 endpoints (try multiple — API changed several times)
+    _PNCP_URLS = [
+        "https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao",
+        "https://pncp.gov.br/api/pncp/v1/orgaos/contratacoes/publicacoes",
+        "https://pncp.gov.br/api/search/",
+    ]
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+            for base_url in _PNCP_URLS:
+                params: dict[str, str] = {
+                    "dataInicial": f"{date_ini[:4]}-{date_ini[4:6]}-{date_ini[6:8]}",
+                    "dataFinal": f"{date_end[:4]}-{date_end[4:6]}-{date_end[6:8]}",
+                    "pagina": "1",
+                    "tamanhoPagina": "10",
+                }
+                if cnpj_orgao:
+                    cnpj_clean = cnpj_orgao.replace(".", "").replace("/", "").replace("-", "")
+                    params["cnpj"] = cnpj_clean
+                if uf:
+                    params["uf"] = uf.upper()
+
+                try:
+                    resp = await client.get(base_url, params=params, headers={"Accept": "application/json"})
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        items = data if isinstance(data, list) else data.get("data", data.get("content", data.get("items", [])))
+                        if isinstance(items, list):
+                            for item in items[:10]:
+                                orgao_ent = item.get("orgaoEntidade", {})
+                                results.append({
+                                    "orgao": item.get("nomeOrgao", orgao_ent.get("razaoSocial", "") if isinstance(orgao_ent, dict) else ""),
+                                    "objeto": str(item.get("objetoCompra", item.get("descricao", "")))[:200],
+                                    "modalidade": item.get("modalidadeLicitacao", item.get("modalidadeNome", "")),
+                                    "valor_estimado": item.get("valorEstimado", item.get("valorTotalEstimado", "")),
+                                    "uf": item.get("uf", uf),
+                                    "data_publicacao": item.get("dataPublicacao", ""),
+                                    "situacao": item.get("situacaoCompra", item.get("situacaoCompraNome", "")),
+                                })
+                        if results:
+                            break
+                    elif resp.status_code == 400:
+                        logger.info("PNCP %s returned 400, trying next endpoint", base_url)
+                        continue
+                    else:
+                        logger.warning("PNCP HTTP %s from %s: %s", resp.status_code, base_url, resp.text[:200])
+                except Exception:
+                    continue
+    except Exception as e:
+        logger.warning("PNCP search failed: %s", e)
+
+    if not results:
+        web = await tool_web_search(f"licitação PNCP {uf} {cnpj_orgao} 2024 site:pncp.gov.br", 3)
+        return {
+            "query": cnpj_orgao or uf or "nacional",
+            "licitacoes": [],
+            "web_references": web,
+            "fonte": "PNCP + busca web",
+        }
+
+    return {
+        "query": cnpj_orgao or uf or "nacional",
+        "licitacoes": results,
+        "fonte": "PNCP — Portal Nacional de Contratações Públicas (todas as esferas)",
+        "nota": "PNCP inclui federal, estadual e municipal. Compare com search_licitacoes (apenas federal).",
+    }
+
+
+# ─── OAB — Consulta de Advogados ──────────────────────────────────────
+
+async def tool_oab_advogado(nome: str = "", numero_oab: str = "", seccional: str = "") -> dict[str, Any]:
+    """Search OAB (Brazilian Bar Association) lawyer registry."""
+    results: list[dict[str, Any]] = []
+    try:
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            if numero_oab and seccional:
+                resp = await client.get(
+                    f"https://cna.oab.org.br/api/v1/advogados/{seccional.upper()}/{numero_oab}",
+                    headers={"Accept": "application/json"},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if isinstance(data, dict) and data.get("nome"):
+                        results.append({
+                            "nome": data.get("nome", ""),
+                            "numero_oab": data.get("inscricao", numero_oab),
+                            "seccional": data.get("uf", seccional),
+                            "situacao": data.get("tipoInscricao", ""),
+                            "subtipo": data.get("subtipo", ""),
+                        })
+            elif nome:
+                resp = await client.get(
+                    "https://cna.oab.org.br/api/v1/advogados",
+                    params={"nome": nome, "seccional": seccional.upper() if seccional else ""},
+                    headers={"Accept": "application/json"},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    items = data if isinstance(data, list) else data.get("content", data.get("data", []))
+                    if isinstance(items, list):
+                        for adv in items[:10]:
+                            results.append({
+                                "nome": adv.get("nome", ""),
+                                "numero_oab": adv.get("inscricao", ""),
+                                "seccional": adv.get("uf", ""),
+                                "situacao": adv.get("tipoInscricao", ""),
+                            })
+    except Exception as e:
+        logger.warning("OAB search failed: %s", e)
+
+    if not results:
+        web = await tool_web_search(f"advogado OAB {nome} {numero_oab} {seccional} site:oab.org.br", 3)
+        return {
+            "query": nome or numero_oab,
+            "advogados": [],
+            "web_references": web,
+            "fonte": "OAB CNA + busca web",
+            "nota": "API OAB pode estar indisponível. Verifique manualmente em cna.oab.org.br",
+        }
+
+    return {
+        "query": nome or numero_oab,
+        "advogados": results,
+        "fonte": "OAB — Cadastro Nacional de Advogados",
+    }
+
+
+# ─── OpenCNPJ — Dados Cadastrais Gratuitos ────────────────────────────
+
+async def tool_opencnpj(cnpj: str) -> dict[str, Any]:
+    """Lookup company data via OpenCNPJ (free public API)."""
+    clean = cnpj.replace(".", "").replace("/", "").replace("-", "").strip()
+    if len(clean) != 14:
+        return {"error": "CNPJ deve ter 14 dígitos", "query": cnpj}
+
+    result: dict[str, Any] = {}
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                f"https://opencnpj.org/api/cnpj/{clean}",
+                headers={"Accept": "application/json"},
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                socios = []
+                for s in data.get("qsa", data.get("socios", []))[:10]:
+                    socios.append({
+                        "nome": s.get("nome_socio", s.get("nome", "")),
+                        "qualificacao": s.get("qualificacao_socio", s.get("qualificacao", "")),
+                        "data_entrada": s.get("data_entrada_sociedade", ""),
+                    })
+                cnaes = []
+                for c in data.get("cnaes_secundarios", data.get("cnaes_secundarias", []))[:5]:
+                    cnaes.append(f"{c.get('codigo', '')} - {c.get('descricao', '')}")
+
+                result = {
+                    "cnpj": clean,
+                    "razao_social": data.get("razao_social", ""),
+                    "nome_fantasia": data.get("nome_fantasia", ""),
+                    "situacao_cadastral": data.get("descricao_situacao_cadastral", data.get("situacao_cadastral", "")),
+                    "data_situacao": data.get("data_situacao_cadastral", ""),
+                    "data_abertura": data.get("data_inicio_atividade", data.get("data_abertura", "")),
+                    "natureza_juridica": data.get("natureza_juridica", ""),
+                    "capital_social": data.get("capital_social", 0),
+                    "porte": data.get("porte", data.get("descricao_porte", "")),
+                    "cnae_principal": data.get("cnae_fiscal", data.get("cnae_principal", "")),
+                    "cnae_principal_descricao": data.get("cnae_fiscal_descricao", ""),
+                    "cnaes_secundarios": cnaes,
+                    "municipio": data.get("municipio", ""),
+                    "uf": data.get("uf", ""),
+                    "socios_qsa": socios,
+                    "total_socios": len(socios),
+                }
+            elif resp.status_code == 404:
+                return {"error": "CNPJ não encontrado", "query": cnpj, "fonte": "OpenCNPJ"}
+            else:
+                logger.warning("OpenCNPJ HTTP %s", resp.status_code)
+    except Exception as e:
+        logger.warning("OpenCNPJ failed: %s", e)
+
+    if not result:
+        # Fallback to BrasilAPI
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(f"https://brasilapi.com.br/api/cnpj/v1/{clean}")
+                if resp.status_code == 200:
+                    data = resp.json()
+                    socios = [{"nome": s.get("nome_socio", ""), "qualificacao": s.get("qualificacao_socio", "")} for s in data.get("qsa", [])[:10]]
+                    result = {
+                        "cnpj": clean,
+                        "razao_social": data.get("razao_social", ""),
+                        "nome_fantasia": data.get("nome_fantasia", ""),
+                        "situacao_cadastral": data.get("descricao_situacao_cadastral", ""),
+                        "capital_social": data.get("capital_social", 0),
+                        "cnae_principal": data.get("cnae_fiscal", ""),
+                        "cnae_principal_descricao": data.get("cnae_fiscal_descricao", ""),
+                        "municipio": data.get("municipio", ""),
+                        "uf": data.get("uf", ""),
+                        "socios_qsa": socios,
+                        "total_socios": len(socios),
+                    }
+        except Exception as e:
+            logger.warning("BrasilAPI CNPJ fallback failed: %s", e)
+
+    if not result:
+        return {"error": "Não foi possível consultar o CNPJ", "query": cnpj}
+
+    result["fonte"] = "OpenCNPJ (Receita Federal)"
+    result["dica"] = "Busque os sócios no grafo com search_entities para descobrir outras empresas."
+    return result

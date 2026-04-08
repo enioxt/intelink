@@ -1,0 +1,429 @@
+{
+  "investigation": {
+    "id": "INV-2024-005",
+    "title": "Operação Raízes Profundas",
+    "description": "Investigação de organização criminosa com ramificações políticas, corrupção sistêmica e controle territorial",
+    "status": "ativa",
+    "priority": "crítica",
+    "type": "organized_crime",
+    "creation_date": "2024-05-01",
+    "last_update": "2024-08-06",
+    "classification": "Ultra Secreto",
+    "estimated_damage": "R$ 250.000.000,00",
+    "lead_investigator": "Del. Geral Carlos Augusto",
+    "team": [
+      "Promotor Especializado Dr. Ricardo Mendes",
+      "Del. GAECO Sandra Oliveira",
+      "Inv. Antissequestro Paulo Castro", 
+      "Analista Criminal Ana Beatriz",
+      "Agente Federal João Pedro",
+      "Perito Balística Roberto Silva"
+    ]
+  },
+  "entities": [
+    {
+      "id": "PER-040",
+      "name": "Antônio Carlos da Silva",
+      "type": "person",
+      "role": "crime_boss",
+      "description": "Líder da organização criminosa, controla território e operações",
+      "details": {
+        "cpf": "111.222.333-44",
+        "alias": ["Toninho", "Comandante", "AC"],
+        "birth_date": "1970-08-25",
+        "criminal_record": [
+          "Homicídio (1995) - Cumprida",
+          "Tráfico de drogas (2005) - Cumprida",
+          "Formação de quadrilha (2010) - Prescrita"
+        ],
+        "current_address": "Mansão fortificada - Zona Norte",
+        "family": {
+          "wife": "Maria da Silva",
+          "children": ["Carlos Jr. (22)", "Ana Silva (19)"],
+          "extended": "15 familiares em posições estratégicas"
+        },
+        "territory": [
+          "3 bairros sob controle total",
+          "Influência em 8 comunidades",
+          "Presença em 12 comércios legais"
+        ],
+        "estimated_wealth": "R$ 45.000.000,00"
+      }
+    },
+    {
+      "id": "PER-041",
+      "name": "Deputado Estadual José Rodrigues",
+      "type": "person",
+      "role": "political_connection",
+      "description": "Político corrupto, fornece proteção institucional",
+      "details": {
+        "cpf": "222.333.444-55",
+        "mandate": "Deputado Estadual (3º mandato)",
+        "party": "Partido da Ordem Social",
+        "committees": [
+          "Segurança Pública (Presidente)",
+          "Orçamento",
+          "Direitos Humanos"
+        ],
+        "political_influence": [
+          "Controle de emendas de R$ 25M",
+          "Influência sobre 15 delegacias",
+          "Relacionamento com comando da PM"
+        ],
+        "benefits_received": [
+          "Campanha eleitoral financiada",
+          "Proteção pessoal",
+          "Informações privilegiadas"
+        ]
+      }
+    },
+    {
+      "id": "PER-042",
+      "name": "Delegado Marcos Pereira",
+      "type": "person",
+      "role": "corrupt_officer", 
+      "description": "Delegado corrupto, fornece informações e proteção",
+      "details": {
+        "badge_number": "PC-15789",
+        "rank": "Delegado Titular",
+        "district": "23ª DP - Zona Norte",
+        "service_time": "18 anos",
+        "corruption_period": "2019-2024 (estimado)",
+        "services_provided": [
+          "Informações sobre operações",
+          "Não instauração de inquéritos",
+          "Proteção de membros da organização",
+          "Acesso a banco de dados policial"
+        ],
+        "payments_received": "R$ 25.000/mês + extras"
+      }
+    },
+    {
+      "id": "PER-043",
+      "name": "Miguel Santos (Miguelão)",
+      "type": "person", 
+      "role": "enforcer",
+      "description": "Braço direito, responsável por execuções e intimidação",
+      "details": {
+        "cpf": "333.444.555-66",
+        "alias": ["Miguelão", "Brutus", "M1"],
+        "role_in_org": "Chefe de Segurança e Execuções",
+        "criminal_specialties": [
+          "Homicídios por encomenda",
+          "Intimidação de rivais",
+          "Cobrança de dívidas",
+          "Segurança do chefe"
+        ],
+        "confirmed_murders": "8 casos",
+        "suspected_murders": "23 casos",
+        "weapons": [
+          "Arsenal pessoal de 15 armas",
+          "Acesso a explosivos",
+          "Veículos blindados"
+        ]
+      }
+    },
+    {
+      "id": "COM-040",
+      "name": "Transportadora Raízes Ltda",
+      "type": "company",
+      "role": "main_front",
+      "description": "Empresa de fachada para lavagem e logística",
+      "details": {
+        "cnpj": "44.555.666/0001-77",
+        "founded": "2018-06-10",
+        "capital": "R$ 800.000,00",
+        "declared_activity": "Transporte de cargas",
+        "real_operations": [
+          "Transporte de drogas",
+          "Lavagem de dinheiro",
+          "Logística da organização",
+          "Cobrança de 'taxas'"
+        ],
+        "fleet": [
+          "25 caminhões (diversos tamanhos)",
+          "15 vans",
+          "8 carros de passeio",
+          "Compartimentos secretos em veículos"
+        ],
+        "annual_revenue": "R$ 35M (declarado: R$ 8M)"
+      }
+    },
+    {
+      "id": "LOC-020",
+      "name": "Complexo do Morro Verde",
+      "type": "location",
+      "role": "headquarters",
+      "description": "Base principal de operações da organização",
+      "details": {
+        "area": "Zona Norte - 3 comunidades conectadas",
+        "population": "~45.000 habitantes",
+        "control_level": "Total",
+        "infrastructure": [
+          "Sistema de comunicação próprio",
+          "Pontos de observação estratégicos",
+          "Rotas de fuga mapeadas",
+          "Depósitos de armas e drogas"
+        ],
+        "social_services": [
+          "Creche comunitária (fachada)",
+          "Distribuição de cestas básicas",
+          "Eventos comunitários",
+          "Resolução de conflitos locais"
+        ],
+        "security": [
+          "120 homens armados",
+          "Sistema de rádio criptografado",
+          "Vigilância 24h",
+          "Controle de acesso rigoroso"
+        ]
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "source": "PER-040",
+      "target": "PER-041",
+      "type": "corruption",
+      "description": "Antônio corrompe deputado para proteção política",
+      "strength": 0.92,
+      "evidence": [
+        "Gravações de reuniões",
+        "Transferências financeiras",
+        "Votações direcionadas"
+      ]
+    },
+    {
+      "source": "PER-040",
+      "target": "PER-042",
+      "type": "corruption",
+      "description": "Antônio suborna delegado para proteção policial",
+      "strength": 0.89,
+      "evidence": [
+        "Pagamentos mensais documentados",
+        "Informações vazadas",
+        "Operações sabotadas"
+      ]
+    },
+    {
+      "source": "PER-040",
+      "target": "PER-043",
+      "type": "command",
+      "description": "Miguel é subordinado direto de Antônio",
+      "strength": 0.98,
+      "evidence": [
+        "Comunicações interceptadas",
+        "Testemunhas",
+        "Análise comportamental"
+      ]
+    },
+    {
+      "source": "PER-040",
+      "target": "COM-040",
+      "type": "ownership",
+      "description": "Antônio controla transportadora via laranjas",
+      "strength": 0.85,
+      "evidence": [
+        "Análise societária",
+        "Fluxo financeiro",
+        "Decisões operacionais"
+      ]
+    },
+    {
+      "source": "PER-040",
+      "target": "LOC-020",
+      "type": "territorial_control",
+      "description": "Antônio exerce controle absoluto sobre o território",
+      "strength": 0.95,
+      "evidence": [
+        "Testemunhas comunitárias",
+        "Análise de comunicações",
+        "Padrões de movimentação"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "EV-040",
+      "type": "wiretapping",
+      "description": "Interceptações telefônicas e ambientais",
+      "details": {
+        "period": "Jan-Jul 2024",
+        "authorization": "STJ - Decisão 2024.001.234",
+        "total_intercepted": "3.247 ligações, 15.678 mensagens",
+        "locations": [
+          "Residência de Antônio",
+          "Sede da transportadora",
+          "Gabinete do deputado",
+          "Delegacia (sala reservada)"
+        ],
+        "key_discoveries": [
+          "Ordens de execução",
+          "Pagamentos de propina",
+          "Planejamento de operações",
+          "Divisão de territórios"
+        ]
+      }
+    },
+    {
+      "id": "EV-041",
+      "type": "financial_investigation",
+      "description": "Investigação financeira e patrimonial",
+      "details": {
+        "total_analyzed": "R$ 250.000.000,00",
+        "period": "2018-2024",
+        "suspicious_movements": [
+          "Depósitos em espécie incompatíveis",
+          "Aquisições patrimoniais inexplicáveis",
+          "Empresas fantasmas",
+          "Movimentações para paraísos fiscais"
+        ],
+        "assets_identified": [
+          "Imóveis: R$ 45M",
+          "Veículos: R$ 8M",
+          "Empresas: R$ 35M",
+          "Contas bancárias: R$ 12M"
+        ]
+      }
+    },
+    {
+      "id": "EV-042",
+      "type": "surveillance",
+      "description": "Vigilância física e eletrônica",
+      "details": {
+        "duration": "8 meses",
+        "teams": "6 equipes especializadas",
+        "techniques": [
+          "Vigilância discreta",
+          "Rastreamento veicular",
+          "Análise de padrões",
+          "Fotografia e vídeo"
+        ],
+        "key_observations": [
+          "Reuniões com políticos",
+          "Encontros com delegado",
+          "Operações de transporte",
+          "Atividades suspeitas"
+        ]
+      }
+    },
+    {
+      "id": "EV-043",
+      "type": "informants",
+      "description": "Informações de colaboradores",
+      "details": {
+        "active_informants": 8,
+        "protection_program": 3,
+        "information_quality": "Alta confiabilidade",
+        "key_revelations": [
+          "Estrutura hierárquica completa",
+          "Métodos de operação",
+          "Locais de depósito",
+          "Próximas operações planejadas"
+        ],
+        "risks": [
+          "Segurança dos informantes",
+          "Possível infiltração",
+          "Vazamento de informações"
+        ]
+      }
+    }
+  ],
+  "timeline": [
+    {
+      "date": "2018-01-15",
+      "event": "Formação da organização atual",
+      "description": "Antônio assume controle total após eliminação de rival"
+    },
+    {
+      "date": "2019-03-20",
+      "event": "Primeiro contato com deputado",
+      "description": "Início da corrupção política sistemática"
+    },
+    {
+      "date": "2019-08-10",
+      "event": "Corrupção do delegado",
+      "description": "Marcos Pereira aceita propina mensal"
+    },
+    {
+      "date": "2020-06-15",
+      "event": "Expansão territorial",
+      "description": "Domínio completo do Complexo do Morro Verde"
+    },
+    {
+      "date": "2022-11-30",
+      "event": "Eliminação de rival importante",
+      "description": "Miguel executa líder de facção concorrente"
+    },
+    {
+      "date": "2023-05-20",
+      "event": "Eleições controladas",
+      "description": "Deputado reeleito com apoio da organização"
+    },
+    {
+      "date": "2024-01-15",
+      "event": "Início das interceptações",
+      "description": "Autorização judicial para escutas"
+    },
+    {
+      "date": "2024-05-01",
+      "event": "Operação deflagrada",
+      "description": "Início oficial da Operação Raízes Profundas"
+    }
+  ],
+  "analysis": {
+    "organizational_structure": {
+      "hierarchy_levels": 5,
+      "total_members": "~300 pessoas",
+      "core_leadership": 12,
+      "territorial_control": "3 comunidades completas",
+      "political_influence": "Alto nível estadual",
+      "police_infiltration": "Múltiplas delegacias"
+    },
+    "criminal_activities": [
+      {
+        "activity": "Tráfico de drogas",
+        "revenue": "R$ 8M/mês",
+        "territory": "Todo o complexo"
+      },
+      {
+        "activity": "Extorsão/Proteção",
+        "revenue": "R$ 2M/mês", 
+        "victims": "~400 comerciantes"
+      },
+      {
+        "activity": "Homicídios",
+        "frequency": "2-3/mês",
+        "motives": ["Controle territorial", "Eliminação de rivais"]
+      },
+      {
+        "activity": "Lavagem de dinheiro",
+        "volume": "R$ 120M/ano",
+        "methods": ["Empresas de fachada", "Construção civil"]
+      }
+    ],
+    "investigation_challenges": [
+      "Intimidação de testemunhas",
+      "Corrupção policial/política",
+      "Controle territorial absoluto",
+      "Recursos financeiros elevados",
+      "Estrutura militar sofisticada"
+    ],
+    "prosecution_strategy": {
+      "primary_charges": [
+        "Organização criminosa (Art. 2º Lei 12.850/13)",
+        "Homicídio qualificado (múltiplos)",
+        "Tráfico de drogas",
+        "Lavagem de dinheiro",
+        "Corrupção ativa/passiva"
+      ],
+      "expected_sentences": [
+        "Antônio Carlos: 40+ anos",
+        "Miguel Santos: 35+ anos", 
+        "Deputado José: 15-20 anos",
+        "Delegado Marcos: 12-18 anos"
+      ],
+      "success_probability": "85% (evidências robustas)"
+    }
+  }
+}

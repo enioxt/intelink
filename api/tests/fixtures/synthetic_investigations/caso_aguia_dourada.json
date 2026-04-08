@@ -1,0 +1,353 @@
+{
+  "investigation": {
+    "id": "INV-2024-004",
+    "title": "Caso Águia Dourada",
+    "description": "Investigação de lavagem de dinheiro através de cassinos e jogos online",
+    "status": "suspensa",
+    "priority": "média",
+    "type": "money_laundering",
+    "creation_date": "2024-04-05",
+    "last_update": "2024-07-15",
+    "suspension_reason": "Aguardando cooperação internacional",
+    "estimated_damage": "R$ 78.000.000,00",
+    "lead_investigator": "Del. Financeiro Sandra Costa",
+    "team": [
+      "Analista Financeiro Ricardo Lima",
+      "Inv. Jogos Ilegais Amanda Silva",
+      "Perito Contábil Eduardo Santos"
+    ]
+  },
+  "entities": [
+    {
+      "id": "PER-030",
+      "name": "Rodrigo Palmeira Montenegro",
+      "type": "person",
+      "role": "main_suspect",
+      "description": "Empresário do ramo de entretenimento, operador da lavagem",
+      "details": {
+        "cpf": "789.456.123-00",
+        "birth_date": "1975-04-12",
+        "address": "Cobertura Leblon/RJ - R$ 8.5M",
+        "profession": "Empresário - Entretenimento",
+        "companies": [
+          "Golden Eagle Entertainment Ltda",
+          "Montenegro Investimentos SA",
+          "Cassino Águia Dourada (offshore)"
+        ],
+        "assets": [
+          "Patrimônio declarado: R$ 15M",
+          "Patrimônio real estimado: R$ 85M",
+          "Imóveis: 8 propriedades",
+          "Veículos: 12 carros de luxo",
+          "Embarcações: 2 iates"
+        ],
+        "lifestyle": "Alto padrão, frequenta eventos sociais, viagens internacionais"
+      }
+    },
+    {
+      "id": "PER-031",
+      "name": "Carla Mendes Vasquez",
+      "type": "person",
+      "role": "financial_advisor", 
+      "description": "Assessora financeira especializada em operações offshore",
+      "details": {
+        "cpf": "456.123.789-00",
+        "profession": "Consultora Financeira Internacional",
+        "education": [
+          "MBA Finanças - Wharton School",
+          "Certificação CFA",
+          "Especialização em Private Banking"
+        ],
+        "address": "Jardins/SP - Apartamento de luxo",
+        "specialties": [
+          "Estruturas offshore",
+          "Paraísos fiscais",
+          "Trust funds",
+          "Investimentos internacionais"
+        ],
+        "clients": "Empresários de alto patrimônio (suspeitos)"
+      }
+    },
+    {
+      "id": "PER-032",
+      "name": "James Wilson", 
+      "type": "person",
+      "role": "international_facilitator",
+      "description": "Operador em paraísos fiscais, facilitador offshore",
+      "details": {
+        "nationality": "Britânica",
+        "passport": "UK9876543",
+        "residence": "Ilhas Cayman",
+        "profession": "Corporate Services Provider",
+        "companies": [
+          "Cayman Corporate Solutions Ltd",
+          "Wilson Trust Services",
+          "Caribbean Financial Advisors"
+        ],
+        "services": [
+          "Abertura de empresas offshore",
+          "Gestão de trust funds",
+          "Contas bancárias anônimas",
+          "Consultoria fiscal internacional"
+        ]
+      }
+    },
+    {
+      "id": "COM-030",
+      "name": "Golden Eagle Entertainment Ltda",
+      "type": "company",
+      "role": "main_front",
+      "description": "Empresa principal para operações de lavagem",
+      "details": {
+        "cnpj": "33.444.555/0001-66",
+        "founded": "2019-11-20",
+        "capital": "R$ 5.000.000,00",
+        "main_activity": "Organização de eventos e entretenimento",
+        "real_revenue": "R$ 2M/ano",
+        "declared_revenue": "R$ 45M/ano",
+        "address": "Barra da Tijuca/RJ - Centro Empresarial",
+        "operations": [
+          "Organização de eventos fictícios",
+          "Contratos superfaturados",
+          "Recebimento de fundos suspeitos"
+        ]
+      }
+    },
+    {
+      "id": "COM-031",
+      "name": "Cassino Águia Dourada (Offshore)",
+      "type": "company",
+      "role": "laundering_vehicle",
+      "description": "Cassino online baseado em paraíso fiscal",
+      "details": {
+        "jurisdiction": "Ilhas Cayman",
+        "registration": "CY-2020-GE-001",
+        "founded": "2020-03-15",
+        "nominal_capital": "USD 1.000.000",
+        "license": "Gaming License Cayman - Suspeita",
+        "operations": [
+          "Cassino online",
+          "Apostas esportivas",
+          "Jogos de poker",
+          "Recebimento de apostas fictícias"
+        ],
+        "money_flow": "R$ 78M em 2 anos"
+      }
+    },
+    {
+      "id": "LOC-010",
+      "name": "Centro Empresarial Golden Tower",
+      "type": "location",
+      "role": "operational_headquarters",
+      "description": "Sede das operações de lavagem",
+      "details": {
+        "address": "Av. das Américas, 3434 - Barra da Tijuca/RJ",
+        "floors": "Andar 15 completo",
+        "area": "800 m²",
+        "security": "Alta (controle de acesso, câmeras)",
+        "facilities": [
+          "Salas de reunião blindadas",
+          "Sistema de comunicação criptografado",
+          "Cofre com documentos",
+          "Servidores dedicados"
+        ]
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "source": "PER-030",
+      "target": "COM-030",
+      "type": "ownership", 
+      "description": "Rodrigo é proprietário integral da Golden Eagle",
+      "strength": 0.95,
+      "evidence": [
+        "Contrato social",
+        "Procurações",
+        "Movimentações financeiras"
+      ]
+    },
+    {
+      "source": "PER-030",
+      "target": "COM-031",
+      "type": "beneficial_owner",
+      "description": "Rodrigo é beneficiário real do cassino offshore",
+      "strength": 0.88,
+      "evidence": [
+        "Análise de fluxo financeiro",
+        "Comunicações interceptadas",
+        "Relatórios de James Wilson"
+      ]
+    },
+    {
+      "source": "PER-031",
+      "target": "PER-030", 
+      "type": "advisor",
+      "description": "Carla assessora Rodrigo em operações offshore",
+      "strength": 0.92,
+      "evidence": [
+        "Contratos de assessoria",
+        "Reuniões documentadas",
+        "E-mails de orientação"
+      ]
+    },
+    {
+      "source": "PER-032",
+      "target": "COM-031",
+      "type": "corporate_services",
+      "description": "James gerencia estrutura offshore do cassino",
+      "strength": 0.90,
+      "evidence": [
+        "Contratos de serviços corporativos",
+        "Movimentações bancárias",
+        "Documentos de constituição"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "EV-030",
+      "type": "financial_analysis",
+      "description": "Análise de inconsistências financeiras",
+      "details": {
+        "period": "2020-2024",
+        "total_movement": "R$ 156.000.000,00",
+        "declared_income": "R$ 78.000.000,00", 
+        "inconsistencies": [
+          "Receitas sem origem comprovada",
+          "Gastos incompatíveis com renda declarada",
+          "Investimentos desproporcionales"
+        ],
+        "suspicious_patterns": [
+          "Depósitos sequenciais em valores redondos",
+          "Transferências para offshores",
+          "Conversões frequentes USD-BRL"
+        ]
+      }
+    },
+    {
+      "id": "EV-031",
+      "type": "casino_transactions",
+      "description": "Análise de transações do cassino online",
+      "details": {
+        "total_bets": "R$ 78.000.000,00",
+        "fake_games": "85% das apostas",
+        "win_rate_anomaly": "99.8% (impossível estatisticamente)",
+        "player_analysis": [
+          "Mesmos IPs de apostadores diferentes",
+          "Padrões de apostas irreais",
+          "Saques imediatos após depósitos"
+        ],
+        "jurisdictional_issues": "Licença de jogo questionável"
+      }
+    },
+    {
+      "id": "EV-032",
+      "type": "communications",
+      "description": "Interceptações telefônicas e e-mails",
+      "details": {
+        "period": "Jun-Jul 2024",
+        "total_intercepted": "234 ligações, 1.567 e-mails",
+        "key_topics": [
+          "Discussões sobre 'limpeza' de valores",
+          "Coordenação com James Wilson",
+          "Orientações de Carla sobre estruturas"
+        ],
+        "code_language": {
+          "águia": "operação de lavagem",
+          "voo": "transferência internacional", 
+          "ninho": "conta offshore",
+          "ouro": "dinheiro limpo"
+        }
+      }
+    },
+    {
+      "id": "EV-033",
+      "type": "lifestyle_analysis",
+      "description": "Análise do padrão de vida incompatível",
+      "details": {
+        "declared_income": "R$ 1.2M/ano",
+        "estimated_expenses": "R$ 8.5M/ano",
+        "major_purchases": [
+          "Iate de R$ 12M (2022)",
+          "Cobertura de R$ 8.5M (2021)",
+          "Collection de carros: R$ 4.2M",
+          "Viagens internacionais: R$ 380K/ano"
+        ],
+        "discrepancy": "Gastos 700% superiores à renda declarada"
+      }
+    }
+  ],
+  "timeline": [
+    {
+      "date": "2019-11-20",
+      "event": "Constituição da Golden Eagle",
+      "description": "Rodrigo cria empresa para legitimar operações"
+    },
+    {
+      "date": "2020-01-15",
+      "event": "Primeiro contato com Carla",
+      "description": "Início da assessoria para estruturas offshore"
+    },
+    {
+      "date": "2020-03-15",
+      "event": "Criação do cassino offshore",
+      "description": "Estabelecimento do principal veículo de lavagem"
+    },
+    {
+      "date": "2020-06-01",
+      "event": "Primeiras operações de lavagem",
+      "description": "Início das apostas fictícias no cassino"
+    },
+    {
+      "date": "2022-01-10",
+      "event": "Expansão das operações",
+      "description": "Aumento significativo do volume lavado"
+    },
+    {
+      "date": "2024-03-20",
+      "event": "Relatório de inteligência financeira",
+      "description": "COAF identifica movimentações suspeitas"
+    },
+    {
+      "date": "2024-04-05",
+      "event": "Abertura da investigação",
+      "description": "Início formal da investigação policial"
+    },
+    {
+      "date": "2024-06-15",
+      "event": "Autorização para interceptações",
+      "description": "Justiça autoriza escutas telefônicas"
+    },
+    {
+      "date": "2024-07-15",
+      "event": "Suspensão temporária",
+      "description": "Aguardando cooperação das Ilhas Cayman"
+    }
+  ],
+  "analysis": {
+    "laundering_scheme": {
+      "method": "Cassino online com apostas fictícias",
+      "volume_estimated": "R$ 78.000.000,00",
+      "efficiency": "95% (alta sofisticação)",
+      "detection_risk": "Baixo (jurisdição offshore)"
+    },
+    "financial_impact": {
+      "money_laundered": "R$ 78.000.000,00",
+      "tax_evasion": "R$ 18.500.000,00",
+      "total_damage": "R$ 96.500.000,00"
+    },
+    "investigation_challenges": [
+      "Jurisdição offshore não cooperativa",
+      "Estruturas societárias complexas",
+      "Documentação fragmentada",
+      "Necessidade de cooperação internacional"
+    ],
+    "prosecution_outlook": {
+      "domestic_charges": "Promissoras",
+      "international_recovery": "Difícil",
+      "estimated_timeline": "18-24 meses",
+      "success_probability": "70% (parcial)"
+    }
+  }
+}

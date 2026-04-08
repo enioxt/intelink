@@ -1,0 +1,55 @@
+# === SECRETS (NEVER COMMIT) ===
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.p12
+*.pfx
+
+# === RUNTIME DATA ===
+output/
+data_temp/
+logs/
+*.log
+neo4j-data/
+redis-data/
+
+# === BUILD ARTIFACTS ===
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+api/__pycache__/
+api/*.egg-info/
+api/.venv/
+api/venv/
+*.pyc
+*.pyo
+dist/
+build/
+
+# === SYSTEM ===
+.DS_Store
+Thumbs.db
+*.Zone.Identifier
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# === DOCKER VOLUMES ===
+caddy-data/
+caddy-config/
+
+# === TEST ARTIFACTS ===
+coverage/
+.pytest_cache/
+playwright-report/
+test-results/
+htmlcov/
+
+# === INVESTIGATION DATA (local only) ===
+# Real investigation data must NEVER be committed
+investigations/real/
+data/real/
+exports/real/

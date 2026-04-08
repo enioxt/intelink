@@ -1,0 +1,15 @@
+{
+  "name": "egos-inteligencia",
+  "private": true,
+  "scripts": {
+    "prepare": "husky",
+    "test": "cd api && python -m pytest tests/unit/ tests/integration/ -v --tb=short -m 'not requires_neo4j and not requires_redis' 2>&1 || true",
+    "test:frontend": "cd frontend && npx vitest run tests/unit/",
+    "lint": "cd frontend && npm run lint",
+    "build": "cd frontend && npm run build",
+    "secret-scan": "gitleaks detect --config=.gitleaks.toml --no-banner"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}

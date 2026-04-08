@@ -1,0 +1,101 @@
+#!/bin/sh
+# EGOS Inteligência — Pre-Commit Hook
+# Extends EGOS kernel enforcement. Kernel wins on conflict.
+# FROZEN: Do not weaken without explicit approval.
+
+set -eu
+
+echo "🔒 EGOS Inteligência: pre-commit enforcement"
+
+# 1. SECRET SCAN — gitleaks
+echo "  [1/6] secrets: scanning staged files..."
+if command -v gitleaks > /dev/null 2>&1; then
+  gitleaks protect --staged --no-banner --config=.gitleaks.toml || {
+    echo "❌ BLOCKED: Secret detected in staged files."
+    echo "   Check .gitleaks.toml for patterns. Remove secret, then commit."
+    exit 1
+  }
+else
+  echo "  ⚠️  gitleaks not installed — install: brew install gitleaks OR apt install gitleaks"
+  echo "  ⚠️  SECRET SCAN SKIPPED — install gitleaks before pushing to public repo."
+fi
+
+# 2. PII GUARD — no real CPFs/CNPJs in non-fixture code
+echo "  [2/6] PII guard: checking for unmasked PII..."
+STAGED_SRC=$(git diff --cached --name-only 2>/dev/null | grep -E '\.(ts|tsx|py|js)$' | grep -v 'fixtures/synthetic\|\.test\.\|\.spec\.' || true)
+if [ -n "$STAGED_SRC" ]; then
+  PII_FOUND=$(git diff --cached -- $STAGED_SRC 2>/dev/null | grep '^+' | grep -v '^+++' | \
+    grep -E '\b[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}\b' || true)
+  if [ -n "$PII_FOUND" ]; then
+    echo "❌ BLOCKED: Real CPF pattern detected in source code."
+    echo "   Use masked/synthetic data only. Never hardcode PII."
+    exit 1
+  fi
+fi
+
+# 3. NO SECRETS IN .env (must not be staged)
+echo "  [3/6] .env guard: checking .env files are not staged..."
+STAGED_ENV=$(git diff --cached --name-only 2>/dev/null | grep -E '^\.env$|^\.env\.' | grep -v '\.example$' || true)
+if [ -n "$STAGED_ENV" ]; then
+  echo "❌ BLOCKED: .env file staged for commit: $STAGED_ENV"
+  echo "   .env files must NEVER be committed. Add to .gitignore."
+  exit 1
+fi
+
+# 4. DOC PROLIFERATION — block timestamped docs and session noise
+echo "  [4/6] doc proliferation: checking for noise files..."
+NEW_MD=$(git diff --cached --name-only --diff-filter=A 2>/dev/null | grep '\.md$' || true)
+if [ -n "$NEW_MD" ]; then
+  NOISE_FOUND=0
+  for f in $NEW_MD; do
+    # Block timestamped filenames
+    if echo "$f" | grep -qE '_[0-9]{4}-[0-9]{2}-[0-9]{2}|SESSION|HANDOFF|RESUMO_|RELATORIO_|DIAGNOSTICO_'; then
+      echo "  ❌ NOISE DOC: $f"
+      echo "     Update TASKS.md, AGENTS.md, or docs/ARCHITECTURE.md instead."
+      NOISE_FOUND=1
+    fi
+    # Block docs outside allowed dirs
+    if echo "$f" | grep -qE '^docs/_|^docs/summaries/|^docs/changelogs/'; then
+      echo "  ❌ PROHIBITED DIR: $f — use docs/ root or docs/knowledge/ only"
+      NOISE_FOUND=1
+    fi
+  done
+  if [ "$NOISE_FOUND" -eq 1 ]; then
+    echo ""
+    echo "❌ BLOCKED: Noise documentation detected."
+    echo "   To override: git commit --no-verify (add justification in commit message)"
+    exit 1
+  fi
+fi
+
+# 5. FILE SIZE LIMITS
+echo "  [5/6] SSOT sizes: checking file line limits..."
+check_lines() {
+  _f="$1"; _max="$2"
+  if [ -f "$_f" ]; then
+    _lines=$(wc -l < "$_f")
+    if [ "$_lines" -gt "$_max" ]; then
+      echo "❌ SSOT VIOLATION: $_f has $_lines lines (max: $_max). Refactor before committing."
+      return 1
+    fi
+  fi
+}
+check_lines "TASKS.md" 200 || exit 1
+check_lines "AGENTS.md" 200 || exit 1
+check_lines ".windsurfrules" 120 || exit 1
+check_lines "docs/ROADMAP.md" 150 || exit 1
+
+# 6. CONVENTIONAL COMMITS — check format
+echo "  [6/6] commit format: checking conventional commit..."
+COMMIT_MSG_FILE=".git/COMMIT_EDITMSG"
+if [ -f "$COMMIT_MSG_FILE" ]; then
+  COMMIT_MSG=$(head -1 "$COMMIT_MSG_FILE")
+  if ! echo "$COMMIT_MSG" | grep -qE '^(feat|fix|docs|chore|test|refactor|perf|ci|revert)(\(.+\))?: .{3,}'; then
+    echo "⚠️  Commit message doesn't follow conventional format."
+    echo "   Expected: feat: description | fix: description | docs: description"
+    echo "   Got: $COMMIT_MSG"
+    echo "   (non-blocking — please follow convention)"
+  fi
+fi
+
+echo "✅ EGOS Inteligência: commit approved."

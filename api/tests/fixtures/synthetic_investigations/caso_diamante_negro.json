@@ -1,0 +1,296 @@
+{
+  "investigation": {
+    "id": "INV-2024-002",
+    "title": "Caso Diamante Negro",
+    "description": "Investigação de rede de tráfico internacional de drogas e lavagem de dinheiro",
+    "status": "concluída",
+    "priority": "crítica",
+    "type": "drug_trafficking",
+    "creation_date": "2024-02-20",
+    "last_update": "2024-07-30",
+    "conclusion_date": "2024-07-30",
+    "estimated_damage": "R$ 45.000.000,00",
+    "lead_investigator": "Del. Carlos Eduardo",
+    "team": [
+      "Inv. Fernanda Lima",
+      "Inv. Rafael Santos",
+      "Esc. Patricia Oliveira",
+      "Agente Federal João Marcos"
+    ]
+  },
+  "entities": [
+    {
+      "id": "PER-010",
+      "name": "Alexandre Costa Mendes",
+      "type": "person",
+      "role": "main_suspect",
+      "description": "Líder da organização criminosa, coordenador das operações",
+      "details": {
+        "cpf": "456.789.123-00",
+        "alias": ["Alex Costa", "Diamante", "AC"],
+        "birth_date": "1985-07-22",
+        "address": "Endereço fictício - Cobertura Barra da Tijuca/RJ",
+        "profession": "Empresário (fachada)",
+        "criminal_record": [
+          "Estelionato (2008)",
+          "Formação de quadrilha (2015)"
+        ],
+        "assets": [
+          "Empresa de importação/exportação",
+          "3 imóveis de luxo",
+          "Embarcações marítimas",
+          "Veículos blindados"
+        ],
+        "connections": "Colômbia, Paraguai, Bolívia"
+      }
+    },
+    {
+      "id": "PER-011",
+      "name": "Marina Silva Rocha",
+      "type": "person", 
+      "role": "financial_operator",
+      "description": "Responsável pela lavagem de dinheiro da organização",
+      "details": {
+        "cpf": "789.123.456-00",
+        "profession": "Contadora",
+        "education": "Ciências Contábeis - UERJ",
+        "crc": "CRC-RJ 087654",
+        "addresses": [
+          "Copacabana/RJ (residencial)",
+          "Centro/RJ (escritório)"
+        ],
+        "specialties": [
+          "Operações offshore",
+          "Criptomoedas",
+          "Contratos internacionais"
+        ]
+      }
+    },
+    {
+      "id": "PER-012",
+      "name": "Diego Fernandez",
+      "type": "person",
+      "role": "international_contact",
+      "description": "Fornecedor colombiano, conexão internacional",
+      "details": {
+        "nationality": "Colombiano",
+        "passport": "CO1234567",
+        "known_locations": [
+          "Medellín, Colômbia",
+          "São Paulo, Brasil",
+          "Montevidéu, Uruguai"
+        ],
+        "operations": "Coordenação de carregamentos"
+      }
+    },
+    {
+      "id": "COM-010",
+      "name": "Global Import Solutions Ltda",
+      "type": "company",
+      "role": "front_company",
+      "description": "Empresa de fachada para operações de importação",
+      "details": {
+        "cnpj": "98.765.432/0001-10",
+        "founded": "2021-03-15", 
+        "capital": "R$ 500.000,00",
+        "main_activity": "Importação de produtos diversos",
+        "real_activity": "Lavagem de dinheiro e facilitação de tráfico",
+        "address": "Porto do Rio de Janeiro - Armazém 47",
+        "suspicious_imports": [
+          "Café colombiano (com drogas ocultas)",
+          "Equipamentos eletrônicos",
+          "Produtos farmacêuticos"
+        ]
+      }
+    },
+    {
+      "id": "LOC-001",
+      "name": "Porto do Rio de Janeiro - Armazém 47",
+      "type": "location",
+      "role": "operational_base",
+      "description": "Local de recebimento e distribuição das drogas",
+      "details": {
+        "address": "Zona Portuária - Rio de Janeiro/RJ",
+        "type": "Armazém alfandegado",
+        "area": "2.500 m²",
+        "security_level": "Alto (câmeras, seguranças)",
+        "operations": [
+          "Recebimento de containers",
+          "Separação de mercadorias",
+          "Redistribuição"
+        ]
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "source": "PER-010",
+      "target": "COM-010",
+      "type": "control",
+      "description": "Alexandre controla empresa através de laranjas",
+      "strength": 0.92,
+      "evidence": [
+        "Movimentações financeiras",
+        "Decisões operacionais",
+        "Presença constante no local"
+      ]
+    },
+    {
+      "source": "PER-011",
+      "target": "COM-010",
+      "type": "financial_management",
+      "description": "Marina gerencia contabilidade e operações financeiras",
+      "strength": 0.88,
+      "evidence": [
+        "Contratos de prestação de serviços",
+        "Assinatura em documentos",
+        "Movimentações bancárias"
+      ]
+    },
+    {
+      "source": "PER-012",
+      "target": "PER-010",
+      "type": "supplier",
+      "description": "Diego fornece drogas da Colômbia",
+      "strength": 0.95,
+      "evidence": [
+        "Interceptações telefônicas",
+        "Cronograma de viagens",
+        "Análise de carregamentos"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "EV-010",
+      "type": "physical",
+      "description": "Apreensão de 500kg de cocaína",
+      "details": {
+        "location": "Armazém 47",
+        "date": "2024-06-15",
+        "substance": "Cocaína pura (93%)",
+        "weight": "500 kg",
+        "estimated_value": "R$ 25.000.000,00",
+        "packaging": "Oculta em sacos de café"
+      }
+    },
+    {
+      "id": "EV-011",
+      "type": "financial",
+      "description": "Movimentações bancárias suspeitas", 
+      "details": {
+        "period": "Jan-Jun 2024",
+        "total_amount": "R$ 12.000.000,00",
+        "accounts": [
+          "Global Import Solutions",
+          "Contas pessoais de Alexandre",
+          "Offshores nas Ilhas Virgens"
+        ],
+        "pattern": "Depósitos fracionados seguidos de transferências internacionais"
+      }
+    },
+    {
+      "id": "EV-012",
+      "type": "communications",
+      "description": "Interceptações telefônicas e mensagens",
+      "details": {
+        "period": "Mar-Jun 2024",
+        "total_intercepted": "847 ligações, 2.344 mensagens",
+        "key_conversations": [
+          "Negociação de preços com Diego",
+          "Coordenação de logística",
+          "Discussões sobre 'lavagem'"
+        ],
+        "code_words": {
+          "café": "cocaína",
+          "açúcar": "dinheiro",
+          "entrega": "operação de tráfico"
+        }
+      }
+    },
+    {
+      "id": "EV-013",
+      "type": "surveillance",
+      "description": "Vigilância e fotografias",
+      "details": {
+        "duration": "4 meses",
+        "locations": [
+          "Armazém 47",
+          "Residências dos suspeitos",
+          "Aeroporto Internacional"
+        ],
+        "key_observations": [
+          "Reuniões regulares entre suspeitos",
+          "Movimentação noturna no armazém",
+          "Chegada de Diego em 3 ocasiões"
+        ]
+      }
+    }
+  ],
+  "timeline": [
+    {
+      "date": "2023-12-01",
+      "event": "Primeiro contato com Diego",
+      "description": "Alexandre estabelece contato com fornecedor colombiano"
+    },
+    {
+      "date": "2024-01-15",
+      "event": "Estabelecimento da rota",
+      "description": "Definição da logística: Colômbia → Rio de Janeiro"
+    },
+    {
+      "date": "2024-02-20",
+      "event": "Investigação iniciada",
+      "description": "Denúncia leva ao início da investigação policial"
+    },
+    {
+      "date": "2024-03-10",
+      "event": "Primeira operação identificada",
+      "description": "Identificação do primeiro carregamento"
+    },
+    {
+      "date": "2024-04-05",
+      "event": "Início das interceptações",
+      "description": "Autorização judicial para escutas telefônicas"
+    },
+    {
+      "date": "2024-06-15",
+      "event": "Operação Diamante Negro",
+      "description": "Deflagração da operação com prisões e apreensões"
+    },
+    {
+      "date": "2024-07-30",
+      "event": "Conclusão da investigação",
+      "description": "Relatório final e encaminhamento ao MP"
+    }
+  ],
+  "analysis": {
+    "drug_volume": {
+      "estimated_total": "2.5 toneladas/ano",
+      "seized": "500 kg",
+      "market_value": "R$ 125.000.000,00"
+    },
+    "money_laundering": {
+      "identified_amount": "R$ 45.000.000,00",
+      "recovered": "R$ 8.500.000,00",
+      "offshore_accounts": "12 contas identificadas"
+    },
+    "convictions": [
+      {
+        "name": "Alexandre Costa Mendes",
+        "charges": ["Tráfico internacional", "Lavagem de dinheiro", "Organização criminosa"],
+        "sentence": "18 anos (estimado)"
+      },
+      {
+        "name": "Marina Silva Rocha", 
+        "charges": ["Lavagem de dinheiro", "Organização criminosa"],
+        "sentence": "12 anos (estimado)"
+      },
+      {
+        "name": "Diego Fernandez",
+        "charges": ["Tráfico internacional"],
+        "status": "Foragido"
+      }
+    ]
+  }
+}

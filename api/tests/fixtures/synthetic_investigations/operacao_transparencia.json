@@ -1,0 +1,231 @@
+{
+  "investigation": {
+    "id": "INV-2024-001",
+    "title": "Operação Transparência",
+    "description": "Investigação sobre esquema de corrupção em licitações públicas municipais",
+    "status": "ativa",
+    "priority": "alta",
+    "type": "corruption",
+    "creation_date": "2024-01-15",
+    "last_update": "2024-08-06",
+    "estimated_damage": "R$ 15.000.000,00",
+    "lead_investigator": "Del. Maria Santos",
+    "team": [
+      "Esc. João Silva",
+      "Inv. Carlos Mendes", 
+      "Inv. Ana Costa"
+    ]
+  },
+  "entities": [
+    {
+      "id": "PER-001",
+      "name": "Roberto Almeida Silva",
+      "type": "person",
+      "role": "suspect",
+      "description": "Empresário, sócio majoritário da Construtora Alpha",
+      "details": {
+        "cpf": "123.456.789-00",
+        "rg": "12.345.678-9 SSP/SP",
+        "birth_date": "1978-03-15",
+        "address": "Av. Paulista, 1000, apto 1501 - São Paulo/SP",
+        "profession": "Empresário",
+        "assets": [
+          "Construtora Alpha Ltda (80%)",
+          "Imóvel comercial - R$ 2.5M",
+          "Veículos de luxo - R$ 450K"
+        ],
+        "phone": "+55 11 99999-1234",
+        "email": "roberto@construtoraalpha.com"
+      }
+    },
+    {
+      "id": "PER-002", 
+      "name": "Dr. Fernando Oliveira",
+      "type": "person",
+      "role": "suspect",
+      "description": "Prefeito municipal envolvido no esquema",
+      "details": {
+        "cpf": "987.654.321-00",
+        "position": "Prefeito Municipal",
+        "mandate": "2021-2024",
+        "party": "Partido Local",
+        "address": "Rua das Flores, 500 - Centro",
+        "assets": [
+          "Declaração de bens 2023: R$ 890.000",
+          "Imóvel residencial",
+          "Conta bancária principal"
+        ]
+      }
+    },
+    {
+      "id": "COM-001",
+      "name": "Construtora Alpha Ltda",
+      "type": "company",
+      "role": "suspect", 
+      "description": "Empresa beneficiada em licitações direcionadas",
+      "details": {
+        "cnpj": "12.345.678/0001-90",
+        "social_name": "Construtora Alpha Ltda",
+        "fantasy_name": "Alpha Construções",
+        "founded": "2019-05-10",
+        "capital": "R$ 2.500.000,00",
+        "main_activity": "Construção de obras de infraestrutura",
+        "address": "Av. Industrial, 1200 - Distrito Industrial",
+        "contracts": [
+          "Ponte Municipal - R$ 8.5M",
+          "Reforma Escola Central - R$ 3.2M", 
+          "Pavimentação Bairro Novo - R$ 2.8M"
+        ]
+      }
+    },
+    {
+      "id": "DOC-001",
+      "name": "Contrato Licitação 001/2024",
+      "type": "document",
+      "role": "evidence",
+      "description": "Contrato superfaturado para construção de ponte",
+      "details": {
+        "number": "001/2024",
+        "value": "R$ 8.500.000,00",
+        "real_cost_estimate": "R$ 5.200.000,00",
+        "overcharge": "R$ 3.300.000,00 (63%)",
+        "signature_date": "2024-01-30",
+        "object": "Construção de ponte sobre Rio Verde",
+        "duration": "18 meses",
+        "irregularities": [
+          "Especificações técnicas direcionadas",
+          "Valor 63% acima do mercado",
+          "Processo licitatório viciado"
+        ]
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "source": "PER-001",
+      "target": "COM-001", 
+      "type": "ownership",
+      "description": "Roberto é sócio majoritário (80%) da Construtora Alpha",
+      "strength": 0.95,
+      "evidence": [
+        "Contrato social",
+        "Declaração de imposto de renda",
+        "Ata de assembleia"
+      ]
+    },
+    {
+      "source": "PER-002",
+      "target": "COM-001",
+      "type": "business_relationship", 
+      "description": "Prefeito favoreceu empresa em licitações",
+      "strength": 0.85,
+      "evidence": [
+        "Análise de contratos assinados",
+        "Cronologia de decisões",
+        "Testemunhas"
+      ]
+    },
+    {
+      "source": "COM-001",
+      "target": "DOC-001",
+      "type": "contractual",
+      "description": "Construtora foi contratada via licitação direcionada",
+      "strength": 1.0,
+      "evidence": [
+        "Documento oficial assinado"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "EV-001",
+      "type": "financial",
+      "description": "Transferências bancárias suspeitas",
+      "details": {
+        "amount": "R$ 380.000,00",
+        "date": "2024-02-15",
+        "from": "Construtora Alpha",
+        "to": "Conta offshore (Ilhas Cayman)",
+        "method": "Transferência fracionada"
+      }
+    },
+    {
+      "id": "EV-002", 
+      "type": "documentary",
+      "description": "E-mails comprometedores",
+      "details": {
+        "date_range": "Jan-Mar 2024",
+        "participants": ["Roberto Almeida", "Fernando Oliveira"],
+        "content_summary": "Combinação de valores e cronograma",
+        "key_phrases": [
+          "como combinado, 15% do valor",
+          "precisa ser discreto",
+          "depois das eleições ajustamos"
+        ]
+      }
+    },
+    {
+      "id": "EV-003",
+      "type": "witness",
+      "description": "Depoimento de funcionário da prefeitura",
+      "details": {
+        "witness": "Maria José Santos",
+        "position": "Secretária de Obras",
+        "testimony_date": "2024-07-20",
+        "key_points": [
+          "Viu reuniões privadas entre prefeito e Roberto",
+          "Recebeu orientação para facilitar documentação",
+          "Presenciou entrega de envelope"
+        ]
+      }
+    }
+  ],
+  "timeline": [
+    {
+      "date": "2023-11-15",
+      "event": "Reunião inicial entre Roberto e Fernando",
+      "description": "Primeiro contato para discutir licitação da ponte"
+    },
+    {
+      "date": "2023-12-20", 
+      "event": "Edital publicado",
+      "description": "Publicação do edital com especificações direcionadas"
+    },
+    {
+      "date": "2024-01-10",
+      "event": "Licitação realizada",
+      "description": "Processo licitatório com apenas 2 participantes"
+    },
+    {
+      "date": "2024-01-30",
+      "event": "Assinatura do contrato",
+      "description": "Contrato assinado com Construtora Alpha"
+    },
+    {
+      "date": "2024-02-15",
+      "event": "Primeira transferência",
+      "description": "Transferência suspeita para conta offshore"
+    },
+    {
+      "date": "2024-06-01",
+      "event": "Denúncia anônima",
+      "description": "Denúncia recebida pelo Ministério Público"
+    },
+    {
+      "date": "2024-07-15",
+      "event": "Operação deflagrada",
+      "description": "Busca e apreensão nas empresas e residências"
+    }
+  ],
+  "analysis": {
+    "damage_assessment": {
+      "direct_damage": "R$ 3.300.000,00",
+      "indirect_damage": "R$ 11.700.000,00",
+      "total_estimated": "R$ 15.000.000,00"
+    },
+    "risk_level": "alto",
+    "complexity": "média",
+    "probability_conviction": 0.78,
+    "estimated_duration": "24 meses"
+  }
+}

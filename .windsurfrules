@@ -1,0 +1,69 @@
+# .windsurfrules — EGOS Inteligência
+# VERSION: 1.0.0 | MAX_LINES: 120 (HARD LIMIT)
+# Extends: EGOS Kernel rules (egos/.guarani/) — kernel wins on conflict.
+
+---
+project: "egos-inteligencia"
+ssot: "/home/enio/egos-inteligencia"
+public_repo: "github.com/enioxt/intelink"
+---
+
+## ⚡ PRIME DIRECTIVE
+
+> **NEVER create a file without a clear reason.**
+> **UPDATE existing files. Don't duplicate.**
+> **EGOS kernel governance is authoritative. This file is an adapter.**
+
+## 🚫 FILE CREATION RULES (HARD)
+
+1. **NO TIMESTAMPED DOCS** — Never: `*_2026-04-*.md`, `*REPORT_2026*.md`, `*SESSION*.md`
+2. **UPDATE SSOT, DON'T CREATE** — Audits → update `TASKS.md`. Architecture → update `docs/ARCHITECTURE.md`. Status → update `AGENTS.md`.
+3. **ONE SSOT PER CONCERN:**
+   - Tasks/backlog → `TASKS.md` (max 200 lines)
+   - Strategy/roadmap → `docs/ROADMAP.md` (phases, not tickets)
+   - Architecture → `docs/ARCHITECTURE.md`
+   - Capabilities → `AGENTS.md` (max 200 lines)
+   - Rules → `.windsurfrules` (this file, max 120 lines)
+4. **NEW FILE REQUIRES JUSTIFICATION** — commit message must explain why no existing file could be updated.
+5. **MAX FILE SIZE:** source files 300 lines | docs 150 lines | TASKS.md 200 lines
+
+## 🔐 SECURITY (NON-NEGOTIABLE)
+
+- **NO SECRETS IN CODE** — All keys in `.env` only. Never hardcode. Gitleaks on every commit.
+- **PII ALWAYS MASKED** — CPF, CNPJ, email, phone masked in ALL output. Never in logs.
+- **AUDIT LOG IMMUTABLE** — Append-only. Never UPDATE/DELETE audit tables.
+- **PUBLIC REPO RULES** — Treat every file as public. No internal endpoints, no org names, no real investigation data.
+- **SYNTHETIC DATA ONLY** — Tests use `api/tests/fixtures/synthetic_investigations/` only.
+
+## 📐 CODE STANDARDS (inherit from EGOS kernel)
+
+- TypeScript strict mode. Max 300 lines/file.
+- Conventional commits: `feat:` `fix:` `docs:` `chore:` `test:`
+- Dark mode first. Tailwind CSS. Lucide icons. Min 40x40px hit areas.
+- No em-dashes in public copy.
+- `docker-compose.yml` is SSOT for runtime. Never use `restart: always`.
+
+## 📋 SSOT MAP
+
+| Concern | File | Max Lines |
+|---------|------|-----------|
+| Tasks (backlog vivo) | `TASKS.md` | 200 |
+| Roadmap (fases estratégicas) | `docs/ROADMAP.md` | 150 |
+| Architecture + data flows | `docs/ARCHITECTURE.md` | 150 |
+| System map + capabilities | `AGENTS.md` | 200 |
+| Governance rules | `.windsurfrules` | 120 |
+| Runtime config | `docker-compose.yml` | — |
+
+## 🔄 TASKS ↔ ROADMAP SYNC PROTOCOL
+
+- **ROADMAP.md** = phases (Curto/Médio/Longo). Strategic. Rarely changes.
+- **TASKS.md** = atomic tickets (P0/P1/P2). Changes every session.
+- **Link:** each ROADMAP phase has an ID (e.g. `PHASE-1`). TASKS reference it: `[PHASE-1] feat: deploy prod`.
+- **Sync check:** pre-commit warns if TASKS has P0 items older than 14 days without ROADMAP anchor.
+
+## 🚀 ACTIVATION ORDER
+
+1. Read `AGENTS.md` — system map
+2. Read `TASKS.md` — current sprint
+3. Read `docs/ARCHITECTURE.md` — data flows if needed
+4. Never read session docs, handoffs, or archived files unless explicitly requested

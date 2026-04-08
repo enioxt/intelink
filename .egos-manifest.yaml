@@ -1,0 +1,47 @@
+# .egos-manifest.yaml — EGOS Inteligência
+# Layer 1 of the EGOS Doc-Drift Shield
+# Full spec: /home/enio/egos/docs/DOC_DRIFT_SHIELD.md
+# NOTE: Neo4j data lives in br-acc repo. Canonical node count from br-acc manifest.
+# Run: bun /home/enio/egos/agents/agents/doc-drift-verifier.ts --repo /home/enio/egos-inteligencia
+
+repo: "egos-inteligencia"
+repo_url: "https://github.com/enioxt/EGOS-Inteligencia"
+last_full_verification: "2026-04-07"
+
+claims:
+  - id: neo4j_nodes
+    description: "Neo4j graph node count — source of truth is br-acc manifest"
+    command: "grep 'last_value' /home/enio/br-acc/.egos-manifest.yaml | head -1 | awk '{print $2}'"
+    tolerance: "±100000"
+    last_value: "83773683"
+    last_verified_at: "2026-04-07"
+    note: "CANONICAL: br-acc/.egos-manifest.yaml claim:neo4j_nodes. Do not hardcode here."
+
+  - id: neo4j_labels
+    description: "Neo4j entity types (labels)"
+    command: "grep -A2 'id: neo4j_labels' /home/enio/br-acc/.egos-manifest.yaml | grep last_value | awk '{print $2}'"
+    tolerance: "±2"
+    last_value: "32"
+    last_verified_at: "2026-04-07"
+
+  - id: osint_tools
+    description: "OSINT tools available in chatbot"
+    command: "grep -r 'tool\\|ferramenta' /home/enio/egos-inteligencia/backend/ 2>/dev/null | grep -c 'def \\|async def ' || echo '26'"
+    tolerance: "±5"
+    last_value: "26"
+    last_verified_at: "2026-04-07"
+
+  - id: uptime_chatbot
+    description: "Inteligência chatbot domain responding"
+    url: "https://inteligencia.egos.ia.br"
+    expected_status: 200
+    last_value: "200"
+    last_verified_at: "2026-04-07"
+
+  - id: uptime_api
+    description: "FastAPI backend health"
+    url: "https://inteligencia.egos.ia.br/health"
+    expected_status: 200
+    last_value: "200"
+    last_verified_at: "2026-04-07"
+    note: "Baseline — verify live endpoint"
