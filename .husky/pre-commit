@@ -25,11 +25,38 @@ echo "  [2/6] PII guard: checking for unmasked PII..."
 STAGED_SRC=$(git diff --cached --name-only 2>/dev/null | grep -E '\.(ts|tsx|py|js)$' | grep -v 'fixtures/synthetic\|seed_synthetic\|\.test\.\|\.spec\.' || true)
 if [ -n "$STAGED_SRC" ]; then
   PII_FOUND=$(git diff --cached -- $STAGED_SRC 2>/dev/null | grep '^+' | grep -v '^+++' | \
-    grep -E '\b[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}\b' || true)
+    grep -E '\b[0-9]{3}\.[0-9]{3}\.[0-9]{3}-\d{2}\b' || true)
   if [ -n "$PII_FOUND" ]; then
     echo "❌ BLOCKED: Real CPF pattern detected in source code."
     echo "   Use masked/synthetic data only. Never hardcode PII."
     exit 1
+  fi
+fi
+
+# 2b. TELEGRAM TOKEN GUARD — critical security
+echo "  [2b/6] Telegram token guard: checking for hardcoded bot tokens..."
+STAGED_CODE=$(git diff --cached --name-only 2>/dev/null | grep -E '\.(ts|tsx|py|js|jsx)$' || true)
+if [ -n "$STAGED_CODE" ]; then
+  # Check for Telegram bot token pattern: 123456789:ABCdefGHIjklMNOpqrSTUvwxyz
+  TG_TOKEN_FOUND=$(git diff --cached -- $STAGED_CODE 2>/dev/null | grep '^+' | grep -v '^+++' | \
+    grep -E "\d{9,11}:[A-Za-z0-9_-]{35}" || true)
+  if [ -n "$TG_TOKEN_FOUND" ]; then
+    echo "❌❌❌ CRITICAL BLOCKED: Telegram Bot Token detected in source code!"
+    echo "   This is a PUBLIC repository - tokens can be exploited immediately."
+    echo "   Use environment variables: process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN"
+    echo "   Rotate the token via @BotFather immediately if exposed."
+    exit 1
+  fi
+  
+  # Check for hardcoded API keys (common patterns)
+  API_KEY_FOUND=$(git diff --cached -- $STAGED_CODE 2>/dev/null | grep '^+' | grep -v '^+++' | \
+    grep -iE "(api_key|apikey|secret|token)\s*[=:]\s*[\"'][^\"']{20,}[\"']" | \
+    grep -v "process\.env\|NEXT_PUBLIC_\|REACT_APP_\|getenv\|os\.environ" || true)
+  if [ -n "$API_KEY_FOUND" ]; then
+    echo "⚠️  WARNING: Potential hardcoded API key/secret detected."
+    echo "   Check: $API_KEY_FOUND"
+    echo "   Use environment variables instead."
+    echo "   (non-blocking — verify before pushing)"
   fi
 fi
 

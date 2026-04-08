@@ -3,8 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { MessageCircle, X, Send, CheckCircle } from 'lucide-react';
 
-const ADMIN_CHAT_ID = 171767219; // Seu Telegram ID
-const BOT_TOKEN = '8570192341:AAHIpePgeswv_OuZtRuSxVzDbVNny18nnWs';
+// Telegram Bot configuration from environment
+const ADMIN_CHAT_ID = process.env.NEXT_PUBLIC_TELEGRAM_ADMIN_CHAT_ID ?
+    parseInt(process.env.NEXT_PUBLIC_TELEGRAM_ADMIN_CHAT_ID) :
+    171767219;
+const BOT_TOKEN = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN || '';
 
 interface FeedbackButtonProps {
     userName?: string;
@@ -20,7 +23,7 @@ export default function FeedbackButton({ userName, userRole }: FeedbackButtonPro
 
     const handleSend = async () => {
         if (!message.trim()) return;
-        
+
         setSending(true);
         try {
             const typeLabels = {
@@ -80,7 +83,7 @@ ${message}
 
             {/* Modal - ESC e clique fora para fechar */}
             {isOpen && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
                     onClick={(e) => e.target === e.currentTarget && setIsOpen(false)}
                 >
@@ -128,11 +131,10 @@ ${message}
                                                 <button
                                                     key={type.id}
                                                     onClick={() => setFeedbackType(type.id as any)}
-                                                    className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                                                        feedbackType === type.id
+                                                    className={`px-3 py-2 rounded-lg text-sm transition-colors ${feedbackType === type.id
                                                             ? `bg-${type.color}-500/20 text-${type.color}-400 border-2 border-${type.color}-500/50`
                                                             : 'bg-slate-700 text-slate-300 border-2 border-transparent hover:bg-slate-600'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {type.label}
                                                 </button>
@@ -147,11 +149,11 @@ ${message}
                                             value={message}
                                             onChange={(e) => setMessage(e.target.value)}
                                             placeholder={
-                                                feedbackType === 'bug' 
+                                                feedbackType === 'bug'
                                                     ? 'Descreva o problema que encontrou...'
                                                     : feedbackType === 'suggestion'
-                                                    ? 'Sua sugestão de melhoria...'
-                                                    : 'Escreva sua mensagem...'
+                                                        ? 'Sua sugestão de melhoria...'
+                                                        : 'Escreva sua mensagem...'
                                             }
                                             rows={4}
                                             className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 resize-none"

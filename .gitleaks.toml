@@ -37,6 +37,12 @@ description = "CPF in source code (PII)"
 regex = '''\d{3}\.\d{3}\.\d{3}-\d{2}'''
 keywords = ["cpf"]
 
+[[rules]]
+id = "telegram-bot-token"
+description = "Telegram Bot Token (Critical)"
+regex = '''\d{9,11}:[A-Za-z0-9_-]{35}'''
+keywords = ["bot_token", "telegram", "bot"]
+
 [allowlist]
 description = "Allowed paths — synthetic/example CPFs in source are not PII"
 paths = [
