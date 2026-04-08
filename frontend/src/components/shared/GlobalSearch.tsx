@@ -39,7 +39,7 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
     const router = useRouter();
     const { logSearch } = useAudit();
     const { addStep, isRecording } = useJourneySafe();
-    
+
     // Detect mobile device
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -123,9 +123,9 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                     const data = await res.json();
                     setResults(data.results || []);
                     setSelectedIndex(0);
-                    
+
                     // Audit: Log search term
-                    logSearch(query, { results_count: data.results?.length || 0 });
+                    logSearch(query, data.results?.length || 0);
                 }
             } catch (error) {
                 console.error('Search error:', error);
@@ -162,7 +162,7 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                 href,
             });
         }
-        
+
         // For entities (person, vehicle, etc), open modal instead of navigating
         if (item && item.type !== 'operation') {
             // Track in Journey when recording
@@ -175,14 +175,14 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                     visibleConnectionsSnapshot: [],
                 });
             }
-            
+
             setSelectedEntityId(item.id);
             setIsOpen(false);
             setQuery('');
             setResults([]);
             return;
         }
-        
+
         // For operations, navigate normally
         setIsOpen(false);
         setQuery('');
@@ -213,7 +213,7 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                 <div className="fixed inset-0 z-[60] bg-slate-950 flex flex-col">
                     {/* Header with input */}
                     <div className="flex items-center gap-2 p-4 border-b border-slate-800">
-                        <button 
+                        <button
                             onClick={closeFullScreen}
                             className="p-2 hover:bg-slate-800 rounded-lg"
                         >
@@ -236,7 +236,7 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                             )}
                         </div>
                     </div>
-                    
+
                     {/* Results - scrollable */}
                     <div className="flex-1 overflow-y-auto">
                         {query.length < 2 && history.length > 0 ? (
@@ -251,9 +251,9 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                                     return (
                                         <button
                                             key={item.id}
-                                            onClick={() => { 
-                                                navigateTo(item.href, { id: item.id, type: item.type, title: item.title }); 
-                                                closeFullScreen(); 
+                                            onClick={() => {
+                                                navigateTo(item.href, { id: item.id, type: item.type, title: item.title });
+                                                closeFullScreen();
                                             }}
                                             className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-800 text-slate-300"
                                         >
@@ -288,9 +288,9 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                                             {items.map((result) => (
                                                 <button
                                                     key={result.id}
-                                                    onClick={() => { 
-                                                        navigateTo(result.href, { id: result.id, type: result.type, title: result.title }); 
-                                                        closeFullScreen(); 
+                                                    onClick={() => {
+                                                        navigateTo(result.href, { id: result.id, type: result.type, title: result.title });
+                                                        closeFullScreen();
                                                     }}
                                                     className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-800 text-slate-300"
                                                 >
@@ -322,7 +322,7 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                 </div>
             );
         }
-        
+
         // DESKTOP INLINE MODE
         return (
             <div ref={containerRef} className="relative w-full">
@@ -377,7 +377,7 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                                 {history.map((item) => {
                                     const config = TYPE_CONFIG[item.type as keyof typeof TYPE_CONFIG];
                                     const Icon = config?.icon || User;
-                                    
+
                                     return (
                                         <button
                                             key={item.id}
@@ -409,7 +409,7 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                                 {Object.entries(groupedResults).map(([type, items]) => {
                                     const config = TYPE_CONFIG[type as keyof typeof TYPE_CONFIG];
                                     const Icon = config?.icon || User;
-                                    
+
                                     return (
                                         <div key={type}>
                                             <div className="px-4 py-1.5 text-xs font-medium text-slate-500 uppercase tracking-wider flex items-center justify-between">
@@ -421,18 +421,17 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                                                 const isSelected = globalIndex === selectedIndex;
                                                 const isExpanded = expandedResult === result.id;
                                                 const hasConnections = result.connections && result.connections > 0;
-                                                
+
                                                 return (
                                                     <div key={result.id}>
                                                         <button
                                                             onClick={() => navigateTo(result.href, { id: result.id, type: result.type, title: result.title })}
                                                             onMouseEnter={() => hasConnections && setExpandedResult(result.id)}
                                                             onMouseLeave={() => setExpandedResult(null)}
-                                                            className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
-                                                                isSelected 
-                                                                    ? 'bg-blue-600/20 text-white' 
+                                                            className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${isSelected
+                                                                    ? 'bg-blue-600/20 text-white'
                                                                     : 'hover:bg-slate-800 text-slate-300'
-                                                            }`}
+                                                                }`}
                                                         >
                                                             <div className={`p-1.5 rounded flex-shrink-0 ${config?.bg || 'bg-slate-700'}`}>
                                                                 <Icon className={`w-4 h-4 ${config?.color || 'text-slate-400'}`} />
@@ -460,7 +459,7 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                                                             </div>
                                                             <ChevronRight className="w-4 h-4 text-slate-600 flex-shrink-0" />
                                                         </button>
-                                                        
+
                                                         {/* Expanded Connections - Rich Connection Chips */}
                                                         {isExpanded && result.relatedEntities && result.relatedEntities.length > 0 && (
                                                             <div className="px-4 py-3 bg-slate-950/70 border-l-2 border-purple-500 ml-4 mr-2 rounded-r">
@@ -469,20 +468,18 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                                                                     {result.relatedEntities.slice(0, 5).map((rel, idx) => {
                                                                         const relInfo = formatRelType(rel.relationship);
                                                                         return (
-                                                                            <div 
-                                                                                key={idx} 
-                                                                                className={`flex items-center gap-2 px-2.5 py-1.5 bg-slate-900/80 border rounded-md ${
-                                                                                    relInfo.critical 
-                                                                                        ? 'border-red-900/50' 
+                                                                            <div
+                                                                                key={idx}
+                                                                                className={`flex items-center gap-2 px-2.5 py-1.5 bg-slate-900/80 border rounded-md ${relInfo.critical
+                                                                                        ? 'border-red-900/50'
                                                                                         : 'border-slate-700/50'
-                                                                                }`}
+                                                                                    }`}
                                                                             >
                                                                                 <span className="text-sm">{relInfo.emoji}</span>
-                                                                                <span className={`text-xs font-medium ${
-                                                                                    relInfo.critical 
-                                                                                        ? 'text-red-400' 
+                                                                                <span className={`text-xs font-medium ${relInfo.critical
+                                                                                        ? 'text-red-400'
                                                                                         : 'text-blue-400'
-                                                                                }`}>
+                                                                                    }`}>
                                                                                     {relInfo.label}
                                                                                 </span>
                                                                                 <ArrowRight className="w-3 h-3 text-slate-600" />
@@ -501,7 +498,7 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                                 })}
                             </div>
                         )}
-                        
+
                         {/* Footer - hide keyboard hints on mobile */}
                         <div className="px-4 py-2 border-t border-slate-800 flex items-center justify-between text-xs text-slate-500">
                             <span className="flex items-center gap-2">
@@ -515,7 +512,7 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                         </div>
                     </div>
                 )}
-                
+
                 {/* Entity Detail Modal - MUST be outside dropdown for inline variant */}
                 <EntityDetailModal
                     isOpen={!!selectedEntityId}
@@ -547,7 +544,7 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
     return (
         <>
             {/* Backdrop */}
-            <div 
+            <div
                 className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
                 onClick={() => setIsOpen(false)}
             />
@@ -584,7 +581,7 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                             <div className="p-6 text-center text-slate-500">
                                 <p>Digite pelo menos 2 caracteres para buscar</p>
                                 <p className="text-xs mt-2">
-                                    Use <kbd className="px-1 py-0.5 bg-slate-800 rounded text-slate-400">↑↓</kbd> para navegar, 
+                                    Use <kbd className="px-1 py-0.5 bg-slate-800 rounded text-slate-400">↑↓</kbd> para navegar,
                                     <kbd className="px-1 py-0.5 bg-slate-800 rounded text-slate-400 ml-1">Enter</kbd> para selecionar
                                 </p>
                             </div>
@@ -597,7 +594,7 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                                 {Object.entries(groupedResults).map(([type, items]) => {
                                     const config = TYPE_CONFIG[type as keyof typeof TYPE_CONFIG];
                                     const Icon = config?.icon || User;
-                                    
+
                                     return (
                                         <div key={type}>
                                             <div className="px-4 py-2 text-xs font-medium text-slate-500 uppercase tracking-wider">
@@ -607,18 +604,17 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                                                 const globalIndex = results.indexOf(result);
                                                 const isSelected = globalIndex === selectedIndex;
                                                 const hasConnections = result.connections && result.connections > 0;
-                                                
+
                                                 return (
                                                     <div key={result.id}>
                                                         <button
                                                             onClick={() => navigateTo(result.href, { id: result.id, type: result.type, title: result.title })}
                                                             onMouseEnter={() => hasConnections && setExpandedResult(result.id)}
                                                             onMouseLeave={() => setExpandedResult(null)}
-                                                            className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
-                                                                isSelected 
-                                                                    ? 'bg-blue-600/20 text-white border-l-4 border-blue-500 pl-3' 
+                                                            className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${isSelected
+                                                                    ? 'bg-blue-600/20 text-white border-l-4 border-blue-500 pl-3'
                                                                     : 'hover:bg-slate-800 text-slate-300 border-l-4 border-transparent pl-3'
-                                                            }`}
+                                                                }`}
                                                         >
                                                             <div className={`p-1.5 rounded flex-shrink-0 ${config?.bg || 'bg-slate-700'}`}>
                                                                 <Icon className={`w-4 h-4 ${config?.color || 'text-slate-400'}`} />
@@ -649,7 +645,7 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                                                                 </kbd>
                                                             )}
                                                         </button>
-                                                        
+
                                                         {/* Expanded Connections - Rich Connection Chips (Desktop) */}
                                                         {hasConnections && expandedResult === result.id && result.relatedEntities && result.relatedEntities.length > 0 && (
                                                             <div className="px-4 py-3 bg-slate-950/70 border-l-2 border-purple-500 ml-4 mr-2 rounded-r animate-in fade-in slide-in-from-top-1 duration-200">
@@ -658,18 +654,16 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                                                                     {result.relatedEntities.slice(0, 5).map((rel, idx) => {
                                                                         const relInfo = formatRelType(rel.relationship);
                                                                         return (
-                                                                            <div 
-                                                                                key={idx} 
-                                                                                className={`flex items-center gap-2 px-2.5 py-1.5 bg-slate-900/80 border rounded-md shadow-sm ${
-                                                                                    relInfo.critical 
-                                                                                        ? 'border-red-900/50' 
+                                                                            <div
+                                                                                key={idx}
+                                                                                className={`flex items-center gap-2 px-2.5 py-1.5 bg-slate-900/80 border rounded-md shadow-sm ${relInfo.critical
+                                                                                        ? 'border-red-900/50'
                                                                                         : 'border-slate-700/50'
-                                                                                }`}
+                                                                                    }`}
                                                                             >
                                                                                 <span className="text-sm">{relInfo.emoji}</span>
-                                                                                <span className={`text-xs font-medium ${
-                                                                                    relInfo.critical ? 'text-red-400' : 'text-blue-400'
-                                                                                }`}>
+                                                                                <span className={`text-xs font-medium ${relInfo.critical ? 'text-red-400' : 'text-blue-400'
+                                                                                    }`}>
                                                                                     {relInfo.label}
                                                                                 </span>
                                                                                 <ArrowRight className="w-3 h-3 text-slate-600" />
@@ -704,7 +698,7 @@ export default function GlobalSearch({ variant = 'inline', compact = false }: Gl
                     </div>
                 </div>
             </div>
-            
+
             {/* Entity Detail Modal */}
             <EntityDetailModal
                 isOpen={!!selectedEntityId}

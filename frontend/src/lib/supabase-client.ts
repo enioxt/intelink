@@ -2,7 +2,8 @@
  * Supabase client stub — configure NEXT_PUBLIC_SUPABASE_URL and
  * NEXT_PUBLIC_SUPABASE_ANON_KEY in .env to enable.
  */
-let client: unknown = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let client: any = null;
 
 export const getSupabase = () => getSupabaseClient();
 

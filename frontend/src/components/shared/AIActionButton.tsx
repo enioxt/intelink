@@ -51,7 +51,7 @@ export default function AIActionButton({
     const [isOpen, setIsOpen] = useState(false);
     const [activeAnalysis, setActiveAnalysis] = useState<string | null>(null);
     const [analysisResult, setAnalysisResult] = useState<GuardianResult | null>(null);
-    
+
     const { analyze, isLoading, error } = useGuardianAnalysis();
 
     const availableAnalyses = ANALYSIS_TYPES.filter(a => a.available.includes(contextType));
@@ -114,11 +114,10 @@ export default function AIActionButton({
                                         key={analysis.id}
                                         onClick={() => handleAnalysis(analysis.id)}
                                         disabled={isLoading}
-                                        className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                                            isActive 
-                                                ? `bg-${analysis.color}-500/20 border border-${analysis.color}-500/30` 
+                                        className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${isActive
+                                                ? `bg-${analysis.color}-500/20 border border-${analysis.color}-500/30`
                                                 : 'hover:bg-slate-700'
-                                        }`}
+                                            }`}
                                     >
                                         <div className={`p-2 bg-${analysis.color}-500/20 rounded-lg`}>
                                             {isLoading && isActive ? (
@@ -163,9 +162,9 @@ export default function AIActionButton({
                                 ) : (
                                     <p className="text-xs text-slate-400">Nenhum crime identificado</p>
                                 )}
-                                {analysisResult.flagrancy.detected && (
+                                {typeof analysisResult.flagrancy === 'object' && analysisResult.flagrancy?.detected && (
                                     <div className="mt-2 px-2 py-1 bg-red-500/20 border border-red-500/30 rounded text-xs text-red-400">
-                                        ⚠️ Flagrância detectada: {analysisResult.flagrancy.type}
+                                        ⚠️ Flagrância detectada: {(analysisResult.flagrancy as any).type}
                                     </div>
                                 )}
                             </div>

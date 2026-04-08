@@ -9,14 +9,28 @@ export async function startRecording(): Promise<MediaRecorder> {
   return new MediaRecorder(stream);
 }
 
-export async function transcribeAudioBlob(blob: Blob): Promise<string> {
+export interface TranscriptionResult {
+  success: boolean;
+  text?: string;
+  error?: string;
+  duration_ms?: number;
+}
+
+export async function transcribeAudioBlob(
+  blob: Blob,
+  options?: { language?: string; filename?: string }
+): Promise<TranscriptionResult> {
+  const t0 = Date.now();
   const formData = new FormData();
-  formData.append('audio', blob, 'recording.webm');
+  formData.append('audio', blob, options?.filename ?? 'recording.webm');
+  if (options?.language) formData.append('language', options.language);
   try {
     const res = await fetch('/api/v1/transcribe', { method: 'POST', body: formData });
     const data = await res.json();
-    return data.text ?? '';
-  } catch { return ''; }
+    return { success: true, text: data.text ?? '', duration_ms: Date.now() - t0 };
+  } catch (e) {
+    return { success: false, error: String(e), duration_ms: Date.now() - t0 };
+  }
 }
 
 export function stopRecording(recorder: MediaRecorder): Promise<AudioRecordingResult> {

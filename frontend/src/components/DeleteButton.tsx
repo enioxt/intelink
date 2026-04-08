@@ -2,9 +2,15 @@
 import { Trash2 } from 'lucide-react';
 
 interface DeleteButtonProps {
-  onDelete: () => void;
+  onDelete?: () => void;
+  onDeleted?: () => void;
   label?: string;
   disabled?: boolean;
+  itemType?: string;
+  itemId?: string;
+  itemName?: string;
+  createdAt?: string;
+  size?: string;
 }
 
 export function DeleteButton({ onDelete, label = 'Excluir', disabled = false }: DeleteButtonProps) {
