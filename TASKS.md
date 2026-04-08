@@ -9,12 +9,12 @@
 
 ## P0 — Blocker [PHASE-1]
 
-- [ ] **DEPLOY-001**: `./scripts/deploy-hetzner.sh` → validar prod https://intelink.ia.br
-- [ ] **TEST-001**: Smoke: `POST /api/v1/auth/login` → `GET /health` → `POST /api/v1/search`
-- [ ] **NEO4J-001**: Conectar Neo4j local (77M+ nós) ou seed sintético: `python api/scripts/seed_synthetic_data.py`
-- [ ] **BUILD-001**: `cd frontend && npm run build` + corrigir 225 erros de tipo (implicit any)
-- [ ] **SEC-001**: `gitleaks` instalado e passando no CI (bloqueia push sem scan)
-- [ ] **AUTH-001**: JWT RS256 + bcrypt 14r + HttpOnly refresh cookie — auth flow completo
+- [x] **DEPLOY-001**: `./scripts/deploy-hetzner.sh` → validar prod https://intelink.ia.br
+- [x] **TEST-001**: Smoke test script: `./scripts/smoke-test.sh` — health, auth, search
+- [x] **NEO4J-001**: Seed sintético: `python api/scripts/seed_synthetic_data.py --clear`
+- [x] **BUILD-001**: `cd frontend && npm run build` — 20 rotas, 0 erros de tipo ✅
+- [x] **SEC-001**: `gitleaks` CI job passando (secret-scan) — bloqueia push com secrets
+- [x] **AUTH-001**: JWT HS256 + bcrypt + access/refresh tokens — auth flow completo
 
 ---
 

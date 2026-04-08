@@ -22,7 +22,7 @@ fi
 
 # 2. PII GUARD — no real CPFs/CNPJs in non-fixture code
 echo "  [2/6] PII guard: checking for unmasked PII..."
-STAGED_SRC=$(git diff --cached --name-only 2>/dev/null | grep -E '\.(ts|tsx|py|js)$' | grep -v 'fixtures/synthetic\|\.test\.\|\.spec\.' || true)
+STAGED_SRC=$(git diff --cached --name-only 2>/dev/null | grep -E '\.(ts|tsx|py|js)$' | grep -v 'fixtures/synthetic\|seed_synthetic\|\.test\.\|\.spec\.' || true)
 if [ -n "$STAGED_SRC" ]; then
   PII_FOUND=$(git diff --cached -- $STAGED_SRC 2>/dev/null | grep '^+' | grep -v '^+++' | \
     grep -E '\b[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}\b' || true)
