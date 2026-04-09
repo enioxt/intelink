@@ -692,6 +692,22 @@ async def _call_openrouter(
                     result = await _tool_cypher(session, fn_args.get("query", ""), fn_args.get("params"))
                 elif fn_name == "data_summary":
                     result = await _tool_data_summary(session)
+                # OSINT Brasil Tools
+                elif fn_name == "hibp_check_email":
+                    from bracc.services.osint_tools import hibp_check_email
+                    result = await hibp_check_email(fn_args.get("email", ""))
+                elif fn_name == "shodan_host_lookup":
+                    from bracc.services.osint_tools import shodan_host_lookup
+                    result = await shodan_host_lookup(fn_args.get("ip", ""))
+                elif fn_name == "shodan_search":
+                    from bracc.services.osint_tools import shodan_search
+                    result = await shodan_search(
+                        fn_args.get("query", ""),
+                        min(fn_args.get("limit", 10), 20),
+                    )
+                elif fn_name == "analyze_image_metadata":
+                    from bracc.services.osint_tools import analyze_image_metadata
+                    result = await analyze_image_metadata(fn_args.get("image_path", ""))
                 else:
                     result = {"error": f"Tool {fn_name} not found"}
 
@@ -724,6 +740,11 @@ async def _call_openrouter(
                     "opencnpj": ("OpenCNPJ — Receita Federal", "opencnpj.org"),
                     "cypher_query": ("Neo4j Graph — Cypher Query", "neo4j://localhost:7687"),
                     "data_summary": ("Sistema EGOS Inteligência", "inteligencia.egos.ia.br"),
+                    # OSINT Brasil
+                    "hibp_check_email": ("Have I Been Pwned — Email Breach Check", "haveibeenpwned.com"),
+                    "shodan_host_lookup": ("Shodan — Internet-exposed Services", "shodan.io"),
+                    "shodan_search": ("Shodan — Device/Service Search", "shodan.io"),
+                    "analyze_image_metadata": ("EXIF Analysis — Image Forensics", "local"),
                 }.get(fn_name, ("Desconhecido", ""))
 
                 result_count = 0

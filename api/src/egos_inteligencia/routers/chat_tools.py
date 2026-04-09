@@ -409,5 +409,63 @@ TOOLS = [
             "parameters": {"type": "object", "properties": {}},
         },
     },
+    # OSINT Brasil Tools
+    {
+        "type": "function",
+        "function": {
+            "name": "hibp_check_email",
+            "description": "Verifica se email foi vazado em brechas de seguranca conhecidas (HaveIBeenPwned). Retorna numero de vazamentos, dados expostos, nivel de risco. LGPD compliant: apenas verifica exposicao, nao armazena conteudo.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "email": {"type": "string", "description": "Email para verificar (ex: usuario@gmail.com)"},
+                },
+                "required": ["email"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "shodan_host_lookup",
+            "description": "Analisa IP/servidor no Shodan — descobre servicos expostos, portas abertas, vulnerabilidades CVE. Use para verificar infraestrutura de alvos investigativos.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "ip": {"type": "string", "description": "Endereco IP para analisar (ex: 8.8.8.8)"},
+                },
+                "required": ["ip"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "shodan_search",
+            "description": "Busca no Shodan por dispositivos/servicos expostos. Query examples: 'webcam', 'port:3389', 'apache', 'org:Empresa'. Use para mapeamento de superficie exposta.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Query de busca Shodan (ex: 'webcam', 'port:3389', 'apache')"},
+                    "limit": {"type": "integer", "description": "Numero maximo de resultados (default: 10)", "default": 10},
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "analyze_image_metadata",
+            "description": "Extrai metadados EXIF de imagem: GPS coordinates, device info, timestamps, software. LGPD: nao armazena imagem, apenas metadados. Use para forense de imagens investigativas.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "image_path": {"type": "string", "description": "Caminho do arquivo de imagem"},
+                },
+                "required": ["image_path"],
+            },
+        },
+    },
 
 ]

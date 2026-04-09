@@ -72,9 +72,9 @@
 **SSOT:** `docs/OSINT_SOURCES_CURATED.md` | **Source:** Astrosp/Awesome-OSINT-For-Everything
 
 - [x] **OSINT-001**: Curadoria de 78 fontes para polícia/LE (dados pessoais, redes, geo, crypto, infra, Brasil)
-- [ ] **OSINT-002 [P0]**: Integrar Shodan API ao módulo de infraestrutura
-- [ ] **OSINT-003 [P0]**: Integrar HaveIBeenPwned ao módulo de dados pessoais  
-- [ ] **OSINT-004 [P1]**: Módulo de análise de imagens (metadata + geolocalização)
+- [x] **OSINT-002 [P0]**: Integrar Shodan API ao módulo de infraestrutura — `api/src/egos_inteligencia/services/osint_tools.py` ✅ 2026-04-08
+- [x] **OSINT-003 [P0]**: Integrar HaveIBeenPwned ao módulo de dados pessoais — `hibp_check_email()` + privacy masking ✅ 2026-04-08
+- [x] **OSINT-004 [P1]**: Módulo de análise de imagens (metadata + geolocalização) — `analyze_image_metadata()` + GPS extraction ✅ 2026-04-08
 - [ ] **OSINT-005 [P1]**: Capacitação analistas GeoGuessr + exercícios
 
 
