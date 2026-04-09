@@ -51,6 +51,13 @@
 
 ## Feito ✅
 
+- [x] **FRONTEND-001**: Design System EGOS — `WEB_DESIGN_STANDARD.md` + Glassmorphism + Dark-only ✅ 2026-04-08
+- [x] **FRONTEND-002**: shadcn/ui foundation — Button, Badge, DropdownMenu, Textarea components ✅ 2026-04-08
+- [x] **FRONTEND-003**: Chat interface — useChat Vercel AI SDK + streaming + tool calls ✅ 2026-04-08
+- [x] **FRONTEND-004**: Model selector — Ollama local + OpenAI/Claude/Gemini remoto ✅ 2026-04-08
+- [x] **FRONTEND-005**: Tool palette — 12 tools, 4 categorias (OSINT, Transparency, PCMG, Analysis) ✅ 2026-04-08
+- [x] **FRONTEND-006**: Tool visualization cards — HIBP, Shodan, Image, CNPJ with risk levels ✅ 2026-04-08
+- [x] **FRONTEND-007**: Responsive sidebar with collapse + navigation ✅ 2026-04-08
 - [x] Consolidação SSOT: 7 repos dispersos → 1 (`egos-inteligencia/`)
 - [x] Port TS: 94 lib files (intelligence, analysis, detectors, auth, legal, reports)
 - [x] Port Python: 81 arquivos (NLP, patterns, templates, migrations, workers)
