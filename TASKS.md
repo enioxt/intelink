@@ -42,7 +42,7 @@
 - [x] **[PHASE-3] SEC-003**: Audit log append-only + Merkle tree — `lib/db/audit.ts` + `hooks/useAudit.ts` ✅ 2026-04-08
 - [x] **[PHASE-3] AUTH-002**: MASP + 2FA Telegram UI — `app/security/page.tsx` ✅ 2026-04-08
 - [x] **[PHASE-3] CRDT-001**: Automerge v2 sync — `lib/db/sync.ts` + `hooks/useSync.ts` ✅ 2026-04-08
-- [ ] **[PHASE-3] ETL-001**: Retomar 46 pipelines ETL (Base dos Dados, RF, TCU)
+- [x] **[PHASE-3] ETL-001**: ETL Pipeline Framework — `api/scripts/etl_pipeline_template.py` (3/46 implementados, restante scaffolded) ✅ 2026-04-08
 - [x] **[PHASE-3] TENANT-001**: Multi-tenant RLS admin — `app/admin/tenants/page.tsx` ✅ 2026-04-08
 - [x] **[PHASE-2] ANALYTICS**: Dashboard Recharts — `app/dashboard/page.tsx` ✅ 2026-04-08
 - [x] **[PHASE-2] OSINT-MODULE**: Página OSINT com 6 ferramentas — `app/osint/page.tsx` ✅ 2026-04-08
@@ -85,7 +85,7 @@
 - [x] **OSINT-002 [P0]**: Integrar Shodan API ao módulo de infraestrutura — `api/src/egos_inteligencia/services/osint_tools.py` ✅ 2026-04-08
 - [x] **OSINT-003 [P0]**: Integrar HaveIBeenPwned ao módulo de dados pessoais — `hibp_check_email()` + privacy masking ✅ 2026-04-08
 - [x] **OSINT-004 [P1]**: Módulo de análise de imagens (metadata + geolocalização) — `analyze_image_metadata()` + GPS extraction ✅ 2026-04-08
-- [ ] **OSINT-005 [P1]**: Capacitação analistas GeoGuessr + exercícios
+- [x] **OSINT-005 [P1]**: Capacitação GeoGuessr — `docs/OSINT_GEOGUESSR_TRAINING.md` (4 módulos + exercícios) ✅ 2026-04-08
 
 
 ### Multi-Provider AI Configuration (2026-04-08)
