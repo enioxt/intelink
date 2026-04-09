@@ -1,0 +1,25 @@
+# PCMG Data Ingestion Dependencies
+# Instalar: pip install -r requirements-pcmg.txt
+
+# Audio/Video Processing
+ffmpeg-python>=0.2.0
+
+# Document Processing
+python-docx>=0.8.11
+PyMuPDF>=1.23.0  # fitz for PDF
+openpyxl>=3.1.2  # Excel
+
+# AI/Transcription (escolher uma)
+# openai-whisper>=20231117  # Local Whisper (requer ffmpeg)
+# openai>=1.0.0  # Para API OpenAI Whisper
+
+# Async I/O
+aiofiles>=23.0.0
+
+# System (já presentes no projeto)
+# neo4j>=5.0.0
+# fastapi>=0.100.0
+# pydantic>=2.0.0
+
+# Opcional: melhor qualidade de transcrição
+# faster-whisper>=0.10.0  # Whisper otimizado
