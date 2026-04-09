@@ -36,7 +36,7 @@
 
 ## P2 — Backlog [PHASE-2 / PHASE-3]
 
-- [ ] **[PHASE-2] BENFORD-001**: Widget Benford anomaly no frontend
+- [x] **[PHASE-2] BENFORD-001**: Widget Benford anomaly no frontend — `components/tools/BenfordWidget.tsx` ✅ 2026-04-08
 - [ ] **[PHASE-2] MO-001**: UI comparação modus operandi cross-case
 - [ ] **[PHASE-3] SEC-002**: RxDB v15 + AES-256-GCM + PBKDF2 (dados locais criptografados)
 - [ ] **[PHASE-3] SEC-003**: Audit log append-only + Merkle tree
@@ -44,7 +44,10 @@
 - [ ] **[PHASE-3] CRDT-001**: Automerge v2 — sync offline multi-device
 - [ ] **[PHASE-3] ETL-001**: Retomar 46 pipelines ETL (Base dos Dados, RF, TCU)
 - [ ] **[PHASE-3] TENANT-001**: Multi-tenant RLS por delegacia (tenant_id)
-- [ ] **[PHASE-2] ANALYTICS**: Dashboard Recharts (investigações, entidades, acessos)
+- [x] **[PHASE-2] ANALYTICS**: Dashboard Recharts — `app/dashboard/page.tsx` ✅ 2026-04-08
+- [x] **[PHASE-2] OSINT-MODULE**: Página OSINT com 6 ferramentas — `app/osint/page.tsx` ✅ 2026-04-08
+- [x] **[PHASE-2] PCMG-UI**: Pipeline upload + fila processamento — `app/pcmg/page.tsx` ✅ 2026-04-08
+- [x] **[PHASE-2] GRAPH-VIZ**: Visualização Neo4j com Cytoscape — `app/graph/page.tsx` ✅ 2026-04-08
 - [ ] **[PHASE-2] MOBILE**: PWA responsivo — teste Android tablet
 
 ---
