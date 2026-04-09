@@ -1,0 +1,75 @@
+name: Server Configuration (Ansible)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/ansible/**'
+  workflow_dispatch:
+
+jobs:
+  ansible-lint:
+    name: Ansible Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run ansible-lint
+        uses: ansible/ansible-lint@v6
+        with:
+          args: "infra/ansible/"
+
+  ansible-syntax:
+    name: Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible
+        run: pip install ansible
+
+      - name: Syntax Check
+        run: |
+          cd infra/ansible
+          ansible-playbook -i inventory/production playbook.yml --syntax-check
+
+  # Manual apply job (requires approval)
+  configure:
+    name: Configure Server
+    needs: [ansible-lint, ansible-syntax]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible
+        run: pip install ansible
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H 204.168.217.125 >> ~/.ssh/known_hosts
+
+      - name: Run Playbook
+        run: |
+          cd infra/ansible
+          ansible-playbook -i inventory/production playbook.yml
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"

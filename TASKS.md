@@ -1,6 +1,6 @@
 # TASKS.md — EGOS Inteligência
 
-> **UPDATED:** 2026-04-08 | **SSOT:** backlog atômico vivo
+> **UPDATED:** 2026-04-09 | **SSOT:** backlog atômico vivo
 > **Roadmap estratégico:** `docs/ROADMAP.md` (fases, não tickets)
 > **Sync:** tasks referenciam fase — ex: `[PHASE-1] feat: deploy prod`
 > **MAX:** 200 linhas. Arquivar concluídos quando ultrapassar 180.
@@ -99,4 +99,39 @@
 - [x] **AI-CONFIG-006**: Tabela comparativa — Kimi, MiniMax, Nemotron, Gemini, Qwen, Claude, GPT
 - [x] **AI-CONFIG-007**: Recomendações por cenário (polícia, documentos, chat, relatórios)
 - [x] **AI-CONFIG-008**: Configuração multi-provider com fallback automático
+
+
+### Infrastructure as Code (2026-04-09)
+**SSOT:** `infra/terraform/`, `infra/ansible/` | **Status:** ✅ IaC Implemented
+
+- [x] **IAC-001**: Terraform — Hetzner Cloud provider + Cloudflare DNS
+  - `infra/terraform/main.tf` — Servidor CX42 (4 vCPUs, 16 GB)
+  - `infra/terraform/variables.tf` — Variáveis parametrizadas
+  - `infra/terraform/cloud-init.yml` — Configuração inicial do servidor
+- [x] **IAC-002**: Terraform — Firewall (UFF), Volume 100GB, Snapshots automáticos
+- [x] **IAC-003**: Ansible — Playbook completo de provisionamento
+  - `infra/ansible/playbook.yml` — 100+ tasks de configuração
+  - UFW + Fail2ban + Unattended-upgrades
+  - Docker CE + Docker Compose
+  - Scripts: egos-health, egos-backup, egos-deploy
+- [x] **IAC-004**: GitHub Actions — Terraform CI/CD
+  - `.github/workflows/terraform.yml` — Plan/Apply com approval
+  - `.github/workflows/ansible.yml` — Server configuration
+- [x] **IAC-005**: Documentação completa — README.md para Terraform e Ansible
+
+
+### Compliance & LGPD (2026-04-09)
+**SSOT:** `infra/compliance/LGPD_COMPLIANCE.md` | **Status:** 🟡 Framework Documented
+
+- [x] **LGPD-001**: Documentação de conformidade LGPD
+  - Art. 7º, III — Base legal (políticas públicas de segurança)
+  - Art. 30 — Registro de operações (audit log + Merkle tree)
+  - Art. 31 — Medidas técnicas de segurança (AES-256-GCM, JWT RS256)
+  - Art. 46 — Subprocessadores mapeados
+- [x] **LGPD-002**: Pseudonimização de PII — CPF/CNPJ/email mascarados em 100% das APIs
+- [x] **LGPD-003**: Medidas técnicas documentadas — Criptografia TLS 1.3, RLS, Audit log
+- [ ] **LGPD-004**: Designação de DPO (Encarregado) — 🔴 Manual: designar oficial
+- [ ] **LGPD-005**: Portal do titular — `intelink.ia.br/titular` — 🟡 Frontend pending
+- [ ] **LGPD-006**: API de exportação de dados pessoais — 🟡 Backend pending
+- [ ] **LGPD-007**: Registro na ANPD — 🔴 Manual: registrar sistema
 
