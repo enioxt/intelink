@@ -1,8 +1,9 @@
 'use client';
 
-import { 
-  MessageSquare, BarChart3, Shield, Globe, FileText, 
-  Settings, Plus, ChevronLeft, ChevronRight, History 
+import {
+  MessageSquare, BarChart3, Shield, Globe, FileText,
+  Settings, Plus, ChevronLeft, ChevronRight, History,
+  GitCompare, Network, Lock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -25,9 +26,12 @@ interface ChatSidebarProps {
 const NAV_ITEMS = [
   { icon: MessageSquare, label: 'Chat', href: '/chat', active: true },
   { icon: Shield, label: 'OSINT', href: '/osint', active: false },
+  { icon: GitCompare, label: 'Análise', href: '/analysis', active: false },
+  { icon: Network, label: 'Grafo', href: '/graph', active: false },
   { icon: Globe, label: 'Transparência', href: '/transparency', active: false },
   { icon: FileText, label: 'PCMG', href: '/pcmg', active: false },
   { icon: BarChart3, label: 'Dashboard', href: '/dashboard', active: false },
+  { icon: Lock, label: 'Segurança', href: '/security', active: false },
 ];
 
 export function ChatSidebar({ isOpen, onToggle, conversations }: ChatSidebarProps) {
@@ -60,7 +64,7 @@ export function ChatSidebar({ isOpen, onToggle, conversations }: ChatSidebarProp
 
       {/* New Chat Button */}
       <div className="p-3">
-        <Button 
+        <Button
           className="w-full bg-blue-600 hover:bg-blue-700 text-white"
           size={isOpen ? 'default' : 'icon'}
         >
@@ -79,8 +83,8 @@ export function ChatSidebar({ isOpen, onToggle, conversations }: ChatSidebarProp
               href={item.href}
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                item.active 
-                  ? "bg-blue-500/10 text-blue-400" 
+                item.active
+                  ? "bg-blue-500/10 text-blue-400"
                   : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50"
               )}
             >
@@ -99,7 +103,7 @@ export function ChatSidebar({ isOpen, onToggle, conversations }: ChatSidebarProp
                 <span>Recentes</span>
               </div>
             </div>
-            
+
             {conversations.map((conv) => (
               <button
                 key={conv.id}
@@ -131,7 +135,7 @@ export function ChatSidebar({ isOpen, onToggle, conversations }: ChatSidebarProp
           <Settings className="w-4 h-4" />
           {isOpen && <span className="ml-2">Configurações</span>}
         </Button>
-        
+
         {isOpen && (
           <div className="mt-3 px-3 text-xs text-neutral-600">
             <p>EGOS Inteligência v2.0</p>
