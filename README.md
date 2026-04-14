@@ -246,11 +246,57 @@ Quer fazer parte? Ótimo! Veja [CONTRIBUTING.md](CONTRIBUTING.md) para detalhes 
 
 ---
 
-## 🌟 Por que criamos o Intelink?
+## 🌟 Por que o Intelink existe — e por que grafo muda tudo
 
-O Brasil tem **dados públicos incríveis** — mas estão dispersos, difíceis de cruzar e inacessíveis para quem mais precisa: investigadores, jornalistas e cidadãos curiosos.
+### O problema real
 
-O Intelink nasceu para **democratizar o acesso à inteligência de dados** no Brasil, mantendo sempre o respeito à privacidade e à LGPD.
+Um investigador no Brasil hoje tem acesso a: boletins de ocorrência, consultas de CPF/CNPJ, registros de placa, dados de licitações, dívidas fiscais, antecedentes. O problema não é falta de dado — é que **esses dados estão em 28 sistemas diferentes que não conversam entre si.**
+
+Responder *"essa empresa do meu caso tem algum sócio com ficha no TCU que também ganhou licitação investigada em outra operação?"* significa abrir 5 abas, copiar manualmente, cruzar em planilha. Horas. Às vezes dias.
+
+### O que um ETL faz
+
+**ETL = Extrair, Transformar, Carregar.** É um pipeline automatizado de três passos:
+
+1. **Extrair** — vai até a fonte pública (portal do governo, API, CSV) e baixa os dados
+2. **Transformar** — limpa, padroniza, remove duplicatas, cria as conexões entre entidades
+3. **Carregar** — grava no banco de grafos como nós e relações permanentes
+
+O Intelink tem **28 ETLs**, cada um cobrindo uma fonte pública brasileira. Juntos, eles populam um grafo com **83 milhões de registros** — todos já conectados entre si.
+
+### Por que grafo e não banco tradicional (SQL)
+
+Em banco relacional, cada "salto" de relação exige um JOIN. A performance cai exponencialmente:
+
+| Pergunta | JOINs | Tempo em SQL | Tempo em grafo |
+|---|---|---|---|
+| "Quem é essa empresa?" | 1 | Milissegundos | Milissegundos |
+| "Quem são os sócios dela?" | 2 | Milissegundos | Milissegundos |
+| "Algum sócio tem dívida ativa?" | 3 | Segundos | Milissegundos |
+| "Sócio de sócio aparece em CPI?" | 5 | Minutos | Milissegundos |
+| "Ligação de até 4 graus entre suspeito e empresa investigada?" | 7+ | Horas ou impossível | **Segundos** |
+
+Em grafo, relações são ponteiros diretos na memória — percorrer 1 salto ou 7 saltos tem o mesmo custo. **A performance não degrada com a profundidade.**
+
+### Isso já funciona no mundo real
+
+**Panama Papers (2016):** 2,6 TB de documentos offshore, 400 jornalistas, 76 países. Com Neo4j: 12 chefes de Estado e governo expostos, PM da Islândia renunciou. Três desenvolvedores construíram o banco em semanas. A editora de dados do consórcio: *"Se ficasse em SQL, encontrar relações entre pessoas e organizações exigiria queries longas e complicadas. No grafo, você segue o fio."*
+
+**Lava Jato — análise acadêmica:** Grafo com 906 pessoas/empresas e 2.693 interações revelou que 8 funcionários (menos de 1% dos nós) eram as pontes que conectavam toda a rede de corrupção. Isso guiou a priorização de alvos — invisível lendo documentos linearmente.
+
+**Caso policial no Reino Unido (2025):** 1,4 TB de dados de 24 celulares apreendidos. *"Ordinariamente levaria meses, se não anos."* Com sistema de grafo: semanas. 6 presos e sentenciados.
+
+### O gap brasileiro
+
+| Sistema existente | O que faz | O que não faz |
+|---|---|---|
+| ePol (Polícia Federal) | Gestão de inquéritos | Não cruza dados, não tem grafo |
+| Córtex (Min. Justiça) | Alertas de placa/CPF | Não analisa redes nem fontes abertas |
+| Portal da Transparência | Consulta avulsa | Não cruza fontes, não é investigativo |
+
+Nenhum sistema no Brasil conecta simultaneamente sanções internacionais + patrimônio eleitoral + licitações + CPIs + dívida fiscal + offshore + antecedentes funcionais. O Intelink faz isso sobre 83 milhões de registros, em segundos, open-source.
+
+---
 
 💬 **Dúvidas?** Abra uma [issue](https://github.com/enioxt/intelink/issues) ou entre em contato via [EGOS Discord](https://discord.gg/egos).
 
