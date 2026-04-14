@@ -14,6 +14,8 @@ from typing import Any
 
 from neo4j import AsyncSession
 
+from .patterns.pattern_detector import get_pattern_engine
+
 logger = logging.getLogger(__name__)
 
 
@@ -44,7 +46,7 @@ class CrossCaseMatch:
     common_entities: list[dict[str, Any]]
     temporal_overlap: bool
     geographic_overlap: bool
-    pattern_matches: list[str]
+    pattern_matches: list[dict]  # Serialized PatternMatch objects
     recommended_action: str
 
 
@@ -82,6 +84,7 @@ class CrossReferenceEngine:
     
     def __init__(self, neo4j_session: AsyncSession):
         self.session = neo4j_session
+        self._pattern_engine = get_pattern_engine()
     
     async def find_links(
         self,
@@ -183,6 +186,31 @@ class CrossReferenceEngine:
         matches.sort(key=lambda x: x.similarity_score, reverse=True)
         return matches
     
+    def _build_pattern_matches(
+        self,
+        title_a: str,
+        title_b: str,
+        common_entities: list[dict],
+    ) -> list[dict]:
+        """Detecta padrões comportamentais combinando dados dos dois casos."""
+        # Build text from titles + entity names for pattern analysis
+        entity_names = " ".join(e.get("name", "") for e in common_entities if e.get("name"))
+        combined_text = f"{title_a or ''} {title_b or ''} {entity_names}".strip()
+        if not combined_text:
+            return []
+        matches = self._pattern_engine.detect_patterns(combined_text)
+        return [
+            {
+                "pattern_id": m.pattern_id,
+                "pattern_name": m.pattern_name,
+                "confidence": m.confidence,
+                "category": m.category,
+                "severity": m.severity,
+                "matched_keywords": m.matched_keywords,
+            }
+            for m in matches
+        ]
+
     async def _compare_cases(
         self,
         case_a_id: str,
@@ -272,7 +300,11 @@ class CrossReferenceEngine:
                 common_entities=record["common_entities"],
                 temporal_overlap=record["temporal_overlap"],
                 geographic_overlap=record["geographic_overlap"],
-                pattern_matches=[],  # TODO: implementar pattern matching
+                pattern_matches=self._build_pattern_matches(
+                    record["case_a_title"],
+                    record["case_b_title"],
+                    record["common_entities"],
+                ),
                 recommended_action=action,
             )
             
