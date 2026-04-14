@@ -130,4 +130,7 @@ if [ -f "$COMMIT_MSG_FILE" ]; then
   fi
 fi
 
+# README freshness gate
+bash ~/.egos/hooks/readme-freshness.sh "$1" || exit 1
+
 echo "✅ EGOS Inteligência: commit approved."
