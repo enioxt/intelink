@@ -115,7 +115,7 @@ class DHPPPipeline(ETLPipeline):
 
 ---
 
-#### CONNECT-001 — Conectar pattern_detector ao cross_reference_engine
+#### [x] CONNECT-001 — Conectar pattern_detector ao cross_reference_engine ✅ 2026-04-14
 **Prioridade:** 🔴 P1. Eleva a precisão de deduplicação com custo de 1 dia.
 **Motivação:** O `cross_reference_engine.py` tem 6 níveis de confiança. O Nível 6 (similaridade comportamental — "mesma pessoa por padrão de ação, não por documento") depende do `pattern_detector.py`. Hoje retorna `pattern_matches=[]` hardcoded. Conectar os dois faz o cruzamento de entidades da DHPP ser mais preciso — especialmente para pessoas sem CPF documentado.
 **Arquivo:** `api/src/egos_inteligencia/services/cross_reference_engine.py` linha ~380
@@ -141,7 +141,7 @@ result = CrossReferenceResult(
 
 ---
 
-#### CI-NEO4J-001 — Ativar Neo4j no pipeline CI/CD
+#### [x] CI-NEO4J-001 — Ativar Neo4j no pipeline CI/CD ✅ 2026-04-14
 **Prioridade:** 🟡 P1. Blinda o repositório antes de expandir ETLs.
 **Motivação:** Todos os testes de grafo (ego networks, path finding, traversal) têm `@pytest.mark.requires_neo4j` e são pulados no CI. Fazemos deploy sem validação do componente mais crítico do sistema. Adicionar o service container é 0.5 dia que elimina esse risco permanentemente.
 **Arquivo:** `.github/workflows/ci.yml`
