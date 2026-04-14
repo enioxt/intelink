@@ -87,6 +87,9 @@
 
 **NOTA:** Arquitetura dual — `frontend/src/` (legado) + `apps/web/` (nova). Migração em progresso.
 
+### Backlog de Features Legadas (v2/v4)
+- [ ] **LEGACY-001**: Avaliar integração de Schema i2, PWA Offline, Tsun-Cha Protocol e Quorum System (detalhes em `docs/knowledge/LEGACY_FEATURES_BACKLOG.md`) — 1 semana
+
 ### Novos P1 — Descobertos 2026-04-14
 - [ ] **CONNECT-001**: Conectar `pattern_detector.py` → `cross_reference_engine.py` (linha ~380, `pattern_matches=[]`) — 1 dia
 - [ ] **CI-NEO4J-001**: Ativar Neo4j no `.github/workflows/ci.yml` (service container) — 0.5 dia
