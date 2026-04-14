@@ -154,6 +154,19 @@ def run_pipeline(pipeline_name: str, data_dir: str, limit: int | None, dry: bool
         driver.close()
 
 
+def _run_one_pipeline(args: tuple[str, str]) -> tuple[str, str]:
+    """Top-level worker function (must be picklable for ProcessPoolExecutor)."""
+    name, data_dir = args
+    drv = _make_driver()
+    try:
+        _load_pipeline_class(name)(driver=drv, data_dir=data_dir).run()
+        return name, "ok"
+    except Exception as exc:
+        return name, f"ERROR: {exc}"
+    finally:
+        drv.close()
+
+
 @cli.command("run-group")
 @click.argument("group_index", type=int)
 @click.option("--data-dir", default="./data", envvar="ETL_DATA_DIR")
@@ -168,19 +181,10 @@ def run_group(group_index: int, data_dir: str, workers: int) -> None:
     available = [p for p in group if _PIPELINE_MAP.get(p)]
     click.echo(f"Group {group_index}: {len(available)} pipelines, {workers} workers")
 
-    def _run_one(name: str) -> tuple[str, str]:
-        drv = _make_driver()
-        try:
-            _load_pipeline_class(name)(driver=drv, data_dir=data_dir).run()
-            return name, "ok"
-        except Exception as exc:
-            return name, f"ERROR: {exc}"
-        finally:
-            drv.close()
-
     results: dict[str, str] = {}
     with ProcessPoolExecutor(max_workers=min(workers, len(available))) as pool:
-        futures = {pool.submit(_run_one, name): name for name in available}
+        job_args = [(name, data_dir) for name in available]
+        futures = {pool.submit(_run_one_pipeline, arg): arg[0] for arg in job_args}
         for future in as_completed(futures):
             name, status = future.result()
             results[name] = status

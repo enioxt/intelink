@@ -63,6 +63,7 @@ log "Group 1: Electoral & offshore"
 
 mkdir -p "$DATA/tse"
 [ -f "$DATA/tse/candidatos.csv" ] || cp "$FX/tse_candidatos.csv" "$DATA/tse/candidatos.csv" && ok "tse/candidatos.csv"
+[ -f "$DATA/tse/doacoes.csv"    ] || cp "$FX/tse_doacoes.csv"    "$DATA/tse/doacoes.csv"    && ok "tse/doacoes.csv"
 
 mkdir -p "$DATA/tse_bens"
 [ -f "$DATA/tse_bens/bens.csv" ] || cp "$FX/tse_bens/bens.csv" "$DATA/tse_bens/" && ok "tse_bens/bens.csv"
