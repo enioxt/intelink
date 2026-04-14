@@ -447,3 +447,135 @@ infra/compliance/
 3. **Fazer deploy do backend primeiro** (API completa já funciona)
 
 ---
+
+---
+
+## 🔄 INTEGRAÇÃO BR-ACC → INTELINK (2026-04-14)
+
+> **Snapshot Neo4j produção (2026-04-14):** Company 66M, Partner 17.4M, PEPRecord 133K, GlobalPEP 117K, Sanction 23K, GovTravel 13K, Person 7K. Total ≈ 83.7M nós.
+> **Infraestrutura:** container `bracc-neo4j`, volume `infra_neo4j-data`, VPS 204.168.217.125.
+> **Decisão:** Mesma instância Neo4j. Intelink herda todos os dados de br-acc.
+> **Ausentes no grafo:** TSE (8M), TSE_BENS (14M), ICIJ (11K), Leniency (112), InternationalSanction (165K), Expulsion (4K).
+
+### FASE 0 — Foundation
+
+#### [x] INFRA-NEO4J-001 — Snapshot e documentação do grafo de produção ✅ 2026-04-14
+**Evidência:** Company 66M, Partner 17.4M, PEPRecord 133K, GlobalPEP 117K. Neo4j = MESMA instância de br-acc e Intelink.
+
+#### [x] INFRA-RUNNER-001 — CLI de pipelines unificada ✅ 2026-04-14
+**Prioridade:** 🔴 P0 — bloqueante para todos os ETLs novos
+**Motivação:** Intelink só tem POST HTTP síncrono. Pipelines de 1M+ registros vão dar timeout. CLI com driver sync (padrão br-acc) resolve.
+**Implementação:**
+- `api/src/egos_inteligencia/etl/compat/` — camada de compatibilidade (base.py, transforms.py, loader.py)
+- `api/src/egos_inteligencia/etl/runner.py` — CLI Click com PIPELINES registry + PIPELINE_GROUPS + ProcessPoolExecutor
+- Entry point: `python -m egos_inteligencia.etl.runner run <nome>`
+**Gate:** `python -m egos_inteligencia.etl.runner run leniency --limit 5 --dry` executa sem erro, mostra preview
+
+#### [x] INFRA-WORKER-001 — Ativar jobs_worker em container dedicado ✅ 2026-04-14
+**Prioridade:** 🟡 P1
+**Motivação:** `services/jobs_worker.py` pronto (466 linhas, FOR UPDATE SKIP LOCKED) mas ninguém chama `_jobs_worker_loop()`. Docker compose não tem serviço worker.
+**Implementação:**
+- `api/src/egos_inteligencia/worker_main.py` — entry point que inicializa o loop
+- `docker-compose.yml` — adicionar serviço `worker` (mesmo image da API, CMD diferente)
+- Healthcheck via Redis key heartbeat
+**Gate:** `docker compose up worker` roda e logs confirmam loop ativo, heartbeat em Redis
+
+#### [x] INFRA-SCHEDULER-001 — Cron automático para pipelines periódicos ✅ 2026-04-14
+**Prioridade:** 🟡 P1
+**Motivação:** Dados ficam desatualizados sem execução automática. Hoje 100% manual.
+**Implementação:**
+- `.github/workflows/etl-scheduled.yml` — scheduled workflow por fonte
+- Frequências: leniency/ceaf (semanal), pep_cgu (mensal), tse_bens (anual), sanctions (diário)
+**Gate:** 1 pipeline executa automaticamente via GitHub Actions e loga sucesso
+
+---
+
+### FASE 1 — Quick Wins (TIER 1, demo Lídia)
+
+> Depende de INFRA-RUNNER-001 para rodar. Pipelines portados de br-acc com namespace `egos_inteligencia.etl.compat.*`.
+
+#### [x] ETL-LENIENCY-001 — Acordos de leniência (demo killer) ✅ 2026-04-14
+**Prioridade:** 🔴 P0 Sprint Delegacia
+**Motivação:** 112 empresas que confessaram corrupção. Demo real para Lídia: "esta empresa assinou delação". Link direto com Company nodes (66M já no grafo).
+**Fonte:** `br-acc/.../leniency.py` (121L) → `egos_inteligencia/etl/pipelines/leniency.py`
+**Schema:** `LeniencyAgreement {leniency_id, cnpj, name, status}` + `Company-[:FIRMOU_LENIENCIA]->LeniencyAgreement`
+**Gate:** `runner run leniency` → 112 nós `LeniencyAgreement` verificados no Neo4j
+
+#### [x] ETL-SANCTIONS-001 — Sanções internacionais ✅ 2026-04-14
+**Prioridade:** 🔴 P0
+**Motivação:** ~165K nós. Detecta pessoas/empresas sancionadas globalmente. Crítico para casos transnacionais.
+**Fontes:** `ofac.py`, `eu_sanctions.py`, `un_sanctions.py`, `opensanctions.py`, `world_bank.py`
+**Schema:** `InternationalSanction {sanction_id, name, source, program}` (label unificado)
+**Gate:** 5 pipelines rodam, ~165K nós `InternationalSanction` criados
+
+#### [x] ETL-ANTECEDENTES-001 — Antecedentes domésticos ✅ 2026-04-14
+**Prioridade:** 🔴 P0
+**Motivação:** CEAF 4K expulsões de servidores, CEIS/CNEP 23K, PEP_CGU 133K (já no grafo como PEPRecord — verificar antes de duplicar).
+**Fontes:** `ceaf.py` (120L), `sanctions.py` (147L), `pep_cgu.py` (184L)
+**Schema:** `Expulsion`, `SanctionBR`, reusar `PEPRecord` existente
+**Gate:** `MATCH (e:Expulsion) RETURN count(e)` retorna 4K+
+
+#### [x] ETL-TSE-001 — Pessoas + patrimônio TSE ✅ 2026-04-14
+**Prioridade:** 🔴 P0
+**Motivação:** 22.4M nós novos. Detectar enriquecimento ilícito. "Em 2018 tinha R$200K, em 2022 R$2M."
+**Fontes:** `tse.py` (278L), `tse_bens.py` (158L)
+**Schema:** `Person {cpf, name}`, `DeclaredAsset {type, value, year}`, rel `Person-[:DECLAROU_BEM]->DeclaredAsset`
+**Atenção:** Usar MERGE com CPF — não duplicar Person nodes existentes (7K já no grafo)
+**Gate:** 8M+ Person + 14M DeclaredAsset, rel DECLAROU_BEM funcional
+
+#### [x] ETL-ICIJ-001 — Offshore Leaks ✅ 2026-04-14
+**Prioridade:** 🟡 P1
+**Motivação:** 11.4K entidades offshore. "Investigado tem empresa no Panamá?"
+**Fonte:** `icij.py` (250L)
+**Schema:** `OffshoreEntity {name, jurisdiction}`, `OffshoreOfficer {name}`, rel `[:OFFICER_OF]`
+**Gate:** ~11K nós `OffshoreEntity` + query de cruzamento com Person funciona
+
+---
+
+### FASE 2 — Scaling + Compliance
+
+#### [x] COMPLIANCE-GATES-001 — Migrar 8 scripts essenciais de br-acc ✅ 2026-04-14
+**Prioridade:** 🔴 P0 antes de produção
+**Motivação:** Sem gates: CPF pode vazar em demo data, Neo4j sem backup diário, PII em public builds.
+**Scripts:**
+1. `run_integrity_gates.py` → `scripts/integrity_gates.py` (CPF mascarado, formatos, duplicatas)
+2. `check_public_privacy.py` → `scripts/check_privacy.py` (PII em demo data)
+3. `check_open_core_boundary.py` → `scripts/check_boundary.py` (lógica privada em public)
+4. `prompt_injection_scan.py` → `scripts/prompt_injection_scan.py` (AI safety)
+5. `check_compliance_pack.py` → `scripts/check_compliance.py` (docs LGPD obrigatórios)
+6. `run_temporal_gates.py` → `scripts/temporal_gates.py` (consistency temporal do grafo)
+7. `neo4j-backup.sh` → `scripts/neo4j-backup.sh` (backup diário automático)
+8. `infra/neo4j/*.cypher` → `infra/neo4j/` (init schema + link_persons dedup)
+**Gate:** pre-commit chama scripts 2-4; CI roda scripts 1+6 contra Neo4j
+
+#### ETL-LEGISLATIVE-001 — Investigações Senado + Câmara (SENADO_CPIS + CAMARA_INQUIRIES)
+**Prioridade:** 🟡 P1 — após TIER 1 validado
+**Motivação:** Histórico de CPIs e inquéritos. "Quem foi investigado pelo Senado em 2020?"
+**Fontes:** `senado_cpis.py` (651L), `camara_inquiries.py` (364L)
+**Schema:** `CPI {name, period}`, `[:INVESTIGOU]`, `[:PRESTOU_DEPOIMENTO]`
+**Gate:** 3+ CPIs indexadas, query de depoentes funciona
+
+#### ETL-BATCH-GOV-001 — Governo federal sem BigQuery (14 pipelines)
+**Prioridade:** 🟡 P2 — após Lídia validar TIER 1
+**Pipelines:** PGFN (24M), CAMARA (4.6M), TCU (45K), COMPRASNET, TRANSFEREGOV, BNDES, TRANSPARENCIA, SIOP, RENUNCIAS, QUERIDO_DIARIO, CVM, CVM_FUNDS, SICONFI, CEPIM
+**Gate:** Definir com Lídia quais são relevantes antes de investir 30h
+
+#### ETL-BIGQUERY-ADR-001 — ADR para pipelines BigQuery (STF, DOU, TSE_FILIADOS, MIDES)
+**Prioridade:** 🟢 P3 — decisão estratégica, não execução
+**Motivação:** 4 pipelines precisam `google-cloud-bigquery`. Forçar decisão explícita sobre custo.
+**Ação:** Criar `docs/_current_handoffs/adr-bigquery.md` com análise custo/benefício
+**Gate:** ADR escrito com decisão documentada (sim/não BigQuery + alternativas)
+
+#### [x] DOCS-REPORTS-001 — Portar 6 relatórios investigativos de br-acc ✅ 2026-04-14
+**Prioridade:** 🟡 P1 — mostrar para Lídia
+**Motivação:** `br-acc/docs/reports/` tem 6 cases reais (Superar LTDA, Manaus, Recuperação Judicial SP). Provar valor > qualquer demo genérica.
+**Ação:** Copiar para `docs/reports/`, revisar PII, referenciar em MASTER_INDEX.md
+**Gate:** Lídia lê 1 relatório completo end-to-end
+
+#### [x] DOCS-ARCHITECTURE-001 — Importar decisões arquiteturais de br-acc ✅ 2026-04-14
+**Prioridade:** 🟢 P2
+**Motivação:** `br-acc/docs/analysis/` — 4 docs de decisão (STACK_SCALING, PERFORMANCE, BRUNO_VS_EGOS, MYCELIUM_AUDIT). Sem eles, futuras decisões perdem contexto.
+**Ação:** Copiar para `docs/knowledge/arch-decisions/`, referenciar em MASTER_INDEX.md
+**Gate:** 4 arquivos em `docs/knowledge/arch-decisions/` commitados
+
+---

@@ -100,6 +100,30 @@ services:
       frontend:
         condition: service_healthy
 
+  worker:
+    build:
+      context: api
+      dockerfile: Dockerfile
+    container_name: egos-inteligencia-worker
+    restart: unless-stopped
+    command: ["python", "-m", "egos_inteligencia.worker_main"]
+    env_file: .env
+    environment:
+      - WORKER_POLL_INTERVAL=10
+    networks:
+      - egos-net
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "redis-cli", "-u", "${REDIS_URL:-redis://redis:6379/0}", "EXISTS", "worker:heartbeat"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+
 networks:
   egos-net:
     driver: bridge
