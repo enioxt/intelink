@@ -72,6 +72,10 @@ class Neo4jBatchLoader:
                     time.sleep(wait)
         return total
 
+    def run_query(self, query: str, rows: list[dict[str, Any]]) -> int:
+        """Run query in batches. Alias for _run_batches (no retry)."""
+        return self._run_batches(query, rows)
+
     def load_nodes(
         self,
         label: str,
