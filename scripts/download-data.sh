@@ -1,217 +1,304 @@
 #!/usr/bin/env bash
-# download-data.sh — Download all ETL pipeline data sources
-# Run on the VPS (or locally) before running pipelines
+# download-data.sh — Download production data for all ETL pipelines
+# Requires: curl, unzip, python3
+# Est. disk: ~30GB (PGFN ~5GB, OpenSanctions ~2.5GB, TSE ~10GB)
 #
 # Usage:
 #   bash scripts/download-data.sh [DATA_DIR]
 #   DATA_DIR defaults to ./data
-#
-# Requires: curl, wget, unzip, python3
-# Est. disk: ~25GB total (TSE largest at ~15GB)
-set -euo pipefail
+set -uo pipefail  # no -e: individual downloads may fail, script continues
 
 DATA_DIR="${1:-./data}"
 mkdir -p "$DATA_DIR"
+ERRORS=()
 
-log() { echo "[$(date -u +%H:%M:%SZ)] $*"; }
-ok()  { echo "  ✅ $*"; }
-skip(){ echo "  ⏭  $*"; }
+log()  { echo "[$(date -u +%H:%M:%SZ)] $*"; }
+ok()   { echo "  ✅ $*"; }
+fail() { echo "  ❌ $*"; ERRORS+=("$*"); }
+skip() { echo "  ⏭  $*"; }
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
-
+# Download a file with retry; skip if already exists
 dl() {
   local url="$1" dest="$2"
-  if [[ -f "$dest" ]]; then
-    skip "$(basename "$dest") already exists"
-    return 0
-  fi
+  if [ -f "$dest" ]; then skip "$(basename "$dest") already exists"; return 0; fi
   log "Downloading $(basename "$dest")..."
-  curl -fsSL --retry 3 --retry-delay 5 -o "$dest" "$url"
-  ok "$(basename "$dest") ($(du -sh "$dest" | cut -f1))"
+  if curl -fsSL --retry 3 --retry-delay 5 \
+      -H 'User-Agent: Mozilla/5.0 (compatible; EGOS-ETL/1.0)' \
+      -o "$dest" "$url"; then
+    ok "$(basename "$dest") ($(du -sh "$dest" | cut -f1))"
+  else
+    fail "$(basename "$dest") — url: $url"
+    rm -f "$dest"
+  fi
 }
 
-dl_wget() {
-  local url="$1" destdir="$2"
-  mkdir -p "$destdir"
-  log "Downloading to $destdir ..."
-  wget -q --show-progress --retry-connrefused -P "$destdir" "$url"
-  ok "$destdir"
+# Download ZIP and extract a specific inner file with a target name
+dl_zip_extract() {
+  local url="$1" zip_dest="$2" inner_pattern="$3" final_dest="$4"
+  if [ -f "$final_dest" ]; then skip "$(basename "$final_dest") already exists"; return 0; fi
+  log "Downloading $(basename "$zip_dest")..."
+  local tmp_zip
+  tmp_zip=$(mktemp --suffix=.zip)
+  if ! curl -fsSL --retry 3 --retry-delay 5 \
+      -H 'User-Agent: Mozilla/5.0 (compatible; EGOS-ETL/1.0)' \
+      -o "$tmp_zip" "$url"; then
+    fail "$(basename "$zip_dest") — url: $url"
+    rm -f "$tmp_zip"
+    return 1
+  fi
+  local extract_dir
+  extract_dir=$(mktemp -d)
+  if unzip -q "$tmp_zip" -d "$extract_dir" 2>/dev/null; then
+    local found
+    found=$(find "$extract_dir" -name "$inner_pattern" | head -1)
+    if [ -n "$found" ]; then
+      cp "$found" "$final_dest"
+      ok "$(basename "$final_dest") extracted ($(du -sh "$final_dest" | cut -f1))"
+    else
+      # No pattern match — copy largest CSV in the zip
+      found=$(find "$extract_dir" -name "*.csv" | xargs ls -S 2>/dev/null | head -1)
+      if [ -n "$found" ]; then
+        cp "$found" "$final_dest"
+        ok "$(basename "$final_dest") extracted largest CSV ($(du -sh "$final_dest" | cut -f1))"
+      else
+        fail "$(basename "$zip_dest") — no CSV found inside ZIP"
+      fi
+    fi
+  else
+    fail "$(basename "$zip_dest") — unzip failed"
+  fi
+  rm -rf "$tmp_zip" "$extract_dir"
+}
+
+# Current + previous month helper
+ym_now()  { date +%Y%m; }
+ym_prev() { date -d '-1 month' +%Y%m; }
+
+# Try current month, fall back to previous
+dl_cgu() {
+  local dataset="$1" final_dest="$2" inner_pattern="${3:-*.csv}"
+  local url_now="https://portaldatransparencia.gov.br/download-de-dados/${dataset}/$(ym_now)"
+  local url_prev="https://portaldatransparencia.gov.br/download-de-dados/${dataset}/$(ym_prev)"
+  local tmp_zip
+  tmp_zip=$(mktemp --suffix=.zip)
+  for url in "$url_now" "$url_prev"; do
+    if curl -fsSL --retry 2 --retry-delay 3 \
+        -H 'User-Agent: Mozilla/5.0 (compatible; EGOS-ETL/1.0)' \
+        -H 'Referer: https://portaldatransparencia.gov.br/' \
+        -o "$tmp_zip" "$url" 2>/dev/null && [ -s "$tmp_zip" ]; then
+      local extract_dir
+      extract_dir=$(mktemp -d)
+      if unzip -q "$tmp_zip" -d "$extract_dir" 2>/dev/null; then
+        local found
+        found=$(find "$extract_dir" -name "$inner_pattern" | head -1)
+        [ -z "$found" ] && found=$(find "$extract_dir" -name "*.csv" | xargs ls -S 2>/dev/null | head -1)
+        if [ -n "$found" ]; then
+          cp "$found" "$final_dest"
+          ok "$(basename "$final_dest") from CGU ($(du -sh "$final_dest" | cut -f1))"
+          rm -rf "$tmp_zip" "$extract_dir"
+          return 0
+        fi
+      fi
+      rm -rf "$extract_dir"
+      break
+    fi
+  done
+  rm -f "$tmp_zip"
+  fail "CGU $dataset — 403/404 (may need VPN or manual download)"
 }
 
 # ── Group 0: Sanctions & compliance ──────────────────────────────────────────
 
 log "=== Group 0: Sanctions & Compliance ==="
 
-# OFAC SDN list (US Treasury)
 mkdir -p "$DATA_DIR/ofac"
-dl "https://www.treasury.gov/ofac/downloads/sdn.csv" \
-   "$DATA_DIR/ofac/sdn.csv"
-dl "https://www.treasury.gov/ofac/downloads/add.csv" \
-   "$DATA_DIR/ofac/add.csv"
+dl "https://www.treasury.gov/ofac/downloads/sdn.csv" "$DATA_DIR/ofac/sdn.csv"
+dl "https://www.treasury.gov/ofac/downloads/add.csv" "$DATA_DIR/ofac/add.csv"
 
-# EU Sanctions (Financial Sanctions Files)
 mkdir -p "$DATA_DIR/eu_sanctions"
-dl "https://webgate.ec.europa.eu/fsd/fsf/public/files/csvFullSanctionsList/content?token=dG9rZW4tMjAxNw" \
-   "$DATA_DIR/eu_sanctions/eu_full_sanctions.csv"
+if [ ! -f "$DATA_DIR/eu_sanctions/eu_sanctions.csv" ]; then
+  # Try FSF token-free URL first, then fallback
+  if ! dl "https://webgate.ec.europa.eu/fsd/fsf/public/files/csvFullSanctionsList_1_1/content?token=dG9rZW4tMjAxNw" \
+          "$DATA_DIR/eu_sanctions/eu_sanctions.csv"; then
+    dl "https://data.opensanctions.org/datasets/latest/eu_fsf/targets.csv" \
+       "$DATA_DIR/eu_sanctions/eu_sanctions.csv"
+  fi
+fi
 
-# UN Sanctions (Consolidated list)
 mkdir -p "$DATA_DIR/un_sanctions"
-dl "https://scsanctions.un.org/resources/xml/en/consolidated.xml" \
-   "$DATA_DIR/un_sanctions/consolidated.xml"
+if [ ! -f "$DATA_DIR/un_sanctions/consolidated.xml" ]; then
+  dl "https://scsanctions.un.org/resources/xml/en/consolidated.xml" \
+     "$DATA_DIR/un_sanctions/consolidated.xml"
+fi
 
-# OpenSanctions (open-source aggregator — entities JSON)
 mkdir -p "$DATA_DIR/opensanctions"
 dl "https://data.opensanctions.org/datasets/latest/default/entities.ftm.json" \
    "$DATA_DIR/opensanctions/entities.ftm.json"
 
-# World Bank debarred firms
+# World Bank — correct URL (debarred firms page as CSV export)
 mkdir -p "$DATA_DIR/world_bank"
-dl "https://www.worldbank.org/content/dam/documents/sanctions/Debarred-firms-and-individuals.xls" \
-   "$DATA_DIR/world_bank/debarred.xls"
+dl "https://apigwext.worldbank.org/dvsvc/v1.0/json/APPLICATION/ADOBE_PDF/CONTENT/1045+1046+1047+1048+1049+1050+1051+1052+1053/1/debarred.csv" \
+   "$DATA_DIR/world_bank/debarred.csv" || \
+dl "https://www.worldbank.org/content/dam/documents/sanctions/Debarred_consolidated.xlsx" \
+   "$DATA_DIR/world_bank/debarred.xlsx"
 
-# CGU — Leniência (Portal da Transparência)
+# CGU datasets (may return 403 from VPS — use setup-fixtures.sh for smoke test)
 mkdir -p "$DATA_DIR/leniency"
-dl "https://portaldatransparencia.gov.br/download-de-dados/acordos-leniencia/$(date +%Y%m)" \
-   "$DATA_DIR/leniency/acordos_$(date +%Y%m).zip" || \
-dl "https://portaldatransparencia.gov.br/download-de-dados/acordos-leniencia/$(date -d '-1 month' +%Y%m)" \
-   "$DATA_DIR/leniency/acordos_$(date -d '-1 month' +%Y%m).zip"
+[ -f "$DATA_DIR/leniency/leniencia.csv" ] || \
+  dl_cgu "acordos-leniencia" "$DATA_DIR/leniency/leniencia.csv" "*.csv"
 
-# CGU — Sanções (CEIS, CNEP, CEPIM, CEAF)
 mkdir -p "$DATA_DIR/sanctions"
-for dataset in "ceis" "cnep"; do
-  dl "https://portaldatransparencia.gov.br/download-de-dados/${dataset}/$(date +%Y%m)" \
-     "$DATA_DIR/sanctions/${dataset}_$(date +%Y%m).zip" || \
-  dl "https://portaldatransparencia.gov.br/download-de-dados/${dataset}/$(date -d '-1 month' +%Y%m)" \
-     "$DATA_DIR/sanctions/${dataset}_$(date -d '-1 month' +%Y%m).zip"
-done
+[ -f "$DATA_DIR/sanctions/ceis.csv" ] || \
+  dl_cgu "ceis" "$DATA_DIR/sanctions/ceis.csv" "*.csv"
+[ -f "$DATA_DIR/sanctions/cnep.csv" ] || \
+  dl_cgu "cnep" "$DATA_DIR/sanctions/cnep.csv" "*.csv"
 
-# CGU — CEAF (Controle de Elegibilidade de Agentes Federais)
 mkdir -p "$DATA_DIR/ceaf"
-dl "https://portaldatransparencia.gov.br/download-de-dados/ceaf/$(date +%Y%m)" \
-   "$DATA_DIR/ceaf/ceaf_$(date +%Y%m).zip" || \
-dl "https://portaldatransparencia.gov.br/download-de-dados/ceaf/$(date -d '-1 month' +%Y%m)" \
-   "$DATA_DIR/ceaf/ceaf_$(date -d '-1 month' +%Y%m).zip"
+[ -f "$DATA_DIR/ceaf/ceaf.csv" ] || \
+  dl_cgu "ceaf" "$DATA_DIR/ceaf/ceaf.csv" "*.csv"
 
-# CGU — PEP (Pessoas Expostas Politicamente)
 mkdir -p "$DATA_DIR/pep_cgu"
-dl "https://portaldatransparencia.gov.br/download-de-dados/pep/$(date +%Y%m)" \
-   "$DATA_DIR/pep_cgu/pep_$(date +%Y%m).zip" || \
-dl "https://portaldatransparencia.gov.br/download-de-dados/pep/$(date -d '-1 month' +%Y%m)" \
-   "$DATA_DIR/pep_cgu/pep_$(date -d '-1 month' +%Y%m).zip"
+[ -f "$DATA_DIR/pep_cgu/pep.csv" ] || \
+  dl_cgu "pep" "$DATA_DIR/pep_cgu/pep.csv" "*.csv"
 
-# CGU — CEPIM (Entidades sem fins lucrativos impedidas)
 mkdir -p "$DATA_DIR/cepim"
-dl "https://portaldatransparencia.gov.br/download-de-dados/cepim/$(date +%Y%m)" \
-   "$DATA_DIR/cepim/cepim_$(date +%Y%m).zip" || \
-dl "https://portaldatransparencia.gov.br/download-de-dados/cepim/$(date -d '-1 month' +%Y%m)" \
-   "$DATA_DIR/cepim/cepim_$(date -d '-1 month' +%Y%m).zip"
+[ -f "$DATA_DIR/cepim/cepim.csv" ] || \
+  dl_cgu "cepim" "$DATA_DIR/cepim/cepim.csv" "*.csv"
 
 # ── Group 1: Electoral & offshore ─────────────────────────────────────────────
 
 log "=== Group 1: Electoral & Offshore ==="
 
-# TSE — Candidatos + Bens declarados (múltiplos anos)
 mkdir -p "$DATA_DIR/tse"
 for year in 2022 2024; do
-  dl "https://cdn.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_${year}.zip" \
-     "$DATA_DIR/tse/candidatos_${year}.zip"
+  if [ ! -f "$DATA_DIR/tse/candidatos_${year}.csv" ]; then
+    dl_zip_extract \
+      "https://cdn.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_${year}.zip" \
+      "$DATA_DIR/tse/candidatos_${year}.zip" \
+      "consulta_cand_${year}_BRASIL.csv" \
+      "$DATA_DIR/tse/candidatos_${year}.csv"
+  fi
 done
+# Create combined candidatos.csv for pipeline (expects single file)
+if [ ! -f "$DATA_DIR/tse/candidatos.csv" ] && ls "$DATA_DIR/tse"/candidatos_*.csv 2>/dev/null | head -1 | grep -q .; then
+  head -1 "$DATA_DIR/tse"/candidatos_*.csv | grep -v "^==>" | head -1 > "$DATA_DIR/tse/candidatos.csv"
+  tail -n +2 -q "$DATA_DIR/tse"/candidatos_*.csv >> "$DATA_DIR/tse/candidatos.csv"
+  ok "tse/candidatos.csv (combined)"
+fi
 
 mkdir -p "$DATA_DIR/tse_bens"
 for year in 2022 2024; do
-  dl "https://cdn.tse.jus.br/estatistica/sead/odsele/bem_candidato/bem_candidato_${year}.zip" \
-     "$DATA_DIR/tse_bens/bens_${year}.zip"
+  if [ ! -f "$DATA_DIR/tse_bens/bens_${year}.csv" ]; then
+    dl_zip_extract \
+      "https://cdn.tse.jus.br/estatistica/sead/odsele/bem_candidato/bem_candidato_${year}.zip" \
+      "$DATA_DIR/tse_bens/bens_${year}.zip" \
+      "bem_candidato_${year}_BRASIL.csv" \
+      "$DATA_DIR/tse_bens/bens_${year}.csv"
+  fi
 done
+if [ ! -f "$DATA_DIR/tse_bens/bens.csv" ] && ls "$DATA_DIR/tse_bens"/bens_*.csv 2>/dev/null | head -1 | grep -q .; then
+  head -1 "$DATA_DIR/tse_bens"/bens_*.csv | grep -v "^==>" | head -1 > "$DATA_DIR/tse_bens/bens.csv"
+  tail -n +2 -q "$DATA_DIR/tse_bens"/bens_*.csv >> "$DATA_DIR/tse_bens/bens.csv"
+  ok "tse_bens/bens.csv (combined)"
+fi
 
-# ICIJ — Offshore Leaks Database (public bulk download)
 mkdir -p "$DATA_DIR/icij"
-log "Downloading ICIJ Offshore Leaks (this may be large)..."
 for f in nodes-addresses nodes-entities nodes-intermediaries nodes-officers relationships; do
-  dl "https://offshoreleaks-data.icij.org/offshoreleaks/csv/${f}.csv.gz" \
-     "$DATA_DIR/icij/${f}.csv.gz"
+  if [ ! -f "$DATA_DIR/icij/${f}.csv" ]; then
+    if curl -fsSL --retry 3 --retry-delay 5 \
+        -o "$DATA_DIR/icij/${f}.csv.gz" \
+        "https://offshoreleaks-data.icij.org/offshoreleaks/csv/${f}.csv.gz" 2>/dev/null; then
+      gunzip -f "$DATA_DIR/icij/${f}.csv.gz" && ok "icij/${f}.csv"
+    else
+      fail "icij/${f}.csv — download failed"
+    fi
+  fi
 done
 
-# ── Group 2: Legislative investigations ───────────────────────────────────────
+# ── Group 2: Legislative ───────────────────────────────────────────────────────
 
-log "=== Group 2: Legislative ==="
-log "NOTE: Senado CPIs and Câmara inquéritos are scraped via API — no static download"
-log "  senado_cpis uses: https://legis.senado.leg.br/dadosabertos/materia/pesquisa/lista"
-log "  camara_inquiries uses: https://dadosabertos.camara.leg.br/api/v2/proposicoes"
-skip "senado_cpis — API-scraped at runtime"
-skip "camara_inquiries — API-scraped at runtime"
+log "=== Group 2: Legislative (API-scraped at runtime) ==="
+skip "senado_cpis — live Senado API"
+skip "camara_inquiries — live Câmara API"
 
-# ── Group 3: Government finance & procurement ─────────────────────────────────
+# ── Group 3: Government finance ────────────────────────────────────────────────
 
-log "=== Group 3: Government Finance & Procurement ==="
+log "=== Group 3: Government Finance ==="
 
-# CGU — Transparência (Servidores, Benefícios, Gastos)
-mkdir -p "$DATA_DIR/transparencia"
-for dataset in "servidores" "beneficios-cidadao"; do
-  dl "https://portaldatransparencia.gov.br/download-de-dados/${dataset}/$(date +%Y%m)" \
-     "$DATA_DIR/transparencia/${dataset}_$(date +%Y%m).zip" || \
-  dl "https://portaldatransparencia.gov.br/download-de-dados/${dataset}/$(date -d '-1 month' +%Y%m)" \
-     "$DATA_DIR/transparencia/${dataset}_$(date -d '-1 month' +%Y%m).zip"
-done
-
-# PGFN — Devedores da União (maior arquivo ~5GB)
+# PGFN — large (~5GB)
 mkdir -p "$DATA_DIR/pgfn"
-log "PGFN devedores — large file (~5GB), this will take a while..."
-dl "https://www.gov.br/pgfn/pt-br/acesso-a-informacao/dados-abertos/representacao-fiscal/devedores/Devedores_PGFN.zip" \
-   "$DATA_DIR/pgfn/Devedores_PGFN.zip"
+if [ ! -f "$DATA_DIR/pgfn/arquivo_lai_SIDA_01_01.csv" ]; then
+  log "PGFN devedores (~5GB) — this will take a while..."
+  dl "https://www.gov.br/pgfn/pt-br/acesso-a-informacao/dados-abertos/representacao-fiscal/devedores/Devedores_PGFN.zip" \
+     "/tmp/pgfn_devedores.zip" && \
+  unzip -q /tmp/pgfn_devedores.zip -d "$DATA_DIR/pgfn/" && \
+  rm -f /tmp/pgfn_devedores.zip && ok "pgfn/ extracted"
+fi
 
-# TCU — Acordãos e Inabilitados
+# TCU — inabilitados
 mkdir -p "$DATA_DIR/tcu"
+dl "https://certidoes-apf.apps.tcu.gov.br/certidoes/download/inabilitados" \
+   "$DATA_DIR/tcu/inabilitados-funcao-publica.csv" || \
 dl "https://portal.tcu.gov.br/data/files/E0/68/B0/9C/0E1B37108B4D7011F18818A8/inabilitados.csv" \
-   "$DATA_DIR/tcu/inabilitados.csv"
+   "$DATA_DIR/tcu/inabilitados-funcao-publica.csv"
 
-# ComprasNet — Licitações (PNCP API — runtime, not static)
-skip "comprasnet — PNCP API scraped at runtime"
-
-# TransfereGov — Convênios e Transferências
+# TransfereGov — Emendas Parlamentares
 mkdir -p "$DATA_DIR/transferegov"
-dl "https://portaldatransparencia.gov.br/download-de-dados/convenios/$(date +%Y%m)" \
-   "$DATA_DIR/transferegov/convenios_$(date +%Y%m).zip" || \
-dl "https://portaldatransparencia.gov.br/download-de-dados/convenios/$(date -d '-1 month' +%Y%m)" \
-   "$DATA_DIR/transferegov/convenios_$(date -d '-1 month' +%Y%m).zip"
+for ds in "convenios" "emendas-parlamentares"; do
+  if [ ! -f "$DATA_DIR/transferegov/${ds}.csv" ]; then
+    dl_cgu "convenios" "$DATA_DIR/transferegov/EmendasParlamentares.csv" "*.csv"
+    break
+  fi
+done
 
-# BNDES — Operações (API-based, skip static)
-skip "bndes — REST API scraped at runtime"
-
-# SIOP — Orçamento Federal
-mkdir -p "$DATA_DIR/siop"
-dl "https://www1.siop.planejamento.gov.br/mto/dspDownload.jsf" \
-   "$DATA_DIR/siop/siop_latest.zip" || skip "siop requires form submission — check siop.planejamento.gov.br/siopdatadownload"
-
-# Renúncias Tributárias — CGU
-mkdir -p "$DATA_DIR/renuncias"
-dl "https://portaldatransparencia.gov.br/download-de-dados/renuncia-tributaria/$(date +%Y%m)" \
-   "$DATA_DIR/renuncias/renuncias_$(date +%Y%m).zip" || \
-dl "https://portaldatransparencia.gov.br/download-de-dados/renuncia-tributaria/$(date -d '-1 month' +%Y%m)" \
-   "$DATA_DIR/renuncias/renuncias_$(date -d '-1 month' +%Y%m).zip"
-
-# Câmara dos Deputados — Despesas (API-based)
-skip "camara — REST API scraped at runtime"
-
-# Senado Federal — Despesas (API-based)
-skip "senado — REST API scraped at runtime"
-
-# CVM — Fundos de Investimento
+# CVM — Processo Sancionador
 mkdir -p "$DATA_DIR/cvm"
+if [ ! -f "$DATA_DIR/cvm/processo_sancionador.csv" ]; then
+  dl_zip_extract \
+    "https://dados.cvm.gov.br/dados/PAS/PROCESSO_SANCIONADOR/DADOS/processo_sancionador.zip" \
+    "/tmp/cvm_pas.zip" \
+    "processo_sancionador.csv" \
+    "$DATA_DIR/cvm/processo_sancionador.csv"
+fi
+
+# CVM Funds
 mkdir -p "$DATA_DIR/cvm_funds"
-dl "https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/cad_cia_aberta.csv" \
-   "$DATA_DIR/cvm/cad_cia_aberta.csv"
-dl "https://dados.cvm.gov.br/dados/FI/CAD/DADOS/cad_fi.csv" \
-   "$DATA_DIR/cvm_funds/cad_fi.csv"
+dl "https://dados.cvm.gov.br/dados/FI/CAD/DADOS/cad_fi.csv" "$DATA_DIR/cvm_funds/cad_fi.csv"
 
-# SICONFI — Contas dos municípios
-skip "siconfi — IBGE/STN API scraped at runtime"
+# Renúncias
+mkdir -p "$DATA_DIR/renuncias"
+[ -f "$DATA_DIR/renuncias/renuncias.csv" ] || \
+  dl_cgu "renuncia-tributaria" "$DATA_DIR/renuncias/renuncias.csv" "*.csv"
 
-# ── Summary ──────────────────────────────────────────────────────────────────
+# SIOP — manual download required (form-based)
+skip "siop — requires manual download from siop.planejamento.gov.br/siopdatadownload"
+
+# Camara, Senado, BNDES, ComprasNet, SICONFI, Transparencia — API-scraped at runtime
+skip "camara — dadosabertos.camara.leg.br API"
+skip "senado — dadosabertos.senado.leg.br API"
+skip "bndes — portaldatransparencia.bndes.gov.br API"
+skip "comprasnet — pncp.gov.br API"
+skip "siconfi — apidatalake.tesouro.gov.br API"
+skip "transparencia — portaldatransparencia.gov.br API (use CGU above for CSV fallback)"
+
+# ── Summary ───────────────────────────────────────────────────────────────────
 
 log ""
 log "=== Download complete ==="
+log "Data dir: $DATA_DIR"
 du -sh "$DATA_DIR"/*/  2>/dev/null | sort -rh || true
 log ""
-log "Next step — smoke test (dry run):"
-log "  python -m egos_inteligencia.etl.runner run leniency --dry --data-dir $DATA_DIR"
-log "  python -m egos_inteligencia.etl.runner run ofac --dry --data-dir $DATA_DIR"
+
+if [ ${#ERRORS[@]} -gt 0 ]; then
+  log "⚠️  ${#ERRORS[@]} download(s) failed:"
+  for e in "${ERRORS[@]}"; do
+    echo "    - $e"
+  done
+  log "Tip: CGU datasets (leniency, CEIS, CNEP, CEAF, PEP, CEPIM) often block VPS IPs."
+  log "     Run scripts/setup-fixtures.sh for smoke testing with sample data."
+  log "     For production, download manually from a desktop and rsync to VPS."
+fi
+
+log ""
+log "Next: bash scripts/setup-fixtures.sh  (if any missing)"
+log "Then: python -m egos_inteligencia.etl.runner run-group 0 --dry --data-dir $DATA_DIR"
