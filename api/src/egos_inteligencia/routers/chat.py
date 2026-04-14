@@ -1064,6 +1064,11 @@ async def _chat_stream_generator(
 
     yield sse("thinking", {"status": "Analisando consulta...", "model": selected_model.split("/")[-1]})
 
+    # PII audit on input (log only — investigators may query by CPF/CNPJ intentionally)
+    pii_in_query = _scan_pii(body.message)
+    if any(pii_in_query.values()):
+        log_activity("pii_in_stream_query", {"categories": pii_in_query, "client": client_id})
+
     conv_id = body.conversation_id.strip() if body.conversation_id else ""
     client_header = (request.headers.get("x-client-id") or "").strip()
     effective_client = client_header if client_header else client_id
@@ -1151,6 +1156,9 @@ async def _chat_stream_generator(
                         cost_usd=round(total_cost, 6),
                         client_ip=client_id,
                     )
+                    # Mask raw PII in reply (CPF/email — CNPJs are public data)
+                    reply = _mask_pii_in_reply(reply)
+
                     yield sse("complete", {
                         "reply": reply,
                         "entities": [e.model_dump() for e in all_entities[:10]],

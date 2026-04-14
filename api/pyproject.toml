@@ -18,6 +18,8 @@ dependencies = [
     "jinja2>=3.1.0",
     "httpx>=0.28.0",
     "redis[hiredis]>=5.0.0",
+    # Guard Brasil — LGPD PII detection (egosbr.guard.egos.ia.br API)
+    "egosbr-guard-brasil>=0.1.0",
     # ETL pipeline dependencies
     "pandas>=2.2.0",
     "requests>=2.32.0",
