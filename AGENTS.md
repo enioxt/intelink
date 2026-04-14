@@ -1,110 +1,179 @@
 # AGENTS.md — EGOS Inteligência (Intelink v3)
 
-> **VERSION:** 2.0.0 | **UPDATED:** 2026-04-09 | **STATUS:** SSOT CANÔNICO — ativo
-> **TYPE:** Intelligence Platform (Intelink v3 = Intelink + BR-ACC + OSINT)
-> **URL:** https://intelink.ia.br
-> **KERNEL SSOT:** `/home/enio/egos/docs/SSOT_REGISTRY.md`
-> **DECISÃO 2026-04-09:** Este é o único repositório canônico do Intelink v3.
-> `egos-lab/apps/intelink` → ARCHIVED | `/home/enio/INTELINK` → ARCHIVED
+> **VERSION:** 3.0.0 | **UPDATED:** 2026-04-14 | **STATUS:** SSOT CANÔNICO
+> **URL:** https://intelink.ia.br | **VPS:** 204.168.217.125
+> **ENTRY POINT PARA AGENTES AI:** `docs/MASTER_INDEX.md`
+> **DECISÃO 2026-04-09:** Repositório único canônico. `egos-lab/apps/intelink` → ARCHIVED.
 
 ---
 
-## 🎯 Visão do Produto
+## Visão do Produto
 
-EGOS Inteligência é uma plataforma **standalone** de inteligência sobre dados públicos brasileiros, resultado do merge entre:
+EGOS Inteligência é uma plataforma **standalone** de inteligência sobre dados públicos brasileiros.
+Investigadores mapeiam relacionamentos entre entidades em 77M+ registros, detectam padrões comportamentais, e geram laudos com citação de fonte — sem expor PII externo.
 
-- **BR-ACC**: Backend Python + Neo4j (83M+ nós)
-- **Intelink**: Frontend Next.js + UI/AI sofisticada
-
-**Este projeto é independente** do egos-lab (que será arquivado).
+**Modelo:** Consultoria de implementação (por delegacia/órgão) + framework licenciável
+**Público-alvo:** Delegacias de polícia, MPE/MPF, jornalismo investigativo, compliance corporativo
 
 ---
 
-## 🏗️ Arquitetura Standalone
+## Arquitetura Resumida
 
+```
+frontend/ (Next.js 15) / apps/web/ (Next.js 14.2 — novo)
+    │
+    ▼
+api/ (FastAPI Python 3.12) — 25 routers, 30+ services
+    │
+    ├── Neo4j 5 (77M+ nós, 25M+ arestas)
+    ├── Redis 7 (cache, sessões, rate limit)
+    └── Supabase (auth opcional, storage)
+```
+
+**Diretórios principais:**
 ```
 egos-inteligencia/
-├── api/                    # FastAPI (Python 3.12)
-│   └── src/
-│       └── egos_inteligencia/
-│           ├── main.py
-│           ├── routers/
-│           │   ├── entity.py
-│           │   ├── search.py
-│           │   ├── graph.py
-│           │   └── chat.py
-│           └── services/
-│               └── neo4j_service.py
-│
-├── frontend/               # Next.js 15
-│   ├── app/
-│   ├── components/
-│   ├── lib/
-│   │   ├── neo4j/        # Client Neo4j
-│   │   └── ai/            # AI Router
-│   └── package.json
-│
-├── etl/                    # Pipelines Python
-│   └── scripts/
-│
-├── infra/                  # Docker + Caddy
-│   ├── docker-compose.yml
-│   └── Caddyfile
-│
-├── docs/                   # Documentação
-│   └── legal/
-│
-└── scripts/                # Utilitários
-    └── deploy-hetzner.sh
+├── api/src/egos_inteligencia/   — Backend (routers/, services/, middleware/)
+├── frontend/src/lib/            — Lógica frontend (intelligence/, analysis/, etc.)
+├── apps/web/                    — Frontend novo (Vercel AI SDK, RxDB offline)
+├── etl/pipelines/               — 4 ETL ativos (bnmp, datajud, pcmg×2)
+├── infra/                       — Docker, Caddy, Terraform, Ansible
+└── docs/                        — Toda a documentação (ver MASTER_INDEX.md)
 ```
 
 ---
 
-## 🏗️ API FastAPI — Routers Existentes
+## API — 25 Routers FastAPI
 
-| Router | Arquivo | Descrição |
-|--------|---------|-----------|
-| `/api/v1/auth` | `routers/auth.py` | Login JWT + refresh token |
-| `/api/v1/entity` | `routers/entity.py` | Lookup de entidades Neo4j |
-| `/api/v1/search` | `routers/search.py` | Full-text search |
-| `/api/v1/graph` | `routers/graph.py` | Ego network + paths |
-| `/api/v1/chat` | `routers/chat.py` + `chat_tools.py` | AI chat + tool calling |
-| `/api/v1/investigation` | `routers/investigation.py` | CRUD investigações |
-| `/api/v1/analytics` | `routers/analytics.py` | Métricas |
-| `/api/v1/patterns` | `routers/patterns.py` | Detecção de padrões |
-| `/health` | `routers/health.py` | Health check |
+### Autenticação & Sessão
+| Router | Arquivo | Função |
+|--------|---------|--------|
+| `/api/v1/auth` | `routers/auth.py` | JWT RS256 login/logout, refresh tokens HttpOnly |
+| `/api/v1/conversations` | `routers/conversations.py` | Histórico de chat, gestão de contexto |
+| `/api/v1/activity` | `routers/activity.py` | Audit trail, log de atividade |
 
-**Middleware existente:** PII masking (CPF/CNPJ) | rate limiting | security headers | request ID
+### Entidades & Busca
+| Router | Arquivo | Função |
+|--------|---------|--------|
+| `/api/v1/entity` | `routers/entity.py` | CRUD, lookup CPF/CNPJ/nome, enrichment |
+| `/api/v1/search` | `routers/search.py` | Full-text Neo4j + fallback semântico |
+| `/api/v1/cross_reference` | `routers/cross_reference.py` | Deduplicação Jaro-Winkler, 6 níveis |
+
+### Grafos & Redes
+| Router | Arquivo | Função |
+|--------|---------|--------|
+| `/api/v1/graph` | `routers/graph.py` | Ego networks, path finding, traversal |
+| `/api/v1/patterns` | `routers/patterns.py` | Padrões comportamentais, Sacred Math scoring |
+| `/api/v1/benford` | `routers/benford.py` | Anomalias Benford's Law (fraude financeira) |
+
+### Inteligência & IA
+| Router | Arquivo | Função |
+|--------|---------|--------|
+| `/api/v1/chat` | `routers/chat.py` | Streaming AI chat, tool calling |
+| `/api/v1/chat/tools` | `routers/chat_tools.py` | Ferramentas de chat (12 tools) |
+| `/api/v1/chat/models` | `routers/chat_models.py` | Abstração providers (OpenRouter, DashScope, Google) |
+| `/api/v1/chat/prompt` | `routers/chat_prompt.py` | System prompts, meta-prompts |
+
+### Domínios Especializados
+| Router | Arquivo | Função |
+|--------|---------|--------|
+| `/api/v1/investigation` | `routers/investigation.py` | CRUD investigações, templates |
+| `/api/v1/templates` | `routers/templates.py` | 5 domínios: corrupção, lavagem, compliance, jornalismo, criminal |
+| `/api/v1/bnmp` | `routers/bnmp.py` | Mandados de prisão BNMP |
+| `/api/v1/gazette` | `routers/gazette_monitor.py` | Monitoramento de diários oficiais |
+
+### Ingestão de Dados
+| Router | Arquivo | Função |
+|--------|---------|--------|
+| `/api/v1/pcmg` | `routers/pcmg_ingestion.py` | Pipeline PDF/DOCX/vídeo PCMG |
+| `/api/v1/nlp` | `routers/nlp.py` | BERTimbau NER PT-BR, fallback spaCy |
+| `/api/v1/baseline` | `routers/baseline.py` | Normalização de dados baseline |
+
+### OSINT & Integrações Externas
+| Router | Arquivo | Função |
+|--------|---------|--------|
+| `/api/v1/public` | `routers/public.py` | Base dos Dados, Portal Transparência, CNPJ |
+| `/api/v1/interop` | `routers/interop.py` | WhatsApp Evolution, Telegram, Shodan, HIBP |
+
+### Administração
+| Router | Arquivo | Função |
+|--------|---------|--------|
+| `/api/v1/analytics` | `routers/analytics.py` | Métricas de dashboard, analytics de uso |
+| `/api/v1/meta` | `routers/meta.py` | Metadados do sistema, capability advertisement |
+| `/api/v1/agents` | `routers/agents.py` | Registry de agentes |
+| `/api/v1/monitor` | `routers/monitor.py` | Health checks, status de serviços |
+| `/health` | `routers/health.py` | Endpoint de health para load balancer |
+
+**Middleware:** PII masking (CPF/CNPJ/email) | Rate limiting (60/min anon, 300/min auth) | JWT RS256 | Security headers | Request ID | Input sanitizer
 
 ---
 
-## 🚦 Status da Migração (atualizado 2026-04-09)
+## Serviços Backend (30+)
 
-| Componente | Origem | Status |
-|------------|--------|--------|
-| Backend API (FastAPI + 60 endpoints) | `egos-inteligencia/api/` | ✅ Existente neste repo |
-| Frontend base (Next.js 15) | `egos-inteligencia/frontend/` | ✅ Existente neste repo |
-| Cross-reference service | `egos-lab/apps/intelink/lib/intelink/cross-reference-service.ts` | ⏳ CONS-002 |
-| Entity matcher + graph algorithms | `egos-lab/apps/intelink/lib/intelink/` | ⏳ CONS-003 |
-| Auth completo (JWT, bcrypt, session) | `egos-lab/apps/intelink/lib/auth/` | ⏳ CONS-004 |
-| Security audit | `egos-lab/apps/intelink/lib/security/audit.ts` | ⏳ CONS-005 |
-| AI router + chat + meta-prompts | `egos-lab/apps/intelink/lib/intelink/ai-router.ts` | ⏳ CONS-006 |
-| Componentes UI (30+ componentes) | `egos-lab/apps/intelink/components/intelink/` | ⏳ CONS-007 |
-| Arquitetura segurança v3 (RxDB+PBKDF2) | `egos/docs/knowledge/INTELINK_V3_SECURITY_ARCHITECTURE.md` | ⏳ SEC-001..005 |
+Documentados em `docs/CAPABILITIES_STATUS.md`. Destaques:
+
+| Serviço | Linhas | Função |
+|---------|--------|--------|
+| `transparency_tools.py` | 1.372 | Portal Transparência, CNPJ, salários |
+| `intelligence_provider.py` | 514 | Orquestração LLM: DashScope→OpenRouter→Google→Anthropic |
+| `cross_reference_engine.py` | 420 | Jaro-Winkler, 6 níveis de confiança |
+| `pattern_detector.py` | ~350 | Sacred Math scoring, Fibonacci/phi |
+| `benford_analyzer.py` | 345 | Chi-squared Benford's Law |
+| `investigation_templates.py` | 477 | Cypher templates por domínio |
+| `bertimbau_ner.py` | 303 | NER PT-BR (BERTimbau + spaCy fallback) |
 
 ---
 
-## 📋 Comandos
+## Frontend — Módulos lib/
+
+Ver `docs/ARCHITECTURE.md` para detalhes. Destaques:
+
+| Módulo | Localização | Função |
+|--------|------------|--------|
+| `cross-reference-service.ts` | `lib/intelligence/` | Dedup entidades, 6 níveis |
+| `ai-router.ts` | `lib/intelligence/` | Multi-provider LLM fallback |
+| `document-extraction.ts` | `lib/intelligence/` | OCR + NER no browser |
+| `graph-algorithms.ts` | `lib/intelligence/` | PageRank, Louvain, ego networks |
+| `criminal-articles.ts` | `lib/legal/` | 100+ artigos CP/Lei Drogas/Maria da Penha |
+| `arkham-templates.ts` | `lib/reports/` | Templates de laudo profissional |
+| `modus-operandi.ts` | `lib/analysis/` | Comparação de MO entre casos |
+| `executive-summary.ts` | `lib/analysis/` | Sumário de caso via IA |
+
+**NOTA:** `apps/web/` é a nova arquitetura (Vercel AI SDK + RxDB offline). `frontend/src/` está sendo migrado gradualmente.
+
+---
+
+## Status por Fase
+
+| Fase | Status | Blockers |
+|------|--------|---------|
+| **PHASE-1** Foundation | ✅ 95% completo | DEPLOY-REAL (manual) |
+| **PHASE-2** Intelligence | 🟡 60% | UI não usa análises avançadas; testes Neo4j pulados |
+| **PHASE-3** Scale | 🔴 15% | RLS não enforced; CRDT não integrado; 42/46 ETL ausentes |
+| **PHASE-4** Platform | 🔴 0% | Visão futura |
+
+---
+
+## Comandos
 
 ```bash
-# Frontend
-cd frontend && npm install && npm run dev  # Porta 3000
+# Frontend (novo)
+cd apps/web && npm install && npm run dev   # Porta 3000
+
+# Frontend (legado)
+cd frontend && npm install && npm run dev   # Porta 3001
 
 # API
-cd api && pip install -e . && uvicorn src.egos_inteligencia.main:app --reload
+cd api && pip install -e . && uvicorn src.egos_inteligencia.main:app --reload --port 8000
 
-# Infra
+# Stack completa
 docker compose -f infra/docker-compose.yml up -d
+
+# Deploy VPS
+bash scripts/deploy-hetzner.sh
+
+# Health check
+curl https://intelink.ia.br/api/health
 ```
 
 ---

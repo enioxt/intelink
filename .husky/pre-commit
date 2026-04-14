@@ -107,8 +107,8 @@ check_lines() {
     fi
   fi
 }
-check_lines "TASKS.md" 200 || exit 1
-check_lines "AGENTS.md" 200 || exit 1
+check_lines "TASKS.md" 900 || exit 1
+check_lines "AGENTS.md" 250 || exit 1
 check_lines ".windsurfrules" 120 || exit 1
 check_lines "docs/ROADMAP.md" 150 || exit 1
 

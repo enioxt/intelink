@@ -6,6 +6,8 @@
 
 **🌐 Acesse:** https://intelink.ia.br · **📜 Licença:** MIT · **⚡ Stack:** Next.js 15 + FastAPI + Neo4j
 
+> **Para agentes AI / LLMs:** Comece por [`docs/MASTER_INDEX.md`](docs/MASTER_INDEX.md) — mapeia todo o sistema com links para cada domínio.
+
 ---
 
 ## 🎯 O que é o Intelink?

@@ -1,6 +1,7 @@
 # EGOS Inteligência — Architecture
 
-> **SSOT:** `docs/ARCHITECTURE.md` | Max 150 lines | Updated: 2026-04-09
+> **SSOT:** `docs/ARCHITECTURE.md` | Updated: 2026-04-14
+> **Entry point completo:** `docs/MASTER_INDEX.md`
 
 ---
 
@@ -113,3 +114,47 @@ frontend/tests/
 ```
 
 **Rule:** synthetic data only. Never commit real investigation data. See `api/tests/fixtures/synthetic_investigations/`.
+
+---
+
+## Deploy
+
+```bash
+# Sincronizar código para VPS
+rsync -av --delete /home/enio/egos-inteligencia/ root@204.168.217.125:/opt/egos-inteligencia/
+
+# Deploy no servidor
+cd /opt/egos-inteligencia && bash scripts/deploy-hetzner.sh
+
+# Verificar
+curl https://intelink.ia.br/api/health
+```
+
+**Domínios:**
+
+| Domínio | Propósito | SSL |
+|---------|-----------|-----|
+| `intelink.ia.br` | Produção (primário) | Let's Encrypt (Caddy auto) |
+| `inteligencia.egos.ia.br` | Alias EGOS canônico | Let's Encrypt |
+| `localhost:3000` | Dev frontend | — |
+| `localhost:8000` | Dev API | — |
+
+---
+
+## Frontend lib/ — Módulos de Inteligência (25.000 linhas)
+
+```
+frontend/src/lib/
+├── intelligence/     cross-reference, ai-router, graph-algorithms,
+│                     entity-matcher, rag-context-retriever, embedding-cache
+├── analysis/         diligence-suggestions, executive-summary,
+│                     risk-assessment, modus-operandi, urgency-service
+├── detectors/        benford-anomaly, ghost-employees, hhi-concentration
+├── legal/            criminal-articles (100+ artigos: CP, Lei Drogas, etc.)
+├── reports/          arkham-templates, export-utils (PDF/DOCX/MD)
+└── auth/             rbac, session, jwt, permissions, tenant-isolation
+
+apps/web/lib/db/      RxDB offline-first, Automerge CRDT, AES-256-GCM
+```
+
+**Nota:** `apps/web/` usa Vercel AI SDK e é o alvo de migração do `frontend/src/`.
