@@ -75,7 +75,12 @@ NEW_MD=$(git diff --cached --name-only --diff-filter=A 2>/dev/null | grep '\.md$
 if [ -n "$NEW_MD" ]; then
   NOISE_FOUND=0
   for f in $NEW_MD; do
-    # Block timestamped filenames
+    # Allow: handoffs (SSOT: docs/_current_handoffs/), security incidents, archived docs
+    ALLOWED_PATTERN='^docs/_current_handoffs/|^docs/security/INCIDENT_|^docs/_archived/'
+    if echo "$f" | grep -qE "$ALLOWED_PATTERN"; then
+      continue
+    fi
+    # Block timestamped filenames (except in allowed dirs above)
     if echo "$f" | grep -qE '_[0-9]{4}-[0-9]{2}-[0-9]{2}|SESSION|HANDOFF|RESUMO_|RELATORIO_|DIAGNOSTICO_'; then
       echo "  ❌ NOISE DOC: $f"
       echo "     Update TASKS.md, AGENTS.md, or docs/ARCHITECTURE.md instead."
