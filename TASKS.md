@@ -88,7 +88,7 @@
 
 > **Meta:** só depois do piloto DHPP funcionar. Priorizar features que Lídia pediu no uso real.
 
-- [ ] **STREAMING-001** [1d]: SSE streaming no `POST /api/v1/chat` (hoje é request/response). Reduz latência percebida. **Ref:** `api/routers/chat.py` (1005 LOC).
+- [x] **STREAMING-001** [1d]: SSE streaming no `POST /api/v1/chat`. ✅ 2026-04-14 — novo endpoint `/api/v1/chat/stream` com SSE events (thinking/tool_call/tool_result/complete) + PII guard inline.
 - [ ] **UI-PATTERNS-001** [1d]: Input de texto livre em `/intelink/analysis` → `POST /api/v1/patterns/detect`. **Ref:** pattern_detector.py (Sacred Math scoring).
 - [ ] **UI-TEMPLATES-001** [1d]: Seletor de template na criação de investigação → `GET /templates/categories/list`. 5 domínios disponíveis.
 - [ ] **UI-BENFORD-001** [1d]: Widget Benford's Law na página de entidade Company → `POST /benford/entity/{id}`. **Ref:** BenfordWidget.tsx (328 LOC) já existe.
