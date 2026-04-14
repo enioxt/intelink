@@ -95,3 +95,33 @@ class Neo4jBatchLoader:
             f"SET n += row"
         )
         return self._run_batches(query, rows)
+
+    def load_relationships(
+        self,
+        rel_type: str,
+        rows: list[dict[str, Any]],
+        source_label: str,
+        source_key: str,
+        target_label: str,
+        target_key: str,
+        properties: list[str] | None = None,
+    ) -> int:
+        """MERGE relationships between existing nodes."""
+        if not rows:
+            return 0
+        for name in (rel_type, source_label, target_label, source_key, target_key):
+            if not _SAFE_KEY.match(name):
+                raise ValueError(f"Unsafe identifier: {name!r}")
+        set_clause = ""
+        if properties:
+            props = ", ".join(f"r.{p} = row.{p}" for p in properties if _SAFE_KEY.match(p))
+            if props:
+                set_clause = f" SET {props}"
+        query = (
+            f"UNWIND $rows AS row "
+            f"MATCH (s:{source_label} {{{source_key}: row.{source_key}}}) "
+            f"MATCH (t:{target_label} {{{target_key}: row.{target_key}}}) "
+            f"MERGE (s)-[r:{rel_type}]->(t)"
+            f"{set_clause}"
+        )
+        return self._run_batches(query, rows)
