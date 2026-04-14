@@ -74,20 +74,26 @@
 - [x] **Pages Apps**: `apps/web/app/layout.tsx`
 - [x] **Componentes temáticos**: `theme-provider.tsx` (apps/web)
 
-### Frontend — Documentado mas NÃO ENCONTRADO 🔍
-- [ ] `app/analysis/page.tsx` — MO-001 (não encontrado na estrutura)
-- [ ] `app/admin/tenants/page.tsx` — TENANT-001 (não encontrado)
-- [ ] `app/dashboard/page.tsx` — ANALYTICS (não encontrado)
-- [ ] `app/osint/page.tsx` — OSINT-MODULE (não encontrado)
-- [ ] `app/pcmg/page.tsx` — PCMG-UI (não encontrado)
-- [ ] `app/graph/page.tsx` — GRAPH-VIZ (não encontrado)
-- [ ] `app/security/page.tsx` — AUTH-002 (não encontrado)
-- [ ] `components/tools/BenfordWidget.tsx` — BENFORD-001 (não encontrado)
-- [ ] `lib/db/encryption.ts`, `rxdb.ts` — SEC-002 (não encontrado)
-- [ ] `lib/db/audit.ts`, `hooks/useAudit.ts` — SEC-003 (não encontrado)
-- [ ] `lib/db/sync.ts`, `hooks/useSync.ts` — CRDT-001 (não encontrado)
+### Frontend — Encontrados em apps/web/ (confirmado 2026-04-14) ✅
+- [x] `app/analysis/page.tsx` — em `apps/web/app/analysis/` ✅
+- [x] `app/admin/tenants/page.tsx` — em `apps/web/app/admin/tenants/` ✅
+- [x] `app/dashboard/page.tsx` — em `apps/web/app/dashboard/` ✅
+- [x] `app/osint/page.tsx` — em `apps/web/app/osint/` ✅
+- [x] `app/pcmg/page.tsx` — em `apps/web/app/pcmg/` ✅
+- [x] `app/graph/page.tsx` — em `apps/web/app/graph/` ✅
+- [x] `app/security/page.tsx` — em `apps/web/app/security/` ✅
+- [x] `lib/db/encryption.ts`, `rxdb.ts` — em `apps/web/lib/db/` ✅
+- [x] `lib/db/sync.ts` (Automerge CRDT) — em `apps/web/lib/db/sync.ts` ✅
 
-**VERDICT:** Frontend simplificado. Muitos componentes documentados como "feitos" estão em estrutura diferente ou não existem no código atual.
+**NOTA:** Arquitetura dual — `frontend/src/` (legado) + `apps/web/` (nova). Migração em progresso.
+
+### Novos P1 — Descobertos 2026-04-14
+- [ ] **CONNECT-001**: Conectar `pattern_detector.py` → `cross_reference_engine.py` (linha ~380, `pattern_matches=[]`) — 1 dia
+- [ ] **CI-NEO4J-001**: Ativar Neo4j no `.github/workflows/ci.yml` (service container) — 0.5 dia
+- [ ] **UI-ANALYSIS-001**: Expor `diligence-suggestions`, `executive-summary`, `risk-assessment`, `modus-operandi` na UI — 1 semana
+- [ ] **LGPD-DPO-001**: Designar DPO (LGPD Art. 41) — ação administrativa
+- [ ] **LGPD-TITULAR-001**: Implementar endpoint `/titular` (LGPD Art. 14) — 3 dias
+- [ ] **ETL-DHPP-001**: Pipeline ETL para documentos DHPP (IP, CS, laudos) baseado em `pcmg_document_pipeline.py` — 2-3 dias
 
 ### Backend — Implementados ✅
 - [x] **ETL-001**: `api/scripts/etl_pipeline_template.py` (448 linhas, framework completo)
