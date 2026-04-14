@@ -17,6 +17,7 @@ from typing import Annotated, Any
 
 import httpx
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from neo4j import AsyncSession
 from starlette.requests import Request
 
@@ -60,6 +61,32 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["chat"])
 
 _CNPJ_RE = re.compile(r"\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}")
+
+# ---------------------------------------------------------------------------
+# PII Guard — lightweight inline scanner (ATRiAN-light for Intelink)
+# Policy: INPUT is logged (investigators query by CPF/CNPJ intentionally).
+#         REPLY text masks CPF/email to prevent AI echoing raw PII back.
+# ---------------------------------------------------------------------------
+_CPF_RE = re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b")
+_EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
+_PHONE_BR_RE = re.compile(r"\b(?:\+55\s?)?(?:\(?\d{2}\)?\s?)(?:9\d{4}|\d{4})-?\d{4}\b")
+
+
+def _scan_pii(text: str) -> dict[str, int]:
+    """Return counts of PII categories detected in text."""
+    return {
+        "cpf": len(_CPF_RE.findall(text)),
+        "cnpj": len(_CNPJ_RE.findall(text)),
+        "email": len(_EMAIL_RE.findall(text)),
+        "phone": len(_PHONE_BR_RE.findall(text)),
+    }
+
+
+def _mask_pii_in_reply(text: str) -> str:
+    """Mask raw CPFs and emails in LLM reply text (preserve CNPJs — public data)."""
+    text = _CPF_RE.sub("[CPF PROTEGIDO]", text)
+    text = _EMAIL_RE.sub("[EMAIL PROTEGIDO]", text)
+    return text
 _LUCENE_SPECIAL = re.compile(r'([+\-&|!(){}\[\]^"~*?:\\/])')
 
 # --- In-memory conversation store (fallback when Redis unavailable) ---
@@ -909,6 +936,11 @@ async def chat(
     if tier_label == "limite_atingido":
         tier_notice = "\n\n⚠️ **Limite diário atingido** (30 consultas). O agente continua funcionando com modelo gratuito, mas a qualidade pode ser menor.\n\n💡 **Traga sua própria chave!** Crie uma conta grátis em [openrouter.ai](https://openrouter.ai), insira créditos (~$5 dura meses) e cole sua chave nas configurações. Assim você usa os melhores modelos sem restrição."
 
+    # PII audit: log PII categories in user input (investigators may query by CPF/CNPJ intentionally)
+    pii_found = _scan_pii(body.message)
+    if any(pii_found.values()):
+        log_activity("pii_in_query", {"categories": pii_found, "client": client_id})
+
     # Prompt injection soft check (logs but does not block)
     from bracc.middleware.input_sanitizer import check_injection
     injection_pattern = check_injection(body.message)
@@ -964,6 +996,9 @@ async def chat(
     # Increment usage AFTER successful call
     new_count = await _increment_usage(client_id)
 
+    # Mask raw PII in LLM reply (CPF/email — CNPJs are public data, kept intact)
+    reply = _mask_pii_in_reply(reply)
+
     # Append tier notice to reply
     if tier_notice:
         reply += tier_notice
@@ -1002,4 +1037,239 @@ async def chat(
         suggestions=suggestions,
         evidence_chain=[EvidenceItem(**e) for e in evidence],
         cost_usd=round(cost, 6),
+    )
+
+
+# ---------------------------------------------------------------------------
+# STREAMING-001: SSE streaming variant of /chat
+# Yields server-sent events for each tool call + final reply.
+# Frontend receives progress in real-time instead of waiting for full response.
+# Events: thinking | tool_call | tool_result | complete | error
+# ---------------------------------------------------------------------------
+
+async def _chat_stream_generator(
+    request: Request,
+    body: "ChatMessage",
+    session: "AsyncSession",
+) -> "AsyncGenerator[str, None]":
+    """Async generator yielding SSE events for streaming chat."""
+    import asyncio
+
+    def sse(event: str, data: dict[str, Any]) -> str:
+        return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False, default=str)}\n\n"
+
+    client_id = _get_client_id(request)
+    byok_key = (request.headers.get("x-openrouter-key") or "").strip()
+    selected_model, selected_key, tier_label = await _select_model(client_id, byok_key)
+
+    yield sse("thinking", {"status": "Analisando consulta...", "model": selected_model.split("/")[-1]})
+
+    conv_id = body.conversation_id.strip() if body.conversation_id else ""
+    client_header = (request.headers.get("x-client-id") or "").strip()
+    effective_client = client_header if client_header else client_id
+
+    if conv_id:
+        from bracc.routers.conversations import get_conversation_messages
+        history = await get_conversation_messages(conv_id, effective_client)
+    else:
+        history = _get_conversation(client_id)
+
+    messages: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for msg in history[-10:]:
+        messages.append(msg)
+    messages.append({"role": "user", "content": body.message})
+
+    effective_key = byok_key or settings.openrouter_api_key
+    effective_model = selected_model or settings.ai_model
+
+    if not effective_key:
+        yield sse("error", {"message": "Sem chave de API configurada."})
+        return
+
+    headers = {
+        "Authorization": f"Bearer {effective_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://inteligencia.egos.ia.br",
+        "X-Title": "EGOS Inteligencia",
+    }
+
+    all_entities: list[EntityCard] = []
+    evidence_chain: list[dict[str, Any]] = []
+    total_cost: float = 0.0
+
+    payload: dict[str, Any] = {
+        "model": effective_model,
+        "messages": messages,
+        "tools": TOOLS,
+        "tool_choice": "auto",
+        "max_tokens": 2000,
+        "temperature": 0.3,
+    }
+
+    max_rounds = 8
+    try:
+        async with httpx.AsyncClient(timeout=45.0) as client:
+            for round_num in range(max_rounds):
+                try:
+                    resp = await client.post(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers=headers,
+                        json=payload,
+                    )
+                    resp.raise_for_status()
+                    data = resp.json()
+                except Exception as e:
+                    yield sse("error", {"message": f"Falha na API: {str(e)[:100]}"})
+                    return
+
+                usage = data.get("usage", {})
+                total_cost += (usage.get("prompt_tokens", 0) * 0.00000015) + (usage.get("completion_tokens", 0) * 0.0000006)
+
+                choice = data.get("choices", [{}])[0]
+                message = choice.get("message", {})
+                tool_calls = message.get("tool_calls")
+
+                if not tool_calls:
+                    reply = message.get("content", "Não consegui processar sua pergunta.")
+                    # Save to memory
+                    if conv_id:
+                        from bracc.routers.conversations import save_conversation_messages
+                        await save_conversation_messages(conv_id, effective_client, body.message, reply, auto_title=True)
+                    else:
+                        history.append({"role": "user", "content": body.message})
+                        history.append({"role": "assistant", "content": reply})
+                        _trim_conversation(history)
+
+                    await _increment_usage(client_id)
+                    suggestions = _generate_suggestions(reply, all_entities, body.message)
+                    log_activity(
+                        activity_type="chat_stream",
+                        title=body.message[:80],
+                        description=f"rounds={round_num+1}, entities={len(all_entities)}, cost={total_cost:.6f}",
+                        source="chatbot_stream",
+                        result_count=len(all_entities),
+                        cost_usd=round(total_cost, 6),
+                        client_ip=client_id,
+                    )
+                    yield sse("complete", {
+                        "reply": reply,
+                        "entities": [e.model_dump() for e in all_entities[:10]],
+                        "suggestions": suggestions,
+                        "evidence_chain": evidence_chain,
+                        "cost_usd": round(total_cost, 6),
+                        "rounds": round_num + 1,
+                    })
+                    return
+
+                # Process tool calls — yield event per tool
+                messages.append(message)
+                for tc in tool_calls:
+                    fn_name = tc["function"]["name"]
+                    try:
+                        fn_args = json.loads(tc["function"]["arguments"])
+                    except json.JSONDecodeError:
+                        fn_args = {}
+
+                    yield sse("tool_call", {"tool": fn_name, "args": fn_args})
+
+                    # Reuse existing tool dispatch via _call_openrouter logic (single-tool helper)
+                    # We run just this one tool call inline to keep parity
+                    result: Any = {"error": f"Tool {fn_name} not dispatched in stream mode"}
+                    try:
+                        result = await _dispatch_tool(fn_name, fn_args, session)
+                    except Exception as e:
+                        result = {"error": str(e)[:200]}
+
+                    result_count = len(result) if isinstance(result, list) else 0
+                    yield sse("tool_result", {"tool": fn_name, "count": result_count})
+
+                    evidence_chain.append({
+                        "tool": fn_name,
+                        "query": json.dumps(fn_args, ensure_ascii=False)[:200],
+                        "result_count": result_count,
+                    })
+
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc["id"],
+                        "content": json.dumps(result, ensure_ascii=False, default=str)[:8000],
+                    })
+
+                payload["messages"] = messages
+
+        yield sse("error", {"message": "Limite de rounds atingido. Tente uma pergunta mais específica."})
+    except Exception as e:
+        logger.error("Stream chat error: %s", e)
+        yield sse("error", {"message": "Erro interno no streaming."})
+
+
+async def _dispatch_tool(fn_name: str, fn_args: dict[str, Any], session: "AsyncSession") -> Any:
+    """Minimal tool dispatcher for streaming — mirrors _call_openrouter tool dispatch."""
+    if fn_name == "search_entities":
+        entities = await _tool_search(session, fn_args.get("query", ""), fn_args.get("entity_type"), min(fn_args.get("limit", 8), 20))
+        return [{"id": e.id, "type": e.type, "name": e.name} for e in entities]
+    elif fn_name == "get_graph_stats":
+        return await _tool_stats(session)
+    elif fn_name == "get_entity_connections":
+        return await _tool_connections(session, fn_args.get("entity_id", ""))
+    elif fn_name == "find_connection_path":
+        return await _tool_find_path(session, fn_args.get("entity_a", ""), fn_args.get("entity_b", ""), min(fn_args.get("max_depth", 4), 6))
+    elif fn_name == "cypher_query":
+        return await _tool_cypher(session, fn_args.get("query", ""), fn_args.get("params"))
+    elif fn_name == "data_summary":
+        return await _tool_data_summary(session)
+    elif fn_name == "web_search":
+        return await tool_web_search(fn_args.get("query", ""), min(fn_args.get("max_results", 5), 10))
+    elif fn_name == "cnpj_info":
+        return await tool_cnpj_info(fn_args.get("cnpj", ""))
+    elif fn_name == "search_emendas":
+        return await tool_search_emendas(fn_args.get("municipio", ""), fn_args.get("uf", ""), fn_args.get("ano", 2024))
+    elif fn_name == "search_transferencias":
+        return await tool_search_transferencias(fn_args.get("municipio", ""), fn_args.get("uf", ""), fn_args.get("ano", 2024))
+    elif fn_name == "search_servidores":
+        return await tool_search_servidores(fn_args.get("nome", ""), fn_args.get("cpf", ""), fn_args.get("orgao", ""))
+    elif fn_name == "search_licitacoes":
+        return await tool_search_licitacoes(fn_args.get("orgao", ""), fn_args.get("uf", ""), fn_args.get("modalidade", ""), fn_args.get("ano", 2024))
+    elif fn_name == "search_contratos":
+        return await tool_search_contratos(fn_args.get("orgao", ""), fn_args.get("fornecedor", ""), fn_args.get("ano", 2024))
+    elif fn_name == "search_sancoes":
+        return await tool_search_sancoes(fn_args.get("cnpj", ""), fn_args.get("nome", ""))
+    elif fn_name == "search_processos":
+        return await tool_search_processos(fn_args.get("numero_processo", ""), fn_args.get("nome_parte", ""), fn_args.get("tribunal", "TJSP"), fn_args.get("classe", ""))
+    elif fn_name == "bnmp_mandados":
+        return await tool_bnmp_mandados(fn_args.get("nome", ""))
+    elif fn_name == "procurados_lookup":
+        return await tool_procurados_lookup(fn_args.get("nome", ""))
+    elif fn_name == "pncp_licitacoes":
+        return await tool_pncp_licitacoes(fn_args.get("cnpj_orgao", ""), fn_args.get("uf", ""), fn_args.get("data_inicio", "20240101"), fn_args.get("data_fim", "20241231"))
+    elif fn_name == "oab_advogado":
+        return await tool_oab_advogado(fn_args.get("nome", ""), fn_args.get("numero_oab", ""), fn_args.get("seccional", ""))
+    else:
+        return {"error": f"Tool {fn_name} not available in stream mode"}
+
+
+from typing import TYPE_CHECKING, AsyncGenerator
+if TYPE_CHECKING:
+    from neo4j import AsyncSession
+
+
+@router.post("/chat/stream")
+@limiter.limit("30/minute")
+async def chat_stream(
+    request: Request,
+    body: ChatMessage,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> StreamingResponse:
+    """SSE-streaming variant of /chat — yields tool_call/tool_result/complete events.
+
+    Frontend can subscribe and show real-time progress during the tool-calling loop.
+    Same auth/tier/BYOK rules as /chat. Compatible with EventSource API.
+    """
+    return StreamingResponse(
+        _chat_stream_generator(request, body, session),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
     )
