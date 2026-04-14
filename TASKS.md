@@ -1,6 +1,6 @@
 # TASKS.md — EGOS Inteligência
 
-> **UPDATED:** 2026-04-09 | **REALITY-CHECK:** Sistema analisado — 25 routers, 14+ componentes React, IaC completo
+> **UPDATED:** 2026-04-14 | **REALITY-CHECK:** 28/28 pipelines ETL rodando. Neo4j 83.7M nós online. Loader completo (run_query + load_relationships). Dados reais: fixtures smoke-test ✅; produção CGU bloqueada do VPS IP.
 > **Roadmap estratégico:** `docs/ROADMAP.md` (fases, não tickets)
 > **Sync:** tasks referenciam fase — ex: `[PHASE-1] feat: deploy prod`
 > **MAX:** 200 linhas. Arquivar concluídos quando ultrapassar 180.
@@ -577,5 +577,45 @@ infra/compliance/
 **Motivação:** `br-acc/docs/analysis/` — 4 docs de decisão (STACK_SCALING, PERFORMANCE, BRUNO_VS_EGOS, MYCELIUM_AUDIT). Sem eles, futuras decisões perdem contexto.
 **Ação:** Copiar para `docs/knowledge/arch-decisions/`, referenciar em MASTER_INDEX.md
 **Gate:** 4 arquivos em `docs/knowledge/arch-decisions/` commitados
+
+---
+
+## FASE 3 — Estabilização + Dados Reais (pós 2026-04-14)
+
+> **Contexto:** 28/28 pipelines rodando com fixtures br-acc. Neo4j recuperado (INC-005: GBPTree corruption → index delete + rebuild). Loader completo. Próximo blocker: dados reais.
+
+#### [x] LOADER-METHODS-001 — Completar API pública do Neo4jBatchLoader ✅ 2026-04-14
+**Fixes:** `run_query()` (alias para `_run_batches`) + `load_relationships()` (MERGE tipado com properties opcionais). Pipelines sanctions, tcu, camara, senado, transparencia, tse, camara_inquiries, senado_cpis dependiam desses métodos.
+
+#### [x] NEO4J-RECOVER-001 — Recuperar banco após corrupção GBPTree ✅ 2026-04-14
+**INC-005:** `internal.dbms.tx_log.fail_on_corrupted_log_files=false` + restore tx logs + delete index files → rebuild. 83.7M nós intactos.
+**Backup índices:** `/data/neo4j_index_backup_20260414/` (11GB) na VPS.
+
+#### NEO4J-CHECKPOINT-001 — Configurar checkpoint periódico para prevenir corrupção
+**Prioridade:** 🔴 P0 — previne próxima ocorrência de INC-005
+**Ação:** Adicionar a `/var/lib/neo4j/conf/neo4j.conf` via docker exec:
+```
+db.checkpoint.interval.time=15m
+db.checkpoint.interval.tx=100000
+```
+**Gate:** `docker exec bracc-neo4j cypher-shell ... "CALL db.checkpoint()"` retorna sucesso; log mostra checkpoint regular.
+
+#### ETL-DATA-REAL-001 — Download de dados reais CGU (desbloqueio VPS)
+**Prioridade:** 🔴 P0 Sprint Delegacia — sem dados reais não há demo convincente
+**Blocker:** Portal da Transparência bloqueia IPs de datacenter. 6 datasets CGU inacessíveis: leniency, CEIS, CNEP, CEAF, PEP, CEPIM.
+**Opções:**
+1. Download manual da máquina local + `rsync` para VPS (mais rápido)
+2. VPN residencial na VPS (mais complexo)
+3. Usar dados de outro período que não bloqueia (menos provável)
+**Gate:** `python -m egos_inteligencia.etl.runner run leniency` com dados reais (>100 LeniencyAgreement nodes).
+
+#### ETL-DHPP-001 — Pipeline ETL para documentos reais da DHPP
+**Prioridade:** 🔴 P0 Sprint Delegacia
+**Status:** Não iniciado. Blocker: precisa de dados reais + alinhamento com Lídia sobre formato dos IPs/CSs.
+**Ver task completa acima em P1 Sprint Delegacia.**
+
+#### CNPJ-001 — Verificar freshness dos 66M Company nodes
+**Prioridade:** 🟢 P3 — informacional
+**Ação:** `MATCH (c:Company) RETURN max(c.updated_at), min(c.updated_at)` — se stale, reagendar carga br-acc.
 
 ---
