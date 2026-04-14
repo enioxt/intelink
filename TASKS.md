@@ -95,23 +95,10 @@
 ---
 
 #### ETL-DHPP-001 — Pipeline ETL para documentos da DHPP
-**Prioridade:** 🔴 P0 do Sprint. Sem dados reais, o Intelink não tem o que mostrar para Lídia.
-**Motivação:** O dashboard HTML da DHPP processa 79 IPs/CSs com `extract_entities.py`. O Intelink tem um Neo4j com 77M nós e motor de cruzamento pronto. A ponte faltante é um ETL que alimente o grafo com esses documentos reais. Sem isso, validamos com dados sintéticos — que não convencem ninguém.
-**Arquivos-chave:**
-- Base: `etl/pipelines/pcmg_document_pipeline.py` (adaptar)
-- Template usado: `services/investigation_templates.py` → template `criminal_investigation`
-- Input: IPs e CSs da DHPP (mesmo formato que `inputDHPP/`)
-- Output: Neo4j nodes `(:Person)-[:APPEARS_IN]->(:Case)` + `(:Weapon)-[:SEIZED_IN]->(:Case)`
-**Implementação (2-3 dias):**
-```python
-# etl/pipelines/dhpp_pipeline.py
-class DHPPPipeline(ETLPipeline):
-    def extract(self):        # Ler txt/pdf da pasta inputDHPP/
-    def transform(self):      # Reusar extract_entities.py do projetoDHPP
-    def load(self):           # Neo4j via criminal_investigation template
-    def run(dry_run=False):   # --dry-run obrigatório primeiro
-```
-**Gate de conclusão:** `python etl/pipelines/dhpp_pipeline.py --dry-run` mostra preview; `--exec` popula Neo4j; query de validação retorna 70+ pessoas e 4+ casos.
+**Prioridade:** 🔴 P0
+**Status (2026-04-14):** Infraestrutura DHPP pronta — 79 IPs/CSs, 233 pessoas, 2.898 fotos, 8.242 entradas de recepção processadas no dashboard local. Plano de migração 6 semanas documentado. **Blocker:** DHPP-DECISION-001 (4 decisões de escopo pendentes com Enio).
+**Quando desbloqueado:** `etl/pipelines/dhpp_pipeline.py` — extrai PDF/DOCX via BERTimbau NER, carrega `(:Person)-[:APARECE_EM]->(:Case)` + `(:Weapon)-[:APREENDIDA_EM]->(:Case)`. Ver `policia/TASKS.md → FASE 3`.
+**Gate:** `python -m egos_inteligencia.etl.runner run dhpp --dry` mostra 70+ pessoas e 4+ casos; `--exec` popula Neo4j.
 
 ---
 
@@ -610,9 +597,10 @@ db.checkpoint.interval.tx=100000
 **Gate:** `python -m egos_inteligencia.etl.runner run leniency` com dados reais (>100 LeniencyAgreement nodes).
 
 #### ETL-DHPP-001 — Pipeline ETL para documentos reais da DHPP
-**Prioridade:** 🔴 P0 Sprint Delegacia
-**Status:** Não iniciado. Blocker: precisa de dados reais + alinhamento com Lídia sobre formato dos IPs/CSs.
-**Ver task completa acima em P1 Sprint Delegacia.**
+**Prioridade:** 🔴 P0
+**Status:** Blocker resolvido — projetoDHPP tem 79 IPs/CSs, 233 pessoas extraídas, 2.898 fotos, 8.242 entradas de recepção. Schema Neo4j e fases documentadas em `policia/TASKS.md`. **Aguarda DHPP-DECISION-001** (Enio responder 4 decisões de escopo antes de iniciar FASE 1).
+**Entrada no grafo:** `(:Person)-[:APARECE_EM]->(:Case)`, `(:Weapon)-[:APREENDIDA_EM]->(:Case)` — deduplicar com os 83.7M nós via MERGE por CPF.
+**Dependência:** `policia/TASKS.md → DHPP-DECISION-001` (blocker atual).
 
 #### CNPJ-001 — Verificar freshness dos 66M Company nodes
 **Prioridade:** 🟢 P3 — informacional
