@@ -90,13 +90,118 @@
 ### Backlog de Features Legadas (v2/v4)
 - [ ] **LEGACY-001**: Avaliar integração de Schema i2, PWA Offline, Tsun-Cha Protocol e Quorum System (detalhes em `docs/knowledge/LEGACY_FEATURES_BACKLOG.md`) — 1 semana
 
-### Novos P1 — Descobertos 2026-04-14
-- [ ] **CONNECT-001**: Conectar `pattern_detector.py` → `cross_reference_engine.py` (linha ~380, `pattern_matches=[]`) — 1 dia
-- [ ] **CI-NEO4J-001**: Ativar Neo4j no `.github/workflows/ci.yml` (service container) — 0.5 dia
-- [ ] **UI-ANALYSIS-001**: Expor `diligence-suggestions`, `executive-summary`, `risk-assessment`, `modus-operandi` na UI — 1 semana
-- [ ] **LGPD-DPO-001**: Designar DPO (LGPD Art. 41) — ação administrativa
-- [ ] **LGPD-TITULAR-001**: Implementar endpoint `/titular` (LGPD Art. 14) — 3 dias
-- [ ] **ETL-DHPP-001**: Pipeline ETL para documentos DHPP (IP, CS, laudos) baseado em `pcmg_document_pipeline.py` — 2-3 dias
+### P1 Sprint Delegacia — Ordenado por impacto no campo (2026-04-14)
+
+---
+
+#### ETL-DHPP-001 — Pipeline ETL para documentos da DHPP
+**Prioridade:** 🔴 P0 do Sprint. Sem dados reais, o Intelink não tem o que mostrar para Lídia.
+**Motivação:** O dashboard HTML da DHPP processa 79 IPs/CSs com `extract_entities.py`. O Intelink tem um Neo4j com 77M nós e motor de cruzamento pronto. A ponte faltante é um ETL que alimente o grafo com esses documentos reais. Sem isso, validamos com dados sintéticos — que não convencem ninguém.
+**Arquivos-chave:**
+- Base: `etl/pipelines/pcmg_document_pipeline.py` (adaptar)
+- Template usado: `services/investigation_templates.py` → template `criminal_investigation`
+- Input: IPs e CSs da DHPP (mesmo formato que `inputDHPP/`)
+- Output: Neo4j nodes `(:Person)-[:APPEARS_IN]->(:Case)` + `(:Weapon)-[:SEIZED_IN]->(:Case)`
+**Implementação (2-3 dias):**
+```python
+# etl/pipelines/dhpp_pipeline.py
+class DHPPPipeline(ETLPipeline):
+    def extract(self):        # Ler txt/pdf da pasta inputDHPP/
+    def transform(self):      # Reusar extract_entities.py do projetoDHPP
+    def load(self):           # Neo4j via criminal_investigation template
+    def run(dry_run=False):   # --dry-run obrigatório primeiro
+```
+**Gate de conclusão:** `python etl/pipelines/dhpp_pipeline.py --dry-run` mostra preview; `--exec` popula Neo4j; query de validação retorna 70+ pessoas e 4+ casos.
+
+---
+
+#### CONNECT-001 — Conectar pattern_detector ao cross_reference_engine
+**Prioridade:** 🔴 P1. Eleva a precisão de deduplicação com custo de 1 dia.
+**Motivação:** O `cross_reference_engine.py` tem 6 níveis de confiança. O Nível 6 (similaridade comportamental — "mesma pessoa por padrão de ação, não por documento") depende do `pattern_detector.py`. Hoje retorna `pattern_matches=[]` hardcoded. Conectar os dois faz o cruzamento de entidades da DHPP ser mais preciso — especialmente para pessoas sem CPF documentado.
+**Arquivo:** `api/src/egos_inteligencia/services/cross_reference_engine.py` linha ~380
+**Implementação (1 dia):**
+```python
+# Linha atual:
+result = CrossReferenceResult(
+    ...
+    pattern_matches=[],  # ← CONECTAR AQUI
+)
+
+# Fix:
+from services.patterns.pattern_detector import PatternDetector
+detector = PatternDetector()
+patterns = detector.detect_behavioral_patterns(entity_a, entity_b)
+result = CrossReferenceResult(
+    ...
+    pattern_matches=patterns,
+    confidence=max(base_confidence, patterns.phi_score if patterns else 0)
+)
+```
+**Gate de conclusão:** Teste unitário em `api/tests/unit/test_cross_reference.py` validando que Level 6 retorna `pattern_matches` não-vazio para entidades com comportamento similar.
+
+---
+
+#### CI-NEO4J-001 — Ativar Neo4j no pipeline CI/CD
+**Prioridade:** 🟡 P1. Blinda o repositório antes de expandir ETLs.
+**Motivação:** Todos os testes de grafo (ego networks, path finding, traversal) têm `@pytest.mark.requires_neo4j` e são pulados no CI. Fazemos deploy sem validação do componente mais crítico do sistema. Adicionar o service container é 0.5 dia que elimina esse risco permanentemente.
+**Arquivo:** `.github/workflows/ci.yml`
+**Implementação (0.5 dia):**
+```yaml
+services:
+  neo4j:
+    image: neo4j:5-community
+    env:
+      NEO4J_AUTH: neo4j/testpassword
+      NEO4J_PLUGINS: '["apoc"]'
+    ports: ["7687:7687", "7474:7474"]
+    options: --health-cmd "wget -q http://localhost:7474" --health-interval 10s
+
+env:
+  NEO4J_TEST_URI: bolt://localhost:7687
+  NEO4J_TEST_PASSWORD: testpassword
+```
+**Gate de conclusão:** CI verde com Neo4j container rodando; `pytest -m requires_neo4j` executa (não skipa) no Actions log.
+
+---
+
+#### UI-ANALYSIS-001 — Expor análises avançadas na interface
+**Prioridade:** 🟡 P2. Só implementar APÓS Lídia confirmar que precisa desses módulos.
+**Motivação:** ~5.000 linhas de código TS funcionam em silêncio: `diligence-suggestions` (o que investigar a seguir), `executive-summary` (sumário gerado por IA), `risk-assessment` (scoring multi-fator), `modus-operandi` (comparação entre casos). A UI não tem botões para nenhum desses. Expor todos de uma vez seria construir vitrine sem validar se é o que o campo precisa. **Primeiro: Lídia usa o ETL-DHPP. Depois: Lídia diz o que quer ver. Depois: criamos a UI.**
+**Arquivos prontos para conectar:**
+- `lib/analysis/diligence-suggestions.ts` (524 linhas)
+- `lib/analysis/executive-summary.ts` (427 linhas)
+- `lib/analysis/risk-assessment.ts` (365 linhas)
+- `lib/analysis/modus-operandi.ts` (346 linhas)
+**Gate de início:** Lídia usa o sistema com dados reais e aponta o que sente falta.
+
+---
+
+#### LGPD-TITULAR-001 — Endpoint /titular (Art. 14)
+**Prioridade:** 🟡 P2. Blocker legal antes de uso oficial em delegacia.
+**Motivação:** O LGPD Art. 14 exige que o titular dos dados possa requisitar acesso, correção e exclusão. Sem esse endpoint, o sistema não pode rodar oficialmente em uma delegacia — viola a lei. Não bloqueia a validação com Lídia (uso interno/piloto), mas bloqueia qualquer expansão.
+**Implementação (3 dias):**
+```python
+# api/src/egos_inteligencia/routers/titular.py
+GET  /api/v1/titular/{cpf_masked}        → dados que o sistema tem sobre o titular
+POST /api/v1/titular/{cpf_masked}/delete → pseudonimização/exclusão LGPD-compliant
+GET  /api/v1/titular/{cpf_masked}/export → export LGPD (portabilidade, Art. 18)
+```
+**Gate de conclusão:** Endpoint documentado no Swagger; fluxo completo testado.
+
+---
+
+#### LEGACY-001 — Avaliar features do EGOSv4 (i2 schema, Quorum)
+**Prioridade:** 🟢 P3 Backlog. Não avança o Sprint Delegacia. Reavaliar após 3ª repetição de necessidade.
+**Motivação do Gemini:** Schema i2 da IBM e Sistema de Quorum são padrões internacionais usados por polícias do RU/EUA. Portar pode ser argumento de venda.
+**Posição atual:** Karpathy — abstração só após 3ª repetição. Nenhum cliente pediu i2 ainda. Nenhum auditor pediu Quorum. Implementar agora é platform altitude, não problem altitude. Reavaliar quando: (a) parceiro institucional exigir, ou (b) 3 delegacias diferentes solicitarem.
+**Referência:** `docs/knowledge/LEGACY_FEATURES_BACKLOG.md`
+
+---
+
+#### LGPD-DPO-001 — Designar DPO (Art. 41)
+**Prioridade:** 🟡 P2. Ação administrativa — não técnica.
+**Motivação:** LGPD Art. 41 exige designação formal de DPO para sistemas que processam dados pessoais em escala. Risco real de multa ANPD. Não requer código — requer decisão administrativa de Enio.
+**Ação:** Designar formalmente (pode ser o próprio Enio inicialmente) e registrar no LGPD_COMPLIANCE.md.
 
 ### Backend — Implementados ✅
 - [x] **ETL-001**: `api/scripts/etl_pipeline_template.py` (448 linhas, framework completo)
