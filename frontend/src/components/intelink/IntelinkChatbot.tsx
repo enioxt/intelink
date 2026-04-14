@@ -38,6 +38,8 @@ export default function IntelinkChatbot(props?: { systemPromptUrl?: string }) {
   const [showCommands, setShowCommands] = useState(false);
   const [suggestions, setSuggestions] = useState<CommandSuggestion[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const [toolProgress, setToolProgress] = useState<string>('');
   const { suggestions: policeSuggestions, checkInput, clear } = usePoliceHints();
   const [showExport, setShowExport] = useState(false);
   const [showSuggestionModal, setShowSuggestionModal] = useState(false);
@@ -397,35 +399,87 @@ export default function IntelinkChatbot(props?: { systemPromptUrl?: string }) {
         return;
       }
 
-      const response = await fetch('/api/intelink/chat/rag', {
+      // STREAMING-001: SSE streaming via /api/v1/chat/stream
+      // Replaces dead /api/intelink/chat/rag endpoint (never existed in backend)
+      abortRef.current = new AbortController();
+      const streamMsgId = (Date.now() + 1).toString();
+
+      // Insert placeholder message immediately — user sees activity right away
+      setMessages((prev) => [
+        ...prev,
+        { id: streamMsgId, role: 'assistant', content: '🔍 Analisando...', timestamp: new Date() },
+      ]);
+
+      const response = await fetch('/api/v1/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: enhancedMessage,
-          max_tokens: 500,
-          context_notes: {
-            system_prompt: systemPrompt || undefined,
-            stats: contextStats || undefined,
-          }
-        }),
+        body: JSON.stringify({ message: enhancedMessage }),
+        signal: abortRef.current.signal,
       });
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
 
-      const data = await response.json();
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response stream');
 
-      if (data.ok && data.answer) {
-        const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: data.answer,
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
-      } else {
-        throw new Error(data.message || 'No answer from backend');
+      const decoder = new TextDecoder();
+      let sseBuffer = '';
+      let currentEvent = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        sseBuffer += decoder.decode(value, { stream: true });
+        const lines = sseBuffer.split('\n');
+        sseBuffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            currentEvent = line.slice(7).trim();
+          } else if (line.startsWith('data: ') && currentEvent) {
+            try {
+              const payload = JSON.parse(line.slice(6));
+
+              if (currentEvent === 'thinking') {
+                const model = payload.model ? ` (${payload.model})` : '';
+                setMessages((prev) => prev.map((m) =>
+                  m.id === streamMsgId ? { ...m, content: `🔍 ${payload.status}${model}` } : m
+                ));
+              } else if (currentEvent === 'tool_call') {
+                const toolLabel = payload.tool.replace(/_/g, ' ');
+                setToolProgress(`⚡ ${toolLabel}`);
+                setMessages((prev) => prev.map((m) =>
+                  m.id === streamMsgId
+                    ? { ...m, content: m.content + `\n⚡ Consultando: **${toolLabel}**...` }
+                    : m
+                ));
+              } else if (currentEvent === 'tool_result') {
+                const count = payload.count > 0 ? ` (${payload.count} resultados)` : '';
+                setToolProgress(`✅ ${payload.tool.replace(/_/g, ' ')}${count}`);
+              } else if (currentEvent === 'complete') {
+                setToolProgress('');
+                setMessages((prev) => prev.map((m) =>
+                  m.id === streamMsgId ? { ...m, content: payload.reply } : m
+                ));
+                // Show cost if non-zero
+                if (payload.cost_usd > 0) {
+                  console.debug(`[Intelink] Query cost: $${payload.cost_usd} | rounds: ${payload.rounds}`);
+                }
+              } else if (currentEvent === 'error') {
+                setToolProgress('');
+                setMessages((prev) => prev.map((m) =>
+                  m.id === streamMsgId ? { ...m, content: `❌ ${payload.message}` } : m
+                ));
+              }
+              currentEvent = '';
+            } catch {
+              // Malformed SSE data — skip
+            }
+          }
+        }
       }
     } catch (error) {
       console.error('Chat error:', error);
@@ -544,13 +598,19 @@ export default function IntelinkChatbot(props?: { systemPromptUrl?: string }) {
             </div>
           </div>
         ))}
-        {loading && (
+        {loading && !toolProgress && (
           <div className="flex justify-start">
             <div className="bg-slate-100 dark:bg-slate-700 rounded-lg p-3 flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-              <span className="text-sm text-slate-600 dark:text-slate-400">
-                Pensando...
-              </span>
+              <span className="text-sm text-slate-600 dark:text-slate-400">Conectando...</span>
+            </div>
+          </div>
+        )}
+        {toolProgress && (
+          <div className="flex justify-start">
+            <div className="bg-blue-50 dark:bg-blue-900/30 rounded-lg px-3 py-1.5 flex items-center gap-2">
+              <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
+              <span className="text-xs text-blue-700 dark:text-blue-300">{toolProgress}</span>
             </div>
           </div>
         )}
