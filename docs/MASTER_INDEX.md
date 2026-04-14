@@ -27,7 +27,7 @@ Deploy: intelink.ia.br (Hetzner VPS 204.168.217.125)
 | **Schema do banco** | `docs/DATABASE_SCHEMA.md` | Neo4j labels, relações, Postgres migrations |
 | **ETL Pipelines** | `docs/ETL_GUIDE.md` | Framework, 4 implementados, como adicionar novos |
 | **Testes** | `docs/TESTING.md` | Estratégia, fixtures, cobertura, CI |
-| **Fontes OSINT** | `docs/OSINT_SOURCES_CURATED.md` | 78 fontes mapeadas |
+| **Fontes OSINT** | `docs/osint/OSINT_SOURCES_CURATED.md` | 78 fontes mapeadas |
 | **LGPD Compliance** | `infra/compliance/LGPD_COMPLIANCE.md` | Arts. 7-46, gaps, DPO |
 | **Segurança / Incidentes** | `docs/security/INCIDENT_*.md` | Histórico de incidentes |
 | **Backlog de tarefas** | `TASKS.md` | Todas as tasks por fase (P0-P2) |
@@ -118,20 +118,21 @@ egos-inteligencia/
 │   ├── ETL_GUIDE.md         — Como adicionar pipelines de dados
 │   ├── TESTING.md           — Estratégia de testes
 │   ├── ROADMAP.md           — PHASE-1 a PHASE-4
-│   ├── OSINT_SOURCES_CURATED.md — 78 fontes mapeadas
-│   ├── OSINT_GEOGUESSR_TRAINING.md — Treinamento OSINT
-│   ├── FRONTEND_ARCHITECTURE_V2.md — Frontend detalhado
-│   ├── SYSTEM_DIAGNOSTIC_2026-04-09.md — Snapshot do sistema
+│   ├── FRONTEND_ARCHITECTURE.md — Frontend detalhado
+│   ├── osint/               — Módulo de OSINT
+│   │   ├── OSINT_SOURCES_CURATED.md — 78 fontes mapeadas
+│   │   └── OSINT_GEOGUESSR_TRAINING.md — Treinamento OSINT
 │   ├── knowledge/           — Decisões técnicas pontuais
 │   │   ├── HARVEST.md       — Aprendizados
 │   │   ├── BASES_DADOS_PUBLICAS_MAPEAMENTO_2026-04-08.md
-│   │   ├── DECISAO_VPS_VS_LOCAL_2026-04-08.md
 │   │   ├── PCMG_PIPELINE_GUIDE.md
-│   │   └── PLANO_DADOS_REAIS_2026-04-08.md
+│   │   ├── DEEP_CODEBASE_ANALYSIS.md — Análise exaustiva do frontend/backend
+│   │   ├── GAPS_AND_LIMITATIONS.md   — Roadmaps, gaps críticos e planos de ação
+│   │   └── LEGACY_FEATURES_BACKLOG.md — Features das v2/v4 para portar (i2 schema, PWA, Quorum)
 │   ├── security/
 │   │   └── INCIDENT_2026-04-08_TELEGRAM_TOKEN.md
 │   └── _current_handoffs/
-│       └── handoff_2026-04-08.md
+│       └── handoff_*.md
 │
 ├── api/                     — FastAPI (Python 3.12)
 │   └── src/egos_inteligencia/

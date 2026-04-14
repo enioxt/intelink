@@ -127,13 +127,13 @@
 *Sacred Code: 000.111.369.963.1618*
 
 ### OSINT Sources Curated (2026-04-08)
-**SSOT:** `docs/OSINT_SOURCES_CURATED.md` | **Source:** Astrosp/Awesome-OSINT-For-Everything
+**SSOT:** `docs/osint/OSINT_SOURCES_CURATED.md` | **Source:** Astrosp/Awesome-OSINT-For-Everything
 
 - [x] **OSINT-001**: Curadoria de 78 fontes para polícia/LE (dados pessoais, redes, geo, crypto, infra, Brasil)
 - [x] **OSINT-002 [P0]**: Integrar Shodan API ao módulo de infraestrutura — `api/src/egos_inteligencia/services/osint_tools.py` ✅ 2026-04-08
 - [x] **OSINT-003 [P0]**: Integrar HaveIBeenPwned ao módulo de dados pessoais — `hibp_check_email()` + privacy masking ✅ 2026-04-08
 - [x] **OSINT-004 [P1]**: Módulo de análise de imagens (metadata + geolocalização) — `analyze_image_metadata()` + GPS extraction ✅ 2026-04-08
-- [x] **OSINT-005 [P1]**: Capacitação GeoGuessr — `docs/OSINT_GEOGUESSR_TRAINING.md` (4 módulos + exercícios) ✅ 2026-04-08
+- [x] **OSINT-005 [P1]**: Capacitação GeoGuessr — `docs/osint/OSINT_GEOGUESSR_TRAINING.md` (4 módulos + exercícios) ✅ 2026-04-08
 
 
 ### Multi-Provider AI Configuration (2026-04-08)
