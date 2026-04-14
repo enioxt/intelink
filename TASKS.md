@@ -548,14 +548,14 @@ infra/compliance/
 8. `infra/neo4j/*.cypher` → `infra/neo4j/` (init schema + link_persons dedup)
 **Gate:** pre-commit chama scripts 2-4; CI roda scripts 1+6 contra Neo4j
 
-#### ETL-LEGISLATIVE-001 — Investigações Senado + Câmara (SENADO_CPIS + CAMARA_INQUIRIES)
+#### [x] ETL-LEGISLATIVE-001 — Investigações Senado + Câmara (SENADO_CPIS + CAMARA_INQUIRIES) ✅ 2026-04-14
 **Prioridade:** 🟡 P1 — após TIER 1 validado
 **Motivação:** Histórico de CPIs e inquéritos. "Quem foi investigado pelo Senado em 2020?"
 **Fontes:** `senado_cpis.py` (651L), `camara_inquiries.py` (364L)
 **Schema:** `CPI {name, period}`, `[:INVESTIGOU]`, `[:PRESTOU_DEPOIMENTO]`
 **Gate:** 3+ CPIs indexadas, query de depoentes funciona
 
-#### ETL-BATCH-GOV-001 — Governo federal sem BigQuery (14 pipelines)
+#### [x] ETL-BATCH-GOV-001 — Governo federal sem BigQuery (14 pipelines) ✅ 2026-04-14
 **Prioridade:** 🟡 P2 — após Lídia validar TIER 1
 **Pipelines:** PGFN (24M), CAMARA (4.6M), TCU (45K), COMPRASNET, TRANSFEREGOV, BNDES, TRANSPARENCIA, SIOP, RENUNCIAS, QUERIDO_DIARIO, CVM, CVM_FUNDS, SICONFI, CEPIM
 **Gate:** Definir com Lídia quais são relevantes antes de investir 30h
