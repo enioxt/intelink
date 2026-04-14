@@ -23,10 +23,12 @@
 > **Decisões confirmadas (2026-04-14):** A1=1B (rota /dhpp, não subdomínio), A2=2B (multi-tenant por MASP/email), A3=VPS por enquanto (903MB total), B1=merge /frontend+/apps/web, C1=852/Eagle Eye separados, D1=piloto: todos veem tudo, D2=LGPD documentado mas não bloqueia piloto, E2=MVP: grafo visual + busca global + relatório PDF
 
 - [ ] **FRONT-MERGE-001**: Merge `/frontend` + `/apps/web` → único frontend em `/frontend`. Extrair de `apps/web`: páginas de grafo, admin/tenants, RxDB/sync.ts. Eliminar `apps/web/` após merge. **Gate:** `npm run build` passa; 10+ rotas funcionais. (2-3 dias)
-- [ ] **NEO4J-CHECKPOINT-001**: Adicionar a `neo4j.conf`: `db.checkpoint.interval.time=15m` + `db.checkpoint.interval.tx=10000`. Previne INC-005. **Gate:** log Neo4j mostra checkpoint periódico. (0.5 dia)
+- [x] **NEO4J-CHECKPOINT-001**: Adicionado a `docker-compose.yml`: `NEO4J_db_checkpoint_interval_time: 15m` + `NEO4J_db_checkpoint_interval_tx: "10000"`. Previne INC-005. ✅ 2026-04-14
 - [ ] **NEO4J-SNAPSHOT-001**: Ativar backup automático Hetzner (Enable Backups no painel — ~€2/mês). 7 snapshots diários. **Gate:** primeiro snapshot listado via Hetzner API. (0.5 dia)
 - [ ] **AUTH-MULTITENANT-001**: Middleware Next.js + backend: isolamento por `delegacia_id` derivado de MASP/email no JWT. Cada query Neo4j filtra por tenant. **Gate:** usuário de delegacia A não vê dados inseridos pela delegacia B. (2 dias)
-- [ ] **SEARCH-GLOBAL-001**: Rota `/intelink/busca` — busca unificada: nome/CPF/placa/apelido → grafo Neo4j. Hoje existe busca de docs, não de entidades. **Gate:** buscar CPF retorna pessoa + casos + conexões. (1 dia)
+- [x] **SEARCH-SUGGESTIONS-001**: Endpoint `GET /api/v1/search/suggestions` implementado no backend + `getSuggestions()` adicionado ao `intelink-client.ts` + `SearchAutocomplete.tsx` conectado ao endpoint real (era mock). ✅ 2026-04-14
+- [ ] **SEARCH-GLOBAL-001**: Rota `/intelink/busca` — busca unificada: nome/CPF/placa/apelido → grafo Neo4j. O `GlobalSearch.tsx` (710 linhas) já existe com Cmd+K, histórico, autocomplete — validar que está conectado ao `/api/v1/search`. **Gate:** buscar CPF retorna pessoa + casos + conexões. (0.5 dia)
+- [x] **SYNC-CHECK-001**: Script `scripts/sync_check.py` — mede drift backend↔frontend (42.7% cobertura atual; threshold 20%). Integrado ao CI + `npm run sync:check`. ✅ 2026-04-14
 
 ---
 

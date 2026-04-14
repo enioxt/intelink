@@ -51,31 +51,16 @@ export default function SearchAutocomplete({ onSelect, placeholder, className }:
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('intelink_token') : null;
       
-      // Mock suggestions for now (backend endpoint /search/suggestions not implemented yet)
-      // TODO: Replace with actual API call when backend is ready
-      // const response = await intelinkClient.getSuggestions(searchQuery, token || undefined);
-      
-      // Simulate backend delay
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      
-      // Mock suggestions based on query
-      const mockSuggestions: string[] = [];
-      if (searchQuery.toLowerCase().includes('homicídio')) {
-        mockSuggestions.push('homicídio em Belo Horizonte', 'homicídio 2025', 'investigação homicídio');
-      } else if (searchQuery.toLowerCase().includes('investigação')) {
-        mockSuggestions.push('investigação policial', 'investigação criminal', 'relatório investigação');
-      } else {
-        mockSuggestions.push(`${searchQuery} em Minas Gerais`, `${searchQuery} 2025`, `relatório ${searchQuery}`);
-      }
+      const response = await intelinkClient.getSuggestions(searchQuery, token || undefined);
 
       const allSuggestions: SearchSuggestion[] = [
-        // History
+        // History first
         ...getSearchHistory()
           .filter((h) => h.toLowerCase().includes(searchQuery.toLowerCase()))
           .slice(0, 3)
           .map((h) => ({ text: h, type: 'history' as const })),
-        // API suggestions
-        ...mockSuggestions.map((s) => ({ text: s, type: 'suggestion' as const })),
+        // Real suggestions from backend
+        ...response.suggestions.map((s) => ({ text: s.text, type: 'suggestion' as const })),
       ];
 
       setSuggestions(allSuggestions.slice(0, 8)); // Max 8 suggestions

@@ -204,6 +204,12 @@ export async function searchEntities(query: string, token?: string) {
   return res.json();
 }
 
+export async function getSuggestions(query: string, token?: string): Promise<{ suggestions: Array<{ text: string; type: string; document: string | null; score: number }>; query: string }> {
+  const res = await fetch(`${BASE_URL}/search/suggestions?q=${encodeURIComponent(query)}`, { headers: { ...authHeaders(token) }, cache: 'no-store' });
+  if (!res.ok) throw new Error(`getSuggestions failed: ${res.status}`);
+  return res.json();
+}
+
 // Pattern APIs
 export async function runPatterns(entityId?: string, token?: string) {
   const url = entityId ? `${BASE_URL}/patterns?entity_id=${entityId}` : `${BASE_URL}/patterns`;
@@ -248,6 +254,7 @@ export const intelinkClient = {
   sendChatMessage,
   getEntity,
   searchEntities,
+  getSuggestions,
   runPatterns,
   trackPageView,
 };

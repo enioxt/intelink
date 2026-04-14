@@ -127,3 +127,16 @@ jobs:
           NEXT_PUBLIC_APP_URL: http://localhost:3000
       - name: Unit tests
         run: npm run test --if-present || true
+
+  sync-check:
+    name: Backend/Frontend Sync Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check backend↔frontend drift
+        run: |
+          python3 scripts/sync_check.py
+          python3 scripts/sync_check.py --ci --threshold 20 || echo "::warning::Frontend drift exceeds 20% — create tasks to cover uncovered routes"

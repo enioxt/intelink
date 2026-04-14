@@ -135,3 +135,57 @@ async def search_entities(
     )
     await cache.set("search", cache_params, response.model_dump())
     return response
+
+
+@router.get("/search/suggestions")
+@limiter.limit("60/minute")
+async def search_suggestions(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    q: Annotated[str, Query(min_length=2, max_length=100)],
+) -> dict:
+    """Fast autocomplete suggestions for the search bar (max 8 results, no pagination)."""
+    cached = await cache.get("search_suggestions", {"q": q})
+    if cached is not None:
+        return cached
+
+    search_query = _build_search_query(q)
+    records = await execute_query(
+        session,
+        "search",
+        {
+            "query": search_query,
+            "entity_type": None,
+            "skip": 0,
+            "limit": 8,
+            "is_pep": False,
+            "has_sanctions": False,
+            "has_contracts": False,
+            "city": None,
+            "state": None,
+        },
+    )
+
+    suggestions = []
+    for record in records:
+        node = record["node"]
+        props = dict(node)
+        labels = record["node_labels"]
+        if should_hide_person_entities() and has_person_labels(labels):
+            continue
+        entity_type = labels[0].lower() if labels else "unknown"
+        name = _extract_name(node, labels)
+        if not name:
+            continue
+        doc_id = record["document_id"]
+        document = str(doc_id) if doc_id and not str(doc_id).startswith("4:") else None
+        suggestions.append({
+            "text": name,
+            "type": entity_type,
+            "document": document,
+            "score": record["score"],
+        })
+
+    result = {"suggestions": suggestions, "query": q}
+    await cache.set("search_suggestions", {"q": q}, result, ttl=60)
+    return result
