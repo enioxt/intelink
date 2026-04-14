@@ -18,20 +18,96 @@
 - [x] **IAC-001**: Terraform + Ansible implementados (infraestrutura codificada) ✅ 2026-04-09
 - [ ] **DEPLOY-REAL**: Terraform apply + Ansible playbook exec na VPS (🔴 MANUAL: requer secrets GitHub)
 
-### Fase 0 — Fundação Pré-Execução (2026-04-14 — esta semana)
+### PLANO DE EXECUÇÃO 2026-04-14 → 2026-05-12 (Sprint DHPP + Consultoria em paralelo)
 
-> **Decisões confirmadas (2026-04-14):** A1=1B (rota /dhpp, não subdomínio), A2=2B (multi-tenant por MASP/email), A3=VPS por enquanto (903MB total), B1=merge /frontend+/apps/web, C1=852/Eagle Eye separados, D1=piloto: todos veem tudo, D2=LGPD documentado mas não bloqueia piloto, E2=MVP: grafo visual + busca global + relatório PDF
+> **Decisões confirmadas:** A1=1B (rota /dhpp), A2=2B (multi-tenant MASP/email), A3=VPS (903MB ok), B1=apps/web MANTIDA (offline-first separada), C1=852/Eagle Eye separados, D1=piloto todos veem tudo, D2=LGPD documentado não bloqueia, E2=MVP grafo+busca+PDF
+> **Sistemas recuperados (audit 2026-04-14):** Pramana, Sacred Math, Tool-Calling Loop, BYOK, Circuit Breaker, Journey System, 31 tools transparência, BERTimbau NER, CRDT offline, 5 investigation templates, cross-reference 6 níveis — registrados em `egos/docs/CAPABILITY_REGISTRY.md` §12b
+> **Referências cruzadas:** Track paralela no kernel: `egos/TASKS.md → 🧬 INTELINK HARVEST`
 
-- [ ] **FRONT-PORTAGE-001**: Portar da `apps/web` para `frontend/`: `/admin/tenants` (multi-tenant), `/osint` (OSINT dedicado). NÃO deletar `apps/web` — é app offline-first separada com RxDB+CRDT+AES (uso de campo). **Gate:** `/intelink/admin/tenants` acessível em `/frontend`. (1.5 dias)
-- [x] **NEO4J-CHECKPOINT-001**: Adicionado a `docker-compose.yml`: `NEO4J_db_checkpoint_interval_time: 15m` + `NEO4J_db_checkpoint_interval_tx: "10000"`. Previne INC-005. ✅ 2026-04-14
-- [ ] **NEO4J-SNAPSHOT-001**: Ativar backup automático Hetzner (Enable Backups no painel — ~€2/mês). 7 snapshots diários. **Gate:** primeiro snapshot listado via Hetzner API. (0.5 dia)
-- [ ] **AUTH-MULTITENANT-001**: Middleware Next.js + backend: isolamento por `delegacia_id` derivado de MASP/email no JWT. Cada query Neo4j filtra por tenant. **Gate:** usuário de delegacia A não vê dados inseridos pela delegacia B. (2 dias)
-- [x] **SEARCH-SUGGESTIONS-001**: Endpoint `GET /api/v1/search/suggestions` implementado no backend + `getSuggestions()` adicionado ao `intelink-client.ts` + `SearchAutocomplete.tsx` conectado ao endpoint real (era mock). ✅ 2026-04-14
-- [ ] **SEARCH-GLOBAL-001**: Validar que `GlobalSearch.tsx` (710 linhas, Cmd+K, CPF/placa/nome já implementados) está conectado corretamente ao `/api/v1/search`. Confirmar que resultados chegam e navegam para entidade. **Gate:** buscar CPF real retorna pessoa + casos + conexões. (0.5 dia)
-- [ ] **UI-NLP-001**: Expor `/api/v1/nlp/extract-entities` na UI — botão "Extrair entidades" em `/intelink/upload` ou sidebar. NER PT-BR pronto no backend. **Gate:** texto livre → lista de entidades extraídas visível. (1 dia)
-- [ ] **UI-ENTITY-TABS-001**: Página de entidade com abas: Conexões (`/connections`), Timeline (`/timeline`), Risco (`/exposure`). Todos os 3 endpoints existem no backend. Hoje só existe EntityDetailModal sem navegação direta. **Gate:** `/intelink/entity/{id}` rota dedicada com 3 abas. (2 dias)
-- [ ] **DEAD-CODE-001**: Remover arquivos duplicados confirmados: `IntelinkChatbot.tsx.backup`, `supabaseClient.ts` (manter `supabase-client.ts`), `validations.ts` (manter `validation.ts`). **Gate:** `npm run build` passa; 0 referências aos arquivos removidos. (0.5 dia)
-- [x] **SYNC-CHECK-001**: Script `scripts/sync_check.py` — mede drift backend↔frontend (42.7% cobertura atual; threshold 20%). Integrado ao CI + `npm run sync:check`. ✅ 2026-04-14
+---
+
+### FASE 0 — Fundação Pré-Execução (semana 1: 2026-04-14 → 2026-04-21)
+
+> **Meta:** deixar o sistema pronto para receber o ETL DHPP sem surpresas.
+
+#### P0 — Blockers
+- [x] **NEO4J-CHECKPOINT-001**: docker-compose.yml com `NEO4J_db_checkpoint_interval_time: 15m` + `tx: 10000`. Previne INC-005. ✅ 2026-04-14
+- [x] **SEARCH-SUGGESTIONS-001**: Endpoint `GET /api/v1/search/suggestions` + `getSuggestions()` + SearchAutocomplete conectado ao real. ✅ 2026-04-14
+- [x] **SYNC-CHECK-001**: `scripts/sync_check.py` mede drift backend↔frontend (42.7% cobertura; threshold 20%). Integrado ao CI + `npm run sync:check`. ✅ 2026-04-14
+- [ ] **NEO4J-SNAPSHOT-001** [0.5d]: Ativar backup automático Hetzner (painel: Server → Enable Backups, ~€2/mês). 7 snapshots diários. **Gate:** primeiro snapshot listado via `hcloud server describe`. **Ref:** ARCHITECTURE.md §Segurança.
+- [ ] **SEARCH-GLOBAL-001** [0.5d]: Validar que `GlobalSearch.tsx` (710 LOC, Cmd+K, CPF/placa/nome) está conectado ao `/api/v1/search`. Teste manual + teste e2e. **Gate:** buscar CPF real → pessoa + casos + conexões visíveis. **Ref:** `frontend/src/components/shared/GlobalSearch.tsx`.
+
+#### P0 — Multi-Tenancy (blocker do DHPP multi-delegacia)
+- [ ] **AUTH-MULTITENANT-001** [2d]: Isolamento por `delegacia_id` derivado de MASP/email no JWT payload. Middleware Next.js aplica filtro em toda query. Backend `tenant-guard` + `tenant-isolation` existem mas usam `unit_id` (Supabase). Migrar para MASP. **Ref:** `frontend/src/lib/auth/tenant-isolation.ts` (160 LOC), `tenant-guard.ts` (130 LOC). **Gate:** usuário de delegacia A não vê dados de delegacia B (teste com 2 logins).
+- [ ] **AUTH-SUPERADMIN-001** [0.5d]: Super-admin bypass preservado para operações de manutenção (MPMG, auditoria). **Ref:** `tenant-isolation.ts:isSuperAdmin()`. **Gate:** super_admin vê tudo; usuário comum vê só própria delegacia.
+
+#### P0 — Portagem apps/web → frontend (preservando apps/web como app offline)
+- [ ] **FRONT-PORTAGE-001** [1.5d]: Portar `/admin/tenants` e `/osint` de `apps/web/` para `frontend/src/app/intelink/`. NÃO deletar apps/web — é app offline-first separada (RxDB+CRDT+AES). **Gate:** `/intelink/admin/tenants` e `/intelink/osint` acessíveis no frontend principal.
+
+#### P1 — Limpeza
+- [ ] **DEAD-CODE-001** [1h]: Remover duplicatas confirmadas: `IntelinkChatbot.tsx.backup`, `supabaseClient.ts` (manter `supabase-client.ts`), `validations.ts` (manter `validation.ts`). **Gate:** `npm run build` passa.
+
+---
+
+### FASE 1 — DHPP Backbone (semana 2: 2026-04-21 → 2026-04-28)
+
+> **Meta:** schema Neo4j DHPP + dedup estratégia + página de entidade funcional.
+
+- [ ] **DHPP-SCHEMA-001** [1d]: Cypher schema para entidades DHPP: `Person`, `Case`, `Weapon`, `Photo`, `Reception`. Constraints UNIQUE, indexes, relationships `APARECE_EM`, `APREENDIDA_EM`, `RECEBEU_NA_RECEPCAO`. **Ref:** `policia/TASKS.md → DHPP-SCHEMA-001`. **Gate:** arquivo `api/queries/dhpp_schema.cypher` aplicado em Neo4j local.
+- [ ] **DHPP-DEDUP-001** [1d]: Estratégia MERGE para unir `(:Person)` DHPP com 83.7M nós existentes. Ordem de matching: CPF (forte) → nome+data_nascimento (médio) → nome+município (fraco). Usar `cross_reference_engine.py` existente. **Ref:** `api/src/egos_inteligencia/services/cross_reference_engine.py`. **Gate:** teste com 5 pessoas DHPP conhecidas → match correto.
+- [ ] **UI-ENTITY-TABS-001** [2d]: Rota `/intelink/entity/{id}` com 3 abas: Conexões (`GET /entity/{id}/connections`), Timeline (`/timeline`), Risco (`/exposure`). Backend pronto, falta só página. **Ref:** `api/routers/entity.py` (5 endpoints implementados). **Gate:** buscar CPF → clicar → 3 abas funcionando.
+- [ ] **UI-NLP-001** [1d]: Botão "Extrair entidades" em `/intelink/upload` chama `POST /api/v1/nlp/extract-entities` (BERTimbau). Resultado lista inline. **Ref:** `api/routers/nlp.py` + `services/nlp/bertimbau_ner.py`. **Gate:** cola texto livre → lista de pessoas/orgs extraídas.
+
+---
+
+### FASE 2 — ETL DHPP (semana 3: 2026-04-28 → 2026-05-05)
+
+> **Meta:** 79 IPs/CSs + 233 pessoas + 2.898 fotos + 8.242 entradas no grafo com qualidade.
+
+- [ ] **DHPP-ETL-001** [3d]: Pipeline `etl/pipelines/dhpp.py` — processa 115 PDFs/DOCX via BERTimbau NER, carrega `(:Person)-[:APARECE_EM]->(:Case)` + `(:Weapon)-[:APREENDIDA_EM]->(:Case)`. Usa template de ETL existente + loader.py. **Ref:** `api/src/egos_inteligencia/etl/` + `policia/TASKS.md → DHPP-ETL-001`. **Gate:** `python -m egos_inteligencia.etl.runner run dhpp --exec` popula Neo4j com ≥200 Person nodes e ≥60 Case nodes.
+- [ ] **DHPP-ETL-002** [1d]: Pipeline fotos Telegram — ingest metadata de 2.898 fotos (timestamp, chat_id, sender) como `(:Photo)-[:ENVIADA_POR]->(:Person)-[:PARTICIPA]->(:Chat)`. Fotos ficam no VPS filesystem, metadata no grafo. **Gate:** ≥2.800 Photo nodes ingeridos.
+- [ ] **DHPP-ETL-003** [1d]: Pipeline 8.242 entradas de recepção — CSV do Google Forms → `(:Reception)-[:OCORREU_EM]->(:Date)-[:NA]->(:Delegacia)`. **Gate:** ≥8.000 Reception nodes.
+- [ ] **CONNECT-002** [0.5d]: Validar que `pattern_detector.py` (Sacred Math φ) está sendo aplicado na carga DHPP — cada pessoa com score de padrão comportamental. **Ref:** `services/patterns/pattern_detector.py` + CONNECT-001 ✅ 2026-04-14.
+
+---
+
+### FASE 3 — Visualização + Validação (semana 4: 2026-05-05 → 2026-05-12)
+
+> **Meta:** Lídia usa o sistema com 1 caso DHPP real completo.
+
+- [ ] **VIZ-GRAPH-001** [3d]: Componente `InvestigationGraph.tsx` (442 LOC existente) — integrar com caso DHPP real. Drill-down: clicar em pessoa → abre `/intelink/entity/{id}` com 3 abas. **Gate:** visualização de rede DHPP com 3 graus de conexão navegáveis.
+- [ ] **REPORT-001** [2d]: Geração de PDF de investigação com timeline + conexões + análise de risco. Backend `/investigation/{id}/export/pdf` já existe. **Ref:** `api/routers/investigation.py` + `lib/reports/arkham-templates.ts`. **Gate:** botão "Gerar laudo" produz PDF com todas as seções.
+- [ ] **UI-PRAMANA-001** [1d]: Aplicar sistema Pramana (Fact/Inference/Disputed/Unknown) a TODA claim exibida na UI. **Ref:** `lib/intelligence/confidence-system.ts`. **Gate:** toda entidade tem badge visual de confiança.
+- [ ] **VALID-001** [1d]: Enio usa sistema com 1 caso DHPP real completo (entrada → busca → grafo → laudo). Log de fricções. **Gate:** fluxo inteiro executado sem bug crítico.
+- [ ] **VALID-002** [1d]: Lídia faz onboarding sem treinamento — meta: entende 80% em 30min. Log de pontos de confusão. **Gate:** questionário pós-uso ≥8/10 em "entendeu".
+- [ ] **VALID-003** [1d]: 1 processo real melhorado. Documentar economia de tempo vs. processo manual anterior. **Gate:** relatório em `docs/case-studies/DHPP-VALID-001.md` (no intelink, não no kernel).
+
+---
+
+### FASE 4 — Features Pós-Validação (semanas 5-8)
+
+> **Meta:** só depois do piloto DHPP funcionar. Priorizar features que Lídia pediu no uso real.
+
+- [ ] **STREAMING-001** [1d]: SSE streaming no `POST /api/v1/chat` (hoje é request/response). Reduz latência percebida. **Ref:** `api/routers/chat.py` (1005 LOC).
+- [ ] **UI-PATTERNS-001** [1d]: Input de texto livre em `/intelink/analysis` → `POST /api/v1/patterns/detect`. **Ref:** pattern_detector.py (Sacred Math scoring).
+- [ ] **UI-TEMPLATES-001** [1d]: Seletor de template na criação de investigação → `GET /templates/categories/list`. 5 domínios disponíveis.
+- [ ] **UI-BENFORD-001** [1d]: Widget Benford's Law na página de entidade Company → `POST /benford/entity/{id}`. **Ref:** BenfordWidget.tsx (328 LOC) já existe.
+- [ ] **UI-INTEROP-001** [2d]: Painel OSINT externo (interop/sanctions, pep, entity). Conectar chamadas dinâmicas hoje ao `/intelink/osint` portado na FASE 0.
+- [ ] **PAGERANK-001** [2d]: Implementar PageRank + Louvain em `graph-algorithms.ts`. Hoje só BFS, degree centrality, connected components. Útil para priorizar figuras centrais em investigação.
+- [ ] **JOURNEY-REPLAY-001** [2d]: Ativar replay completo de investigação (Journey System existe). Timeline scrubbing para ver como conexões foram descobertas. **Ref:** `providers/JourneyContext.tsx` + `components/shared/JourneyReplayModal.tsx` (520 LOC).
+
+---
+
+### FASE 5 — Consultoria Framework (paralelo com FASE 1-4, não bloqueante)
+
+> **Meta:** preparar ferramentas para consultoria externa sem desacelerar o sprint DHPP. Tasks NO KERNEL (ver `egos/TASKS.md → 🧬 INTELINK HARVEST`).
+
+Tracking local aqui para referência; execução no kernel:
+- Kernel: `IHV-PKG-001` — extrair tool-calling pattern como `packages/egos-agent-patterns/`
+- Kernel: `IHV-PKG-002` — extrair Pramana como `packages/egos-pramana/`
+- Kernel: `IHV-PKG-003` — extrair Sacred Math como `packages/egos-sacred-math/`
+- Kernel: `IHV-PKG-004` — extrair investigation templates como `packages/egos-kb-templates/`
+- Kernel: `IHV-CONS-001..004` — docs de framework e kits de consultoria
 
 ---
 
