@@ -55,6 +55,8 @@ _PIPELINE_MAP: dict[str, str] = {
     "cvm":           "egos_inteligencia.etl.pipelines.cvm:CvmPipeline",
     "cvm_funds":     "egos_inteligencia.etl.pipelines.cvm_funds:CvmFundsPipeline",
     "siconfi":       "egos_inteligencia.etl.pipelines.siconfi:SiconfiPipeline",
+    # --- DHPP REDS — Patos de Minas (homicídios + arma de fogo 2010-2025) ---
+    "dhpp_reds":     "egos_inteligencia.etl.pipelines.dhpp_reds:DHPPRedsPipeline",
 }
 
 # Dependency groups for parallel execution.
