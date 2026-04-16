@@ -41,7 +41,15 @@ class Settings(BaseSettings):
 
     interop_service_key: str = ""
 
+    # OTP / messaging
+    telegram_bot_token: str = ""
+    evolution_api_url: str = "https://evolution.egos.ia.br"
+    evolution_api_key: str = ""
+    evolution_instance: str = ""
+
     model_config = {"env_prefix": "", "env_file": ".env"}
 
 
 settings = Settings()
+# This file was appended — OTP messaging config is now in the Settings class above.
+# See: telegram_bot_token, evolution_api_key, evolution_instance, evolution_api_url

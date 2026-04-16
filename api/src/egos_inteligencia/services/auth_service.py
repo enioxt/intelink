@@ -76,3 +76,28 @@ async def get_user_by_id(
     if record is None:
         return None
     return UserResponse(id=record["id"], email=record["email"], created_at=record["created_at"])
+
+
+async def set_password(session: AsyncSession, email: str, new_password: str) -> bool:
+    """Update password hash for a user by email. Returns True if found and updated."""
+    password_hash = hash_password(new_password)
+    record = await execute_query_single(
+        session, "user_set_password", {"email": email, "password_hash": password_hash}
+    )
+    return record is not None
+
+
+async def set_phone(session: AsyncSession, email: str, phone: str) -> bool:
+    """Set phone number for a user by email. Returns True if found."""
+    record = await execute_query_single(
+        session, "user_set_phone", {"email": email, "phone": phone}
+    )
+    return record is not None
+
+
+async def get_user_by_phone(session: AsyncSession, phone: str) -> UserResponse | None:
+    """Find user by phone number."""
+    record = await execute_query_single(session, "user_get_by_phone", {"phone": phone})
+    if record is None:
+        return None
+    return UserResponse(id=record["id"], email=record["email"], created_at=record["created_at"])
