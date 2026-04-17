@@ -90,21 +90,52 @@
 
 ---
 
-## Decision Needed
+## Decisions (EI-ABSORB-002..005) — VERIFIED 2026-04-17
 
-| Decision | Options | Owner | Deadline |
-|----------|---------|-------|----------|
-| Neo4j merge strategy | (A) same instance, (B) separate + federation | Enio | before Phase 2 |
-| Transcription module | (A) port policia code, (B) rewrite against Groq SDK | EI team | before Phase 2 |
-| br-acc decommission date | depends on data parity | Enio | after Phase 3 |
+### EI-ABSORB-002: Neo4j Strategy
+**Decision: OPTION B — Keep separate, federate via API**
+
+Rationale:
+- VPS has `bracc-neo4j` container (neo4j:5-community) running as dedicated service
+- egos-inteligencia already has `api/src/bracc/__init__.py` shim that aliases `bracc.*` → `egos_inteligencia` — federation is already the pattern
+- Merging 83.7M nodes into a single instance mid-operation is high-risk with zero benefit now
+- **Action:** Keep `bracc-neo4j` container. egos-inteligencia API reads it via shim. Merge only after full data parity audit.
+
+### EI-ABSORB-003: 852 Strategy
+**Decision: OPTION C — Keep separate, link via API**
+
+Rationale:
+- 852 has 72 API routes, gamification logic, and its own user base — too large to absorb
+- egos-inteligencia has no UI to receive a chat product
+- **Action:** 852 remains standalone. If investigation UI needed, build thin wrapper that calls 852 chatbot endpoint, not absorb.
+
+### EI-ABSORB-004: br-acc Shim Timeline
+**Current shim:** `api/src/bracc/__init__.py` — redirects `bracc.*` imports to `egos_inteligencia` package path
+
+**Decision:** Keep shim until ALL of these are true:
+1. All br-acc API routes replicated in egos-inteligencia with parity tests
+2. Neo4j data confirmed readable by egos-inteligencia queries (no auth errors)
+3. br-acc has had zero traffic for 30 days (VPS access logs)
+
+**br-acc becomes obsolete when:** Phase 3 data migration complete. ETA: unknown — no deadline until VPS neo4j auth issue resolved.
+
+### EI-ABSORB-005: ratio Inspiration Patterns
+**Decision: CONCEPT EXTRACTION ONLY — never fork, never copy code**
+
+Patterns from ratio worth adapting:
+- Hybrid search RRF (Reciprocal Rank Fusion) — relevance ranking for entity lookups
+- Citation verification chain — each claim traces to source document + line
+- Sacred math / jurisprudência ranking — probabilistic confidence scoring
+
+**Action:** Document patterns in `docs/knowledge/RATIO_INSPIRATION.md` (abstract only). Implement independently when case arises.
 
 ---
 
-## Dependencies
+## Dependencies (VERIFIED 2026-04-17)
 
-- VPS Hetzner: both br-acc + egos-inteligencia run on same VPS (204.168.217.125)
-- Neo4j instance: confirm if separate containers or shared (`docker ps` on VPS)
-- Groq API key: present in egos-inteligencia `.env`? (check before Phase 2)
+- VPS: `bracc-neo4j` container running (neo4j:5-community) on 204.168.217.125
+- Shim: `api/src/bracc/__init__.py` in place — no auth wired yet (connection fails with auth error)
+- Groq API key: check `egos-inteligencia/.env` before transcription Phase 2
 
 ---
 
