@@ -114,7 +114,7 @@ check_lines() {
 }
 check_lines "TASKS.md" 900 || exit 1
 check_lines "AGENTS.md" 250 || exit 1
-check_lines ".windsurfrules" 120 || exit 1
+check_lines ".windsurfrules" 200 || exit 1  # raised from 120 — MSSOT-004: propagator injects ~55 lines of kernel rules
 check_lines "docs/ROADMAP.md" 150 || exit 1
 
 # 6. CONVENTIONAL COMMITS — check format

@@ -39,6 +39,7 @@ from bracc.routers import (
     public,
     search,
     templates,  # TEMPLATE-001
+    chatbot_manifest,  # MSSOT-004
 )
 from bracc.services.cache import cache
 from bracc.services.neo4j_service import ensure_schema
@@ -124,6 +125,7 @@ app.include_router(activity.router)
 app.include_router(gazette_monitor.router)
 app.include_router(interop.router)
 app.include_router(agents.router)
+app.include_router(chatbot_manifest.router)  # MSSOT-004
 
 
 @app.get("/health")
