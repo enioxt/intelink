@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/v1/_internal", tags=["internal"])
 MANIFEST = {
     "chatbot_id": "egos-inteligencia",
     "repo": "github.com/enioxt/egos-inteligencia",
-    "generated_at": str(date.today()),
+    "generated_at": "2026-04-17",  # updated by chatbot-manifest-aggregator
     "schema_version": "1.0.0",
     "capabilities": {
         "multi_tenant": {
@@ -61,14 +61,9 @@ MANIFEST = {
         },
     },
     "compliance": {
-        "primary_use_case": (
-            "Police investigation assistant (Brazilian law enforcement): "
-            "Neo4j graph queries, LGPD-compliant, no CPF exposure"
-        ),
-        "atrian_score_method": (
-            "N/A — aggregator computes from capability flags above"
-        ),
-        "last_verified": str(date.today()),
+        "primary_use_case": "Police investigation assistant (Brazilian law enforcement): Neo4j graph queries, LGPD-compliant, no CPF exposure",
+        "atrian_score_method": "N/A — aggregator computes from capability flags above",
+        "last_verified": "2026-04-17",
         "verified_by": "MSSOT-004 auto-manifest endpoint",
     },
 }
