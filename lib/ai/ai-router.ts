@@ -3,7 +3,7 @@
  * 
  * [EGOS-MERGE] 🔵 ADAPTED: Merge entre Intelink AI Router + BR-ACC Neo4j context
  * SOURCE: /home/enio/egos-lab/apps/intelink/lib/intelink/ai-router.ts
- * TARGET: /home/enio/egos-lab/apps/egos-inteligencia/apps/web/lib/ai/ai-router.ts
+ * TARGET: /home/enio/intelink/lib/ai/ai-router.ts
  * OWNER: cascade-agent
  * TIMESTAMP: 2026-04-01
  * 

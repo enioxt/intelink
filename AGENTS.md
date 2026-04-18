@@ -12,7 +12,7 @@
 ## LLM Reference Signature
 
 - **Role:** workspace map + governance entrypoint
-- **Summary:** EGOS Inteligência — plataforma policial de investigação criminal. Frontend canônico: `egos-lab/apps/egos-inteligencia/apps/web/` (Next.js 16.1.5 + Turbopack, porta 3009). Backend Python FastAPI. Neo4j local: ~9.781 nós (Person, Occurrence, Vehicle). VPS Neo4j: 83.7M nós (dados públicos).
+- **Summary:** Intelink — plataforma policial de investigação criminal. **CANONICAL:** `/home/enio/intelink/` (Next.js 16, standalone repo). Backend Python FastAPI em `/home/enio/egos-lab/apps/intelink-api/`. Neo4j local: ~9.781 nós. VPS Neo4j: 83.7M nós (dados públicos). Arquivo legacy: `/home/enio/_archived/intelink-legacy-2026-04-18/`.
 - **Read next:**
   - `docs/plans/INTELINK_BRACC_MERGE.md` — Plano completo do merge
   - `TASKS.md` — Tasks ativas do merge
@@ -32,7 +32,7 @@ EGOS Inteligência (Intelink) é uma plataforma de **inteligência policial crim
 - **Dados públicos:** Neo4j VPS br-acc (83.7M nós — CNPJ, PEPs, Sanções)
 - **Interface:** UI dark (azul/cyan), grafos 2D/3D, relatórios PDF, chat IA
 
-**Frontend canônico:** `/home/enio/egos-lab/apps/egos-inteligencia/apps/web/` (Next.js 16.1.5, porta 3009). **NÃO confundir** com `/home/enio/intelink/frontend/` (esqueleto abandonado, abril 2026).
+**Canonical:** `/home/enio/intelink/` (este repo — standalone, Next.js 16). Arquivo legacy em `/home/enio/_archived/intelink-legacy-2026-04-18/` (somente leitura). Ver `docs/MIGRATION_HISTORY.md`.
 
 ---
 
@@ -110,7 +110,7 @@ egos-inteligencia/
 
 | Layer | Tecnologia | Origem |
 |-------|------------|--------|
-| **Frontend** | Next.js 16.1.5 (Turbopack), React 19, TailwindCSS | egos-lab/apps/egos-inteligencia/apps/web/ |
+| **Frontend** | Next.js 16.1.5 (Turbopack), React 19, TailwindCSS | /home/enio/intelink/ |
 | **Backend API** | Python 3.12, FastAPI, uvicorn | BR-ACC |
 | **Database** | Neo4j 5.x (grafo) | BR-ACC |
 | **Cache/Auth** | Supabase PostgreSQL | Intelink |
@@ -123,7 +123,7 @@ egos-inteligencia/
 
 ```bash
 # Desenvolvimento Frontend (canônico)
-cd egos-lab/apps/egos-inteligencia/apps/web && npm run dev   # Porta 3009
+cd /home/enio/intelink && bun dev   # Porta 3009 (standalone repo)
 
 # Desenvolvimento API
 cd api && uv run uvicorn src.egos_inteligencia.main:app --reload --port 8000

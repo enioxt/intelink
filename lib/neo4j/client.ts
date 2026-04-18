@@ -3,7 +3,7 @@
  * 
  * [EGOS-MERGE] 🔵 ADAPTED: Adaptado do BR-ACC neo4j_service.py para TypeScript
  * SOURCE: /home/enio/br-acc/api/src/bracc/services/neo4j_service.py
- * TARGET: /home/enio/egos-lab/apps/egos-inteligencia/apps/web/lib/neo4j/client.ts
+ * TARGET: /home/enio/intelink/lib/neo4j/client.ts
  * OWNER: cascade-agent
  * TIMESTAMP: 2026-04-01
  * 

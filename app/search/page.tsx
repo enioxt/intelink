@@ -2,7 +2,7 @@
  * Quantum Search Page — EGOS Inteligência
  * 
  * [EGOS-MERGE] 🔵 ADAPTED: Busca unificada com Neo4j (merge Intelink + BR-ACC)
- * TARGET: /home/enio/egos-lab/apps/egos-inteligencia/apps/web/app/search/page.tsx
+ * TARGET: /home/enio/intelink/app/search/page.tsx
  * OWNER: cascade-agent
  * TIMESTAMP: 2026-04-01
  * 

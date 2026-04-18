@@ -2,7 +2,7 @@
  * Network Visualization Page — EGOS Inteligência
  * 
  * [EGOS-MERGE] 🔵 ADAPTED: Página nova para visualização de grafos Neo4j
- * TARGET: /home/enio/egos-lab/apps/egos-inteligencia/apps/web/app/network/[id]/page.tsx
+ * TARGET: /home/enio/intelink/app/network/[id]/page.tsx
  * OWNER: cascade-agent
  * TIMESTAMP: 2026-04-01
  */

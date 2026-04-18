@@ -3,7 +3,7 @@
  * 
  * [EGOS-MERGE] 🔵 ADAPTED: Queries do BR-ACC adaptadas para TypeScript
  * SOURCE: /home/enio/br-acc/api/src/bracc/queries/
- * TARGET: /home/enio/egos-lab/apps/egos-inteligencia/apps/web/lib/neo4j/queries.ts
+ * TARGET: /home/enio/intelink/lib/neo4j/queries.ts
  * OWNER: cascade-agent
  * TIMESTAMP: 2026-04-01
  */

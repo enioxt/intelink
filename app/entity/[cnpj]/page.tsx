@@ -2,7 +2,7 @@
  * Entity Detail Page — CNPJ (Company)
  * 
  * [EGOS-MERGE] 🔵 ADAPTED: Página nova usando dados Neo4j do BR-ACC
- * TARGET: /home/enio/egos-lab/apps/egos-inteligencia/apps/web/app/entity/[cnpj]/page.tsx
+ * TARGET: /home/enio/intelink/app/entity/[cnpj]/page.tsx
  * OWNER: cascade-agent
  * TIMESTAMP: 2026-04-01
  */

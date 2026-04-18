@@ -51,9 +51,9 @@ ssh -i ~/.ssh/hetzner_ed25519 root@204.168.217.125
 cd /opt/intelink-nextjs
 
 # 1. Pull latest code (rsync from local or git pull)
-rsync -av --exclude='node_modules' --exclude='.next' \
-  /home/enio/egos-lab/apps/egos-inteligencia/apps/web/ \
-  root@204.168.217.125:/opt/intelink-nextjs/app/
+rsync -av --exclude='node_modules' --exclude='.next' --exclude='.git' \
+  /home/enio/intelink/ \
+  root@204.168.217.125:/opt/intelink-nextjs/
 
 # 2. Rebuild image (always --no-cache after source changes)
 source .env.local
