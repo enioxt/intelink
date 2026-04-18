@@ -1,0 +1,49 @@
+# Fail2ban Configuration for EGOS Inteligência
+# /etc/fail2ban/jail.local
+
+[DEFAULT]
+# Ban time: 1 hour
+bantime = 3600
+
+# Find time: 10 minutes
+findtime = 600
+
+# Max retries: 5
+maxretry = 5
+
+# Backend
+backend = auto
+
+# Email notifications (if configured)
+{% if alert_email is defined and alert_email %}
+destemail = {{ alert_email }}
+sender = fail2ban@intelink.ia.br
+action = %(action_mwl)s
+{% else %}
+action = %(action_)s
+{% endif %}
+
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = /var/log/auth.log
+maxretry = 3
+bantime = 7200
+
+[docker]
+enabled = true
+port = all
+filter = docker
+logpath = /var/log/syslog
+maxretry = 10
+
+# Custom filter for EGOS API brute force
+[egos-api]
+enabled = true
+port = http,https
+filter = egos-api
+logpath = {{ app_dir }}/logs/api.log
+maxretry = 20
+findtime = 60
+bantime = 3600

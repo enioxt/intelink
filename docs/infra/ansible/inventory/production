@@ -1,0 +1,13 @@
+# EGOS Inteligência — Production Inventory
+# Ansible inventory file
+
+[egos_servers]
+intelink.ia.br ansible_host=204.168.217.125 ansible_user=root
+
+[egos_servers:vars]
+ansible_python_interpreter=/usr/bin/python3
+ansible_ssh_private_key_file=~/.ssh/id_ed25519
+environment=production
+app_dir=/opt/egos-inteligencia
+alert_email=admin@intelink.ia.br
+backup_retention_days=7

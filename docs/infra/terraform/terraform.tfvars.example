@@ -1,0 +1,38 @@
+# EGOS Inteligência — Terraform Variables (Example)
+# Copie este arquivo para terraform.tfvars e preencha os valores reais
+# ⚠️ NUNCA commite terraform.tfvars com valores reais!
+
+# Hetzner Cloud API Token
+# Obter em: https://console.hetzner.cloud/projects/[PROJECT_ID]/security/tokens
+hcloud_token = "YOUR_HETZNER_API_TOKEN_HERE"
+
+# Cloudflare API Token
+# Obter em: https://dash.cloudflare.com/profile/api-tokens
+# Permissões necessárias: Zone:Read, DNS:Edit
+cloudflare_api_token = "YOUR_CLOUDFLARE_API_TOKEN_HERE"
+
+# Cloudflare Zone ID para intelink.ia.br
+# Obter em: https://dash.cloudflare.com/[ZONE_ID]/intelink.ia.br
+cloudflare_zone_id = "YOUR_CLOUDFLARE_ZONE_ID_HERE"
+
+# Ambiente
+environment = "production"
+
+# Chave SSH pública (para acesso root)
+# Gerar: ssh-keygen -t ed25519 -C "egos-deploy"
+ssh_public_key = "ssh-ed25519 AAAAC3... your-email@example.com"
+
+# Tipo de servidor (cx42 = 4 vCPUs, 16 GB RAM, €16.72/mês)
+server_type = "cx42"
+
+# Tamanho do volume de dados
+volume_size = 100
+
+# Região Hetzner
+location = "nbg1"
+
+# Habilitar backups automáticos
+enable_backups = true
+
+# Email para alertas (opcional)
+alert_email = "admin@intelink.ia.br"

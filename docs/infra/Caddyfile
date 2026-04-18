@@ -1,0 +1,41 @@
+{
+    # Let's Encrypt email for SSL
+    email admin@intelink.ia.br
+}
+
+# Primary domain: intelink.ia.br
+intelink.ia.br {
+    # API endpoints
+    handle /api/* {
+        reverse_proxy api:8000
+    }
+
+    # Health check
+    handle /health {
+        reverse_proxy api:8000
+    }
+
+    # Everything else goes to frontend
+    handle {
+        reverse_proxy frontend:3000
+    }
+}
+
+# Alias: inteligencia.egos.ia.br → redirect to primary
+inteligencia.egos.ia.br {
+    redir https://intelink.ia.br{uri} permanent
+}
+
+# HTTP to HTTPS redirect
+:80 {
+    # Health check for monitoring
+    handle /health {
+        respond "OK" 200
+    }
+
+    # Everything else redirects to HTTPS
+    handle {
+        redir https://{host}{uri} permanent
+    }
+}
+

@@ -198,3 +198,21 @@
 ---
 
 *Atualizado: 2026-04-18 (sessão 5c — Deploy VPS OK, webhook 200, DATA-003h smoke test ✅)*
+
+---
+
+## Migrated Tasks (from intelink-legacy — 2026-04-18)
+
+> Tasks abertas relevantes do repo legacy. Prefixo [migrated] indica origem.
+
+- [ ] `[migrated] NEO4J-SNAPSHOT-001` Ativar backup automático Hetzner (painel: Server → Enable Backups, ~€2/mês)
+- [ ] `[migrated] AUTH-MULTITENANT-001` Isolamento por `delegacia_id` derivado de MASP/email no JWT — middleware + queries
+- [ ] `[migrated] DHPP-SCHEMA-001` Cypher schema: Person, Case, Weapon, Photo, Reception + constraints + indexes
+- [ ] `[migrated] DHPP-DEDUP-001` Estratégia MERGE para unir Person DHPP com 83.7M nós existentes via CPF/nome
+- [ ] `[migrated] DHPP-ETL-001` Pipeline dhpp.py — 115 PDFs/DOCX → BERTimbau NER → Neo4j (≥200 Person, ≥60 Case)
+- [ ] `[migrated] DHPP-ETL-002` Pipeline fotos Telegram — metadata 2.898 fotos → Photo nodes Neo4j
+- [ ] `[migrated] DHPP-ETL-003` Pipeline 8.242 entradas recepção → Reception nodes
+- [ ] `[migrated] UI-ENTITY-TABS-001` Rota /entity/{id} com 3 abas: Conexões, Timeline, Risco (backend pronto)
+- [ ] `[migrated] VIZ-GRAPH-001` InvestigationGraph.tsx — integrar com caso DHPP real, drill-down 3 graus
+- [ ] `[migrated] VALID-001` Enio usa sistema com 1 caso DHPP real completo (entrada → busca → grafo → laudo)
+- [ ] `[migrated] VALID-002` Lídia faz onboarding sem treinamento — meta: entende 80% em 30min

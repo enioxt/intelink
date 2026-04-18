@@ -1,0 +1,308 @@
+---
+# EGOS Inteligência — Ansible Playbook
+# Provisionamento de servidor Ubuntu 22.04 LTS
+
+- name: EGOS Inteligência Server Setup
+  hosts: egos_servers
+  become: yes
+  vars:
+    app_name: "egos-inteligencia"
+    app_dir: "/opt/egos-inteligencia"
+    deploy_user: "deploy"
+    docker_compose_version: "2.24.0"
+    node_exporter_version: "1.7.0"
+    cadvisor_version: "0.47.2"
+
+  pre_tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+  tasks:
+    # ==========================================
+    # 1. Sistema Base
+    # ==========================================
+    - name: Install base packages
+      apt:
+        name:
+          - curl
+          - wget
+          - git
+          - vim
+          - htop
+          - tmux
+          - ncdu
+          - tree
+          - jq
+          - unzip
+          - software-properties-common
+          - apt-transport-https
+          - ca-certificates
+          - gnupg
+          - lsb-release
+          - ufw
+          - fail2ban
+          - unattended-upgrades
+          - logrotate
+          - net-tools
+          - dnsutils
+        state: present
+
+    - name: Set timezone to America/Sao_Paulo
+      timezone:
+        name: America/Sao_Paulo
+
+    # ==========================================
+    # 2. Segurança — Hardening
+    # ==========================================
+    - name: Configure UFW
+      ufw:
+        state: enabled
+        policy: deny
+        direction: incoming
+
+    - name: Allow SSH through UFW
+      ufw:
+        rule: allow
+        port: '22'
+        proto: tcp
+        comment: 'SSH access'
+
+    - name: Allow HTTP through UFW
+      ufw:
+        rule: allow
+        port: '80'
+        proto: tcp
+        comment: 'HTTP'
+
+    - name: Allow HTTPS through UFW
+      ufw:
+        rule: allow
+        port: '443'
+        proto: tcp
+        comment: 'HTTPS'
+
+    - name: Configure Fail2ban
+      template:
+        src: fail2ban.local.j2
+        dest: /etc/fail2ban/jail.local
+      notify: restart fail2ban
+
+    - name: Enable Fail2ban
+      service:
+        name: fail2ban
+        state: started
+        enabled: yes
+
+    - name: Configure unattended-upgrades
+      template:
+        src: unattended-upgrades.j2
+        dest: /etc/apt/apt.conf.d/50unattended-upgrades
+
+    # ==========================================
+    # 3. Docker & Docker Compose
+    # ==========================================
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        keyring: /etc/apt/keyrings/docker.gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+        filename: docker
+
+    - name: Install Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+        update_cache: yes
+
+    - name: Add deploy user to docker group
+      user:
+        name: "{{ deploy_user }}"
+        groups: docker
+        append: yes
+
+    - name: Start Docker service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    # ==========================================
+    # 4. Usuário de Deploy
+    # ==========================================
+    - name: Create deploy user
+      user:
+        name: "{{ deploy_user }}"
+        shell: /bin/bash
+        groups: sudo
+        append: yes
+        create_home: yes
+        password: "!"  # Disable password login
+
+    - name: Add deploy user to sudoers
+      lineinfile:
+        path: /etc/sudoers.d/deploy
+        line: "{{ deploy_user }} ALL=(ALL) NOPASSWD:ALL"
+        create: yes
+        validate: 'visudo -cf %s'
+
+    - name: Set up SSH authorized keys for deploy user
+      authorized_key:
+        user: "{{ deploy_user }}"
+        key: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_ed25519.pub') }}"
+        state: present
+      ignore_errors: yes
+
+    # ==========================================
+    # 5. Diretórios do Projeto
+    # ==========================================
+    - name: Create application directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_user }}"
+        mode: '0755'
+      loop:
+        - "{{ app_dir }}"
+        - "{{ app_dir }}/data/neo4j"
+        - "{{ app_dir }}/data/redis"
+        - "{{ app_dir }}/data/caddy"
+        - "{{ app_dir }}/backups"
+        - "{{ app_dir }}/logs"
+
+    # ==========================================
+    # 6. Scripts de Automação
+    # ==========================================
+    - name: Install health check script
+      template:
+        src: egos-health.sh.j2
+        dest: /usr/local/bin/egos-health
+        mode: '0755'
+
+    - name: Install backup script
+      template:
+        src: egos-backup.sh.j2
+        dest: /usr/local/bin/egos-backup
+        mode: '0755'
+
+    - name: Install deploy script
+      template:
+        src: egos-deploy.sh.j2
+        dest: /usr/local/bin/egos-deploy
+        mode: '0755'
+
+    - name: Configure logrotate for EGOS
+      template:
+        src: logrotate-egos.j2
+        dest: /etc/logrotate.d/egos
+
+    # ==========================================
+    # 7. Cron Jobs
+    # ==========================================
+    - name: Setup backup cron job
+      cron:
+        name: "EGOS daily backup"
+        user: "{{ deploy_user }}"
+        minute: "0"
+        hour: "2"
+        job: "/usr/local/bin/egos-backup >> {{ app_dir }}/logs/backup.log 2>&1"
+
+    - name: Setup health check cron job
+      cron:
+        name: "EGOS health check"
+        user: "{{ deploy_user }}"
+        minute: "*/5"
+        job: "/usr/local/bin/egos-health >> {{ app_dir }}/logs/health.log 2>&1 || echo 'HEALTH_CHECK_FAILED' | logger -t egos-health"
+
+    # ==========================================
+    # 8. Monitoramento (Node Exporter)
+    # ==========================================
+    - name: Download Node Exporter
+      get_url:
+        url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+        dest: "/tmp/node_exporter.tar.gz"
+        mode: '0644'
+
+    - name: Extract Node Exporter
+      unarchive:
+        src: "/tmp/node_exporter.tar.gz"
+        dest: "/tmp/"
+        remote_src: yes
+
+    - name: Install Node Exporter binary
+      copy:
+        src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+        dest: "/usr/local/bin/node_exporter"
+        mode: '0755'
+        remote_src: yes
+
+    - name: Create Node Exporter systemd service
+      template:
+        src: node-exporter.service.j2
+        dest: /etc/systemd/system/node-exporter.service
+      notify:
+        - reload systemd
+        - restart node-exporter
+
+    - name: Enable Node Exporter
+      service:
+        name: node-exporter
+        state: started
+        enabled: yes
+
+    # ==========================================
+    # 9. Limpeza
+    # ==========================================
+    - name: Clean up temporary files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/tmp/node_exporter.tar.gz"
+        - "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64"
+
+    - name: Run apt autoremove
+      apt:
+        autoremove: yes
+
+    - name: Clean apt cache
+      apt:
+        autoclean: yes
+
+  handlers:
+    - name: restart fail2ban
+      service:
+        name: fail2ban
+        state: restarted
+
+    - name: reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: restart node-exporter
+      service:
+        name: node-exporter
+        state: restarted
+
+  post_tasks:
+    - name: Display completion message
+      debug:
+        msg: |
+          🎉 EGOS Inteligência server setup complete!
+          
+          Next steps:
+          1. Clone repo: git clone https://github.com/enioxt/intelink.git {{ app_dir }}
+          2. Copy .env file to {{ app_dir }}
+          3. Run: cd {{ app_dir }} && docker compose up -d
+          4. Test: curl https://intelink.ia.br/health

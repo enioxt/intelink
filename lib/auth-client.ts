@@ -1,156 +1,192 @@
 /**
- * Client-side Auth Utilities
+ * JWT Authentication — EGOS Inteligência
+ * Sacred Code: 000.111.369.963.1618 (∞△⚡◎φ)
  * 
- * Provides access to JWT and member info from localStorage
- * For use in multi-tenancy (RLS) enforcement
- * 
- * @version 1.0.0
- * @date 2025-12-08
+ * Token management and auth state
  */
 
-// Storage keys
-const STORAGE_KEYS = {
-    JWT: 'intelink_jwt',
-    MEMBER_ID: 'intelink_member_id',
-    UNIT_ID: 'intelink_unit_id',
-    MEMBER: 'intelink_member',
-    CHAT_ID: 'intelink_chat_id',
-    USERNAME: 'intelink_username',
-} as const;
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
-// Types
-export interface MemberInfo {
-    id: string;
-    name: string;
-    unit_id: string;
-    system_role: string | null;
+const API_URL = process.env.NEXT_PUBLIC_INTELINK_API || 'http://localhost:8000/api/v1';
+
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  role: string;
+  points: number;
 }
 
-/**
- * Get stored JWT token
- */
-export function getJWT(): string | null {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem(STORAGE_KEYS.JWT);
+export interface AuthState {
+  token: string | null;
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+
+  // Actions
+  login: (username: string, password: string) => Promise<boolean>;
+  logout: () => void;
+  refreshToken: () => Promise<boolean>;
+  getToken: () => string | null;
+  getAuthHeaders: () => Record<string, string>;
+  clearError: () => void;
 }
 
-/**
- * Get stored member info
- */
-export function getMemberInfo(): MemberInfo | null {
-    if (typeof window === 'undefined') return null;
-    
-    const memberJson = localStorage.getItem(STORAGE_KEYS.MEMBER);
-    if (!memberJson) return null;
-    
-    try {
-        return JSON.parse(memberJson);
-    } catch {
-        return null;
+export const useAuth = create<AuthState>()(
+  persist(
+    (set, get) => ({
+      token: null,
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+
+      login: async (username: string, password: string) => {
+        set({ isLoading: true, error: null });
+
+        try {
+          const response = await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            set({ isLoading: false, error: error.detail || 'Login failed' });
+            return false;
+          }
+
+          const data = await response.json();
+
+          // Fetch user profile
+          const userResponse = await fetch(`${API_URL}/auth/me`, {
+            headers: { 'Authorization': `Bearer ${data.access_token}` },
+          });
+
+          let user = null;
+          if (userResponse.ok) {
+            user = await userResponse.json();
+          }
+
+          set({
+            token: data.access_token,
+            user,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          });
+
+          return true;
+        } catch (err) {
+          set({
+            isLoading: false,
+            error: err instanceof Error ? err.message : 'Login failed',
+          });
+          return false;
+        }
+      },
+
+      logout: () => {
+        set({
+          token: null,
+          user: null,
+          isAuthenticated: false,
+          error: null,
+        });
+      },
+
+      refreshToken: async () => {
+        const { token } = get();
+        if (!token) return false;
+
+        try {
+          const response = await fetch(`${API_URL}/auth/refresh`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+
+          if (!response.ok) {
+            // Token expired or invalid
+            set({ token: null, user: null, isAuthenticated: false });
+            return false;
+          }
+
+          const data = await response.json();
+          set({ token: data.access_token });
+          return true;
+        } catch (err) {
+          set({ token: null, user: null, isAuthenticated: false });
+          return false;
+        }
+      },
+
+      getToken: () => get().token,
+
+      getAuthHeaders: (): Record<string, string> => {
+        const { token } = get();
+        return token ? { 'Authorization': `Bearer ${token}` } : {};
+      },
+
+      clearError: () => set({ error: null }),
+    }),
+    {
+      name: 'egos-auth-storage',
+      partialize: (state) => ({
+        token: state.token,
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+      }),
     }
+  )
+);
+
+// Hook for protected routes
+export function useRequireAuth() {
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  return {
+    isAuthenticated,
+    isLoading,
+    user,
+    isReady: !isLoading,
+  };
 }
 
-/**
- * Get current unit_id
- */
-export function getUnitId(): string | null {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem(STORAGE_KEYS.UNIT_ID);
-}
+// Axios/fetch interceptor helper
+export async function authenticatedFetch(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const token = useAuth.getState().getToken();
 
-/**
- * Get current member_id
- */
-export function getMemberId(): string | null {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem(STORAGE_KEYS.MEMBER_ID);
-}
+  const headers = {
+    ...options.headers,
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+  };
 
-/**
- * Get current chat_id (Telegram)
- */
-export function getChatId(): string | null {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem(STORAGE_KEYS.CHAT_ID);
-}
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
 
-/**
- * Check if user is authenticated with full member info
- */
-export function isFullyAuthenticated(): boolean {
-    return !!(getJWT() && getMemberId() && getUnitId());
-}
-
-/**
- * Check if user is a super_admin
- */
-export function isSuperAdmin(): boolean {
-    const member = getMemberInfo();
-    return member?.system_role === 'super_admin';
-}
-
-/**
- * Clear all auth data (logout)
- */
-export function clearAuth(): void {
-    if (typeof window === 'undefined') return;
-    
-    Object.values(STORAGE_KEYS).forEach(key => {
-        localStorage.removeItem(key);
-    });
-    
-    // Clear cookie
-    document.cookie = 'intelink_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-}
-
-/**
- * Get auth headers for API requests
- * Includes JWT for RLS if available
- */
-export function getAuthHeaders(): Record<string, string> {
-    const headers: Record<string, string> = {};
-    
-    const jwt = getJWT();
-    if (jwt) {
-        headers['Authorization'] = `Bearer ${jwt}`;
+  // Handle token expiration
+  if (response.status === 401) {
+    const refreshed = await useAuth.getState().refreshToken();
+    if (refreshed) {
+      // Retry with new token
+      const newToken = useAuth.getState().getToken();
+      return fetch(url, {
+        ...options,
+        headers: {
+          ...options.headers,
+          'Authorization': `Bearer ${newToken}`,
+        },
+      });
     }
-    
-    const unitId = getUnitId();
-    if (unitId) {
-        headers['X-Unit-ID'] = unitId;
-    }
-    
-    const memberId = getMemberId();
-    if (memberId) {
-        headers['X-Member-ID'] = memberId;
-    }
-    
-    return headers;
-}
+  }
 
-/**
- * Decode JWT payload (client-side, no verification)
- * Useful for checking expiration
- */
-export function decodeJWT(token: string): Record<string, any> | null {
-    try {
-        const payload = token.split('.')[1];
-        const decoded = atob(payload);
-        return JSON.parse(decoded);
-    } catch {
-        return null;
-    }
-}
-
-/**
- * Check if JWT is expired
- */
-export function isJWTExpired(): boolean {
-    const jwt = getJWT();
-    if (!jwt) return true;
-    
-    const payload = decodeJWT(jwt);
-    if (!payload || !payload.exp) return true;
-    
-    return payload.exp < Math.floor(Date.now() / 1000);
+  return response;
 }
