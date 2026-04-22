@@ -317,16 +317,20 @@ async function handlePost(req: NextRequest, auth: AuthContext): Promise<NextResp
         let response = completion.choices[0]?.message?.content || '';
         const toolCalls = completion.choices[0]?.message?.tool_calls;
 
+        // EVAL-A6 (2026-04-22): capture tool trajectory for eval harness + transparency to client
+        const trajectory: string[] = [];
+
         // Process tool calls if any
         if (toolCalls && toolCalls.length > 0 && investigationId) {
             console.log(`[Intelink Chat] Processing ${toolCalls.length} tool calls`);
-            
+
             const toolResults: string[] = [];
             for (const toolCall of toolCalls) {
                 const tc = toolCall as any;
                 const funcName = tc.function?.name || tc.name || 'unknown';
                 const funcArgs = tc.function?.arguments || tc.arguments || '{}';
                 const startedAt = Date.now();
+                trajectory.push(funcName);
                 try {
                     const args = JSON.parse(funcArgs);
                     const result = await executeToolCall(funcName, args, investigationId);
@@ -494,6 +498,7 @@ async function handlePost(req: NextRequest, auth: AuthContext): Promise<NextResp
             mode,
             contextSize: enhancedContext.length,
             sessionId: savedSessionId,
+            trajectory, // EVAL-A6: tool names invoked in order (empty if no tools)
             compliance: {
                 atrian: { passed: responseAtrian.passed, score: responseAtrian.score, violations: responseAtrian.violations.length },
                 pii: { findings: responsePIIFindings.length, summary: getPIISummary(responsePIIFindings), masked: responsePIIFindings.length > 0 }
@@ -707,6 +712,7 @@ async function streamChatResponse(args: {
                     usage: totalUsage,
                     mode,
                     contextSize: enhancedContext.length,
+                    trajectory: accumulatedToolCalls.map(t => t.function.name), // EVAL-A6
                     compliance: {
                         atrian: { passed: responseAtrian.passed, score: responseAtrian.score, violations: responseAtrian.violations.length },
                         pii: { findings: responsePIIFindings.length, summary: getPIISummary(responsePIIFindings) },

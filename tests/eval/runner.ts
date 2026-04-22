@@ -67,7 +67,13 @@ async function buildChatFn(memberId: string) {
             const json = await res.json();
             return {
                 text: json.response ?? json.message ?? JSON.stringify(json),
-                meta: { linkedInvestigationId: json.linkedInvestigationId, sessionId: json.sessionId },
+                // EVAL-A6: trajectory exposed by /api/chat — enables expectedTrajectory asserts
+                trajectory: Array.isArray(json.trajectory) ? json.trajectory : undefined,
+                meta: {
+                    linkedInvestigationId: json.linkedInvestigationId,
+                    sessionId: json.sessionId,
+                    compliance: json.compliance,
+                },
             };
         }
 
