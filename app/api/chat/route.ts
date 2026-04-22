@@ -76,16 +76,17 @@ async function handlePost(req: NextRequest, auth: AuthContext): Promise<NextResp
     }
     
     try {
-        const { 
-            messages, 
-            systemPrompt, 
-            context, 
+        const {
+            messages,
+            systemPrompt,
+            context,
             investigationId,
             mode = 'single', // 'single' | 'central'
             sessionId, // Optional: for saving to history
             saveHistory = false, // Whether to save to history
             behavior, // MACI: { contentiousness: 0.0-1.0, mode?: 'explore'|'balanced'|'consolidate' }
-            visualContext // Context Bridge: { investigationTitle, selectedEntities, activeView }
+            visualContext, // Context Bridge: { investigationTitle, selectedEntities, activeView }
+            stream: useStream = false, // INTELINK-002: opt-in SSE streaming. Default false (JSON).
         } = await req.json();
 
         apiLogger.debug('Chat request received', { 
@@ -241,7 +242,27 @@ async function handlePost(req: NextRequest, auth: AuthContext): Promise<NextResp
                                 lastMessage.includes('exportar') ||
                                 lastMessage.includes('pdf');
 
-        console.log(`[Intelink Chat] Mode: ${mode}, Investigation: ${investigationId}, Context: ${enhancedContext.length} chars, RAG: ${ragContext.length} chars`);
+        console.log(`[Intelink Chat] Mode: ${mode}, Investigation: ${investigationId}, Context: ${enhancedContext.length} chars, RAG: ${ragContext.length} chars, Stream: ${useStream}`);
+
+        // INTELINK-002: SSE streaming branch (opt-in via body.stream=true)
+        if (useStream) {
+            return streamChatResponse({
+                openai,
+                model: CHAT_MODEL,
+                temperature: CHAT_TEMPERATURE,
+                maxTokens: CHAT_MAX_TOKENS,
+                fullSystemPrompt,
+                messages,
+                investigationId,
+                mode,
+                sessionId,
+                saveHistory,
+                enhancedContext,
+                sanitizedLastUserMessage,
+                atrian,
+                rateLimitHeaders: getRateLimitHeaders(rateLimitResult),
+            });
+        }
 
         // Call LLM with Tool Calling enabled
         const completion = await openai.chat.completions.create({
@@ -442,6 +463,211 @@ async function handlePost(req: NextRequest, auth: AuthContext): Promise<NextResp
 
 // Protected: Only member+ can use chat
 export const POST = withSecurity(handlePost, { requiredRole: 'visitor' });
+
+// INTELINK-002: SSE streaming handler.
+// Returns text/event-stream with events: {type:'delta'|'tool_start'|'tool_end'|'done'|'error', ...}
+// Terminator: `data: [DONE]\n\n`. Preserves tool-calling two-pass + history save + memory extraction.
+async function streamChatResponse(args: {
+    openai: OpenAI;
+    model: string;
+    temperature: number;
+    maxTokens: number;
+    fullSystemPrompt: string;
+    messages: any[];
+    investigationId?: string;
+    mode: string;
+    sessionId?: string;
+    saveHistory: boolean;
+    enhancedContext: string;
+    sanitizedLastUserMessage: string;
+    atrian: ReturnType<typeof createAtrianValidator>;
+    rateLimitHeaders: Record<string, string>;
+}): Promise<NextResponse> {
+    const {
+        openai: client, model, temperature, maxTokens, fullSystemPrompt, messages,
+        investigationId, mode, sessionId, saveHistory, enhancedContext,
+        sanitizedLastUserMessage, atrian: atrianValidator, rateLimitHeaders,
+    } = args;
+
+    const encoder = new TextEncoder();
+    const readable = new ReadableStream({
+        async start(controller) {
+            const sendEvent = (data: any) => {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+            };
+            const sendDone = () => {
+                controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                controller.close();
+            };
+
+            let fullResponse = '';
+            const accumulatedToolCalls: any[] = [];
+            let totalUsage: any = undefined;
+
+            try {
+                // First LLM call — streaming with tool detection
+                const streamFirst = await client.chat.completions.create({
+                    model, max_tokens: maxTokens, temperature,
+                    messages: [{ role: 'system', content: fullSystemPrompt }, ...messages],
+                    tools: investigationId ? INTELINK_TOOLS : undefined,
+                    tool_choice: investigationId ? 'auto' : undefined,
+                    stream: true,
+                    stream_options: { include_usage: true },
+                });
+
+                for await (const chunk of streamFirst) {
+                    const delta = chunk.choices[0]?.delta;
+                    if (delta?.content) {
+                        fullResponse += delta.content;
+                        sendEvent({ type: 'delta', content: delta.content });
+                    }
+                    if (delta?.tool_calls) {
+                        for (const tc of delta.tool_calls) {
+                            const idx = tc.index ?? 0;
+                            if (!accumulatedToolCalls[idx]) {
+                                accumulatedToolCalls[idx] = { id: tc.id, type: 'function', function: { name: '', arguments: '' } };
+                            }
+                            if (tc.id) accumulatedToolCalls[idx].id = tc.id;
+                            if (tc.function?.name) accumulatedToolCalls[idx].function.name += tc.function.name;
+                            if (tc.function?.arguments) accumulatedToolCalls[idx].function.arguments += tc.function.arguments;
+                        }
+                    }
+                    if (chunk.usage) totalUsage = chunk.usage;
+                }
+
+                // Tool execution + follow-up streaming
+                if (accumulatedToolCalls.length > 0 && investigationId) {
+                    const toolNames = accumulatedToolCalls.map(t => t.function.name);
+                    sendEvent({ type: 'tool_start', tools: toolNames });
+
+                    const toolResults: string[] = [];
+                    for (const tc of accumulatedToolCalls) {
+                        try {
+                            const args = JSON.parse(tc.function.arguments || '{}');
+                            const result = await executeToolCall(tc.function.name, args, investigationId);
+                            toolResults.push(`[${tc.function.name}]\n${result}`);
+                        } catch (toolError: any) {
+                            console.error('[Chat stream] Tool error:', toolError);
+                            toolResults.push(`Erro ao executar ${tc.function.name}: ${toolError.message}`);
+                        }
+                    }
+                    sendEvent({ type: 'tool_end' });
+
+                    fullResponse = '';
+                    const streamSecond = await client.chat.completions.create({
+                        model, max_tokens: maxTokens, temperature,
+                        messages: [
+                            { role: 'system', content: fullSystemPrompt },
+                            ...messages,
+                            { role: 'assistant', content: `Consultei os dados do sistema:\n\n${toolResults.join('\n\n')}` },
+                            { role: 'user', content: 'Com base nesses dados, responda minha pergunta anterior de forma clara e completa.' },
+                        ],
+                        stream: true,
+                        stream_options: { include_usage: true },
+                    });
+
+                    for await (const chunk of streamSecond) {
+                        const text = chunk.choices[0]?.delta?.content;
+                        if (text) {
+                            fullResponse += text;
+                            sendEvent({ type: 'delta', content: text });
+                        }
+                        if (chunk.usage) totalUsage = chunk.usage;
+                    }
+                }
+
+                if (!fullResponse) fullResponse = 'Sem resposta.';
+
+                // Post-processing: ATRiAN, PII, history, memory
+                const responseAtrian = atrianValidator.validateAndReport(fullResponse);
+                if (!responseAtrian.passed) {
+                    const warning = '\n\nOBSERVAÇÃO: trate esta resposta como apoio investigativo e confirme dados críticos diretamente nas fontes do caso.';
+                    fullResponse += warning;
+                    sendEvent({ type: 'delta', content: warning });
+                }
+                const responsePIIFindings = scanForPII(fullResponse);
+                const sanitizedResponseForMemory = responsePIIFindings.length > 0 ? sanitizeText(fullResponse, responsePIIFindings) : fullResponse;
+
+                let savedSessionId = sessionId;
+                if (saveHistory) {
+                    try {
+                        if (!savedSessionId) {
+                            const { data: newSession } = await getSupabaseAdmin()
+                                .from('intelink_chat_sessions')
+                                .insert({
+                                    mode,
+                                    investigation_id: investigationId || null,
+                                    title: messages[0]?.content?.substring(0, 100) || 'Nova conversa',
+                                    message_count: 0,
+                                    total_tokens: 0,
+                                })
+                                .select()
+                                .single();
+                            savedSessionId = newSession?.id;
+                        }
+                        if (savedSessionId) {
+                            const lastUserMsg = messages[messages.length - 1];
+                            if (lastUserMsg?.role === 'user') {
+                                await getSupabaseAdmin().from('intelink_chat_messages').insert({
+                                    session_id: savedSessionId, role: 'user', content: lastUserMsg.content,
+                                });
+                            }
+                            await getSupabaseAdmin().from('intelink_chat_messages').insert({
+                                session_id: savedSessionId, role: 'assistant', content: fullResponse,
+                                tokens: totalUsage?.total_tokens, context_size: enhancedContext.length,
+                            });
+                            const { data: cur } = await getSupabaseAdmin()
+                                .from('intelink_chat_sessions')
+                                .select('message_count, total_tokens')
+                                .eq('id', savedSessionId)
+                                .single();
+                            if (cur) {
+                                await getSupabaseAdmin().from('intelink_chat_sessions').update({
+                                    message_count: (cur.message_count || 0) + 2,
+                                    total_tokens: (cur.total_tokens || 0) + (totalUsage?.total_tokens || 0),
+                                }).eq('id', savedSessionId);
+                            }
+                        }
+                    } catch (historyError) {
+                        console.error('[Chat stream] History save error:', historyError);
+                    }
+                }
+
+                if (investigationId && savedSessionId) {
+                    extractAndSaveFacts(investigationId, savedSessionId, sanitizedLastUserMessage, sanitizedResponseForMemory)
+                        .catch((err: any) => console.error('[Chat stream] Memory extraction error:', err));
+                }
+
+                sendEvent({
+                    type: 'done',
+                    sessionId: savedSessionId,
+                    usage: totalUsage,
+                    mode,
+                    contextSize: enhancedContext.length,
+                    compliance: {
+                        atrian: { passed: responseAtrian.passed, score: responseAtrian.score, violations: responseAtrian.violations.length },
+                        pii: { findings: responsePIIFindings.length, summary: getPIISummary(responsePIIFindings) },
+                    },
+                });
+                sendDone();
+            } catch (err: any) {
+                console.error('[Chat stream] Error:', err);
+                sendEvent({ type: 'error', error: 'Erro ao processar mensagem. Tente novamente.' });
+                sendDone();
+            }
+        },
+    });
+
+    return new NextResponse(readable, {
+        headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache, no-transform',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no',
+            ...rateLimitHeaders,
+        },
+    });
+}
 
 // Load full context for a single investigation
 async function loadInvestigationContext(investigationId: string): Promise<string> {

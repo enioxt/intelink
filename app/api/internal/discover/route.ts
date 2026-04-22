@@ -10,8 +10,9 @@ export const MANIFEST = {
   version: '5.0.0',
   description: 'Agente de investigação policial com acesso a Neo4j, OSINT, análise de vínculos e documentos.',
   // Honesty rule (CHATBOT_SSOT §17.1, INC-006): list only what ships.
-  // `streaming` REMOVED 2026-04-22 — route returns JSON, not SSE. Re-add when INTELINK-002 ships SSE.
+  // `streaming` is opt-in via `body.stream=true` (INTELINK-002, route.ts streamChatResponse).
   capabilities: [
+    'streaming-opt-in',
     'tool-calling',
     'rag',
     'memory',
