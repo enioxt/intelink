@@ -136,8 +136,8 @@ export async function POST(req: NextRequest) {
     // AUDIT-001: log CRIT query
     auditLog({
         action: 'crit_query',
-        resource_type: 'Person',
-        resource_id: personCpf ?? String(name ?? cpf ?? ''),
+        target_type: 'Person',
+        target_id: personCpf ?? String(name ?? cpf ?? ''),
         details: { queried_name: nome, risk: riskLabel, avg: Math.round(avgScore * 100) / 100 },
     }).catch(() => {});
 
