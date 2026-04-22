@@ -33,6 +33,7 @@ import { buildIntelinkSystemPrompt, SystemPromptOptions } from '@/lib/prompts/in
 import { getPromptConfig } from '@/lib/prompts/registry';
 import { INTELINK_TOOLS, executeToolCall } from '@/lib/tools/intelink-tools';
 import { getMemoryContext, extractAndSaveFacts } from '@/lib/memory/chat-memory';
+import { logToolCall } from '@/lib/intelligence/provenance';
 import { buildConversationMemoryBlock, buildConversationTranscript, createAtrianValidator, getPIISummary, sanitizeText, scanForPII, shouldSummarizeConversation } from '@/lib/shared';
 
 const chatPromptConfig = getPromptConfig('chat.main');
@@ -261,6 +262,7 @@ async function handlePost(req: NextRequest, auth: AuthContext): Promise<NextResp
                 sanitizedLastUserMessage,
                 atrian,
                 rateLimitHeaders: getRateLimitHeaders(rateLimitResult),
+                actor: { id: auth.memberId ?? 'anonymous', name: auth.memberName, role: auth.systemRole },
             });
         }
 
@@ -286,23 +288,31 @@ async function handlePost(req: NextRequest, auth: AuthContext): Promise<NextResp
             
             const toolResults: string[] = [];
             for (const toolCall of toolCalls) {
+                const tc = toolCall as any;
+                const funcName = tc.function?.name || tc.name || 'unknown';
+                const funcArgs = tc.function?.arguments || tc.arguments || '{}';
+                const startedAt = Date.now();
                 try {
-                    // Handle both OpenAI standard format and custom format
-                    const tc = toolCall as any;
-                    const funcName = tc.function?.name || tc.name || 'unknown';
-                    const funcArgs = tc.function?.arguments || tc.arguments || '{}';
                     const args = JSON.parse(funcArgs);
-                    
-                    const result = await executeToolCall(
-                        funcName,
-                        args,
-                        investigationId
-                    );
+                    const result = await executeToolCall(funcName, args, investigationId);
                     toolResults.push(`[${funcName}]\n${result}`);
+                    logToolCall({
+                        toolName: funcName, args, result,
+                        sessionId, investigationId,
+                        actorId: auth.memberId ?? 'anonymous', actorName: auth.memberName, actorRole: auth.systemRole,
+                        durationMs: Date.now() - startedAt,
+                    });
                     console.log(`[Intelink Chat] Tool ${funcName} executed`);
                 } catch (toolError: any) {
                     console.error(`[Intelink Chat] Tool error:`, toolError);
                     toolResults.push(`Erro ao executar ferramenta: ${toolError.message}`);
+                    logToolCall({
+                        toolName: funcName, args: funcArgs, result: '',
+                        sessionId, investigationId,
+                        actorId: auth.memberId ?? 'anonymous', actorName: auth.memberName, actorRole: auth.systemRole,
+                        durationMs: Date.now() - startedAt,
+                        error: String(toolError?.message ?? toolError),
+                    });
                 }
             }
 
@@ -482,11 +492,12 @@ async function streamChatResponse(args: {
     sanitizedLastUserMessage: string;
     atrian: ReturnType<typeof createAtrianValidator>;
     rateLimitHeaders: Record<string, string>;
+    actor: { id: string; name?: string; role?: string };
 }): Promise<NextResponse> {
     const {
         openai: client, model, temperature, maxTokens, fullSystemPrompt, messages,
         investigationId, mode, sessionId, saveHistory, enhancedContext,
-        sanitizedLastUserMessage, atrian: atrianValidator, rateLimitHeaders,
+        sanitizedLastUserMessage, atrian: atrianValidator, rateLimitHeaders, actor,
     } = args;
 
     const encoder = new TextEncoder();
@@ -542,13 +553,27 @@ async function streamChatResponse(args: {
 
                     const toolResults: string[] = [];
                     for (const tc of accumulatedToolCalls) {
+                        const startedAt = Date.now();
                         try {
                             const args = JSON.parse(tc.function.arguments || '{}');
                             const result = await executeToolCall(tc.function.name, args, investigationId);
                             toolResults.push(`[${tc.function.name}]\n${result}`);
+                            logToolCall({
+                                toolName: tc.function.name, args, result,
+                                sessionId, investigationId,
+                                actorId: actor.id, actorName: actor.name, actorRole: actor.role,
+                                durationMs: Date.now() - startedAt,
+                            });
                         } catch (toolError: any) {
                             console.error('[Chat stream] Tool error:', toolError);
                             toolResults.push(`Erro ao executar ${tc.function.name}: ${toolError.message}`);
+                            logToolCall({
+                                toolName: tc.function.name, args: tc.function.arguments, result: '',
+                                sessionId, investigationId,
+                                actorId: actor.id, actorName: actor.name, actorRole: actor.role,
+                                durationMs: Date.now() - startedAt,
+                                error: String(toolError?.message ?? toolError),
+                            });
                         }
                     }
                     sendEvent({ type: 'tool_end' });

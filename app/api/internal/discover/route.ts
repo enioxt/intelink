@@ -25,6 +25,7 @@ export const MANIFEST = {
     'tenant-isolation',
     'pii-masking',
     'atrian-validation',
+    'provenance',  // INTELINK-003: hash-chained tool-call audit via intelink_audit_logs
   ],
   use_case: 'police-intelligence',
   status: 'active',
@@ -34,6 +35,8 @@ export const MANIFEST = {
     tools: 'lib/tools/intelink-tools.ts',
     memory: 'lib/memory/chat-memory.ts',
     rag: 'lib/rag/context-retriever.ts',
+    streaming: 'app/api/chat/route.ts:streamChatResponse',
+    provenance: 'lib/intelligence/provenance.ts + app/api/chat/[sessionId]/provenance/route.ts',
   },
 }
 
