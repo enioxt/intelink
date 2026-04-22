@@ -223,7 +223,56 @@ export class LocalLlamaProvider implements LLMProvider {
 // FACTORY
 // ============================================================================
 
-export type ProviderType = 'openrouter' | 'groq' | 'local-llama' | 'auto';
+// ============================================================================
+// FALLBACK PROVIDER — INTELINK-008
+// Wraps a primary + chain of fallbacks. On chat() failure, walks the chain.
+// isAvailable() = true if ANY provider is reachable.
+// ============================================================================
+
+export class FallbackProvider implements LLMProvider {
+    readonly name: string;
+    private chain: LLMProvider[];
+
+    constructor(primary: LLMProvider, fallbacks: LLMProvider[] = []) {
+        this.chain = [primary, ...fallbacks];
+        this.name = `fallback(${this.chain.map(p => p.name).join('→')})`;
+    }
+
+    async isAvailable(): Promise<boolean> {
+        for (const p of this.chain) {
+            if (await p.isAvailable()) return true;
+        }
+        return false;
+    }
+
+    async chat(messages: ChatMessage[], options?: ChatOptions): Promise<ChatResponse> {
+        const errors: string[] = [];
+        for (const p of this.chain) {
+            try {
+                return await p.chat(messages, options);
+            } catch (err: any) {
+                errors.push(`${p.name}: ${err?.message ?? String(err)}`);
+                console.warn(`[FallbackProvider] ${p.name} failed, trying next:`, err?.message);
+            }
+        }
+        throw new Error(`All providers failed: ${errors.join(' | ')}`);
+    }
+
+    async *streamChat(messages: ChatMessage[], options?: ChatOptions): AsyncGenerator<string> {
+        for (const p of this.chain) {
+            if (typeof p.streamChat !== 'function') continue;
+            try {
+                yield* p.streamChat(messages, options);
+                return;
+            } catch (err: any) {
+                console.warn(`[FallbackProvider] ${p.name} stream failed, trying next:`, err?.message);
+            }
+        }
+        throw new Error('All streaming providers failed');
+    }
+}
+
+export type ProviderType = 'openrouter' | 'groq' | 'local-llama' | 'auto' | 'fallback';
 
 /**
  * Cria um provider de LLM baseado no tipo ou detecta automaticamente
@@ -236,6 +285,14 @@ export function createLLMProvider(type: ProviderType = 'auto'): LLMProvider {
         if (process.env.LOCAL_LLAMA_URL) return new LocalLlamaProvider();
         // Fallback to OpenRouter (may fail if no key)
         return new OpenRouterProvider();
+    }
+
+    // INTELINK-008: production default for delegacias com internet ruim
+    if (type === 'fallback') {
+        const fallbacks: LLMProvider[] = [];
+        if (process.env.GROQ_API_KEY) fallbacks.push(new GroqProvider());
+        if (process.env.LOCAL_LLAMA_URL) fallbacks.push(new LocalLlamaProvider());
+        return new FallbackProvider(new OpenRouterProvider(), fallbacks);
     }
 
     switch (type) {
