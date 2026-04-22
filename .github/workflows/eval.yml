@@ -1,0 +1,97 @@
+name: Golden Eval
+
+on:
+  pull_request:
+    paths:
+      - 'app/api/chat/**'
+      - 'lib/prompts/**'
+      - 'lib/tools/**'
+      - 'lib/intelink/chat-slash-commands.ts'
+      - 'lib/rag/**'
+      - 'tests/eval/**'
+      - 'app/api/internal/discover/route.ts'
+  schedule:
+    # Daily at 07:00 BRT (10:00 UTC) — catches drift from model updates
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Target BASE_URL (default VPS staging)'
+        required: false
+        default: 'http://127.0.0.1:3009'
+      min_pass_rate:
+        description: 'Minimum block-severity pass rate'
+        required: false
+        default: '85'
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE_URL: ${{ github.event.inputs.base_url || secrets.EVAL_BASE_URL }}
+      JWT_SECRET: ${{ secrets.EVAL_JWT_SECRET }}
+      EVAL_INVESTIGATION_ID: ${{ secrets.EVAL_INVESTIGATION_ID }}
+      EVAL_MIN_PASS_RATE: ${{ github.event.inputs.min_pass_rate || '85' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: Wait for target /api/health
+        run: |
+          for i in $(seq 1 20); do
+            if curl -sf "$BASE_URL/api/health" > /dev/null; then
+              echo "Target reachable"
+              exit 0
+            fi
+            echo "Waiting for $BASE_URL... ($i/20)"
+            sleep 3
+          done
+          echo "Target unreachable after 60s" >&2
+          exit 1
+
+      - name: Run golden eval
+        run: bun run eval:ci
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report-${{ github.run_id }}
+          path: tests/eval/reports/
+          retention-days: 30
+
+      - name: Comment on PR with summary
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'tests/eval/reports/latest.json';
+            if (!fs.existsSync(path)) return;
+            const report = JSON.parse(fs.readFileSync(path, 'utf8'));
+            const rows = Object.entries(report.byCategory)
+              .map(([cat, b]) => `| ${cat} | ${b.passed}/${b.total} | ${b.rate}% |`)
+              .join('\n');
+            const body = [
+              `## Golden Eval - ${report.passed}/${report.totalCases} (${report.passRate}%)`,
+              '',
+              '| Category | Passed | Rate |',
+              '|----------|--------|------|',
+              rows,
+              '',
+              `- Block-severity fails: ${report.failed}`,
+              `- Warnings: ${report.warned}`,
+              `- Avg latency: ${report.avgDurationMs}ms`,
+            ].join('\n');
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });

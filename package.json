@@ -9,7 +9,12 @@
     "start": "next start -p 3001",
     "lint": "next lint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "eval": "bun tests/eval/runner.ts",
+    "eval:slash": "EVAL_ONLY_CATEGORY=slash-commands bun tests/eval/runner.ts",
+    "eval:safety": "EVAL_ONLY_CATEGORY=safety-pii bun tests/eval/runner.ts",
+    "eval:ci": "EVAL_REPORT_JSON=tests/eval/reports/latest.json bun tests/eval/runner.ts"
   },
   "sacredCode": "000.111.369.963.1618",
   "dependencies": {

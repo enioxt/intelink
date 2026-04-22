@@ -23,10 +23,24 @@ function isPublic(pathname: string): boolean {
     return PUBLIC_PATHS.some(p => pathname.startsWith(p));
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function hasAuth(request: NextRequest): boolean {
-    // Accept either intelink JWT cookie or active Supabase session cookie
+    // Accept intelink JWT cookie
     const intelinkToken = request.cookies.get('intelink_access');
     if (intelinkToken?.value) return true;
+
+    // Accept intelink_member_id cookie (UUID; route handler validates against DB)
+    const memberIdCookie = request.cookies.get('intelink_member_id')?.value;
+    if (memberIdCookie && UUID_RE.test(memberIdCookie)) return true;
+
+    // Accept intelink_session cookie (route handler validates against intelink_sessions table)
+    const sessionCookie = request.cookies.get('intelink_session')?.value;
+    if (sessionCookie) return true;
+
+    // Accept Authorization: Bearer for API clients (route handler validates token)
+    const authHeader = request.headers.get('Authorization') ?? request.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) return true;
 
     // Supabase sets sb-<project>-auth-token
     const sbCookie = [...request.cookies.getAll()].find(c =>

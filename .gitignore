@@ -8,3 +8,6 @@ node_modules/
 dist/
 coverage/
 .egos
+
+# Eval runtime reports (uploaded as CI artifacts, may contain test PII fixtures)
+tests/eval/reports/*.json
