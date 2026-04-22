@@ -16,7 +16,7 @@ const PUBLIC_PATHS = [
     '/icons/',         // PWA icons
     '/public',
     '/api/health',          // healthcheck must be public
-    '/api/_internal',       // gateway discovery — no auth (only slug+capabilities, no data)
+    '/api/internal',        // gateway discovery — no auth. NOTE: `_internal` = Next.js private folder (not routed), so path is `/api/internal`.
 ];
 
 function isPublic(pathname: string): boolean {

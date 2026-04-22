@@ -1,0 +1,28 @@
+services:
+  intelink-web:
+    container_name: intelink-web
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3009:3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      NEXT_TELEMETRY_DISABLED: "1"
+    networks:
+      - infra_bracc
+    healthcheck:
+      test: ["CMD-SHELL", "node -e 'require(\"http\").get(\"http://localhost:3000/login\", r => process.exit(r.statusCode === 200 ? 0 : 1)).on(\"error\", () => process.exit(0))'"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+networks:
+  infra_bracc:
+    external: true

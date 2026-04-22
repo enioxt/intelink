@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 // CHATBOT-EVO-INTELINK-007 — GATEWAY_REGISTRY discovery contract
 // Gateway at chatbot.egos.ia.br calls this to register intelink in routing table.
-// Response shape mirrors 852's /api/_internal/discover.
+// Path is /api/internal/discover (not /api/_internal — Next.js excludes _-prefixed folders from routing).
 
 export const MANIFEST = {
   name: 'INTELINK — Assistente de Inteligência Policial',
