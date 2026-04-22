@@ -34,6 +34,7 @@ import { getPromptConfig } from '@/lib/prompts/registry';
 import { INTELINK_TOOLS, executeToolCall } from '@/lib/tools/intelink-tools';
 import { getMemoryContext, extractAndSaveFacts } from '@/lib/memory/chat-memory';
 import { logToolCall } from '@/lib/intelligence/provenance';
+import { parseSlashCommand, helpMessage } from '@/lib/intelink/chat-slash-commands';
 import { buildConversationMemoryBlock, buildConversationTranscript, createAtrianValidator, getPIISummary, sanitizeText, scanForPII, shouldSummarizeConversation } from '@/lib/shared';
 
 const chatPromptConfig = getPromptConfig('chat.main');
@@ -99,6 +100,40 @@ async function handlePost(req: NextRequest, auth: AuthContext): Promise<NextResp
 
         if (!messages || !Array.isArray(messages)) {
             return NextResponse.json({ error: 'Messages required' }, { status: 400 });
+        }
+
+        // INTELINK-004: slash command short-circuit (server-side, works for web + Telegram)
+        const lastMessageText = messages[messages.length - 1]?.content;
+        const slash = parseSlashCommand(lastMessageText);
+        if (slash.kind === 'help') {
+            return NextResponse.json({ response: helpMessage(), mode, sessionId });
+        }
+        if (slash.kind === 'unlink') {
+            return NextResponse.json({
+                response: 'Conversa desvinculada. Próximas mensagens não terão contexto de investigação.',
+                linkedInvestigationId: null,
+                mode,
+                sessionId,
+            });
+        }
+        if (slash.kind === 'link') {
+            const { guardInvestigation } = await import('@/lib/tenant-guard');
+            const denied = await guardInvestigation(auth, slash.investigationId);
+            if (denied) return denied;
+            const { data: inv } = await getSupabaseAdmin()
+                .from('intelink_investigations')
+                .select('id, title')
+                .eq('id', slash.investigationId)
+                .single();
+            if (!inv) {
+                return NextResponse.json({ response: `Investigação ${slash.investigationId} não encontrada.`, mode, sessionId });
+            }
+            return NextResponse.json({
+                response: `Conversa vinculada a "${(inv as { title: string }).title}". Próximas perguntas terão acesso aos dados deste caso.`,
+                linkedInvestigationId: (inv as { id: string }).id,
+                mode,
+                sessionId,
+            });
         }
 
         if (!(await openRouterProvider.isAvailable())) {

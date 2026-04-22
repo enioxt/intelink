@@ -26,6 +26,7 @@ export const MANIFEST = {
     'pii-masking',
     'atrian-validation',
     'provenance',  // INTELINK-003: hash-chained tool-call audit via intelink_audit_logs
+    'slash-commands',  // INTELINK-004: /link /unlink /help server-side
   ],
   use_case: 'police-intelligence',
   status: 'active',
