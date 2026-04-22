@@ -82,10 +82,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // AUTH-013c: generate magic link to create session
+    // INTELINK-AUTH-015 (2026-04-22): redirect MUST go through /auth/callback so the browser-side
+    // Supabase client can consume the URL fragment and persist the session (storageKey=intelink-auth-token).
+    // Landing at '/' directly leaks #access_token to egos.ia.br if Supabase Site URL isn't intelink.ia.br.
     const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
         type: 'magiclink',
         email: member.email,
-        options: { redirectTo: `${APP_URL}/` },
+        options: { redirectTo: `${APP_URL}/auth/callback?returnUrl=%2F` },
     });
 
     if (linkErr || !linkData?.properties?.action_link) {

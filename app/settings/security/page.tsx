@@ -26,16 +26,34 @@ export default function SecuritySettingsPage() {
     const [hasMFA, setHasMFA]       = useState(false);
     const [enrolling, setEnrolling] = useState(false);
     const [verifying, setVerifying] = useState(false);
+    const [hasSupabaseSession, setHasSupabaseSession] = useState(false);
+    const [sessionEmail, setSessionEmail] = useState('');
 
     useEffect(() => {
         const checkMFA = async () => {
             try {
                 const supabase = getSupabaseClient();
                 if (!supabase) return;
+
+                // INTELINK-AUTH-015 (2026-04-22): Supabase MFA requires a Supabase session with sub claim.
+                // If user authenticated only via Telegram magic link flow that failed (pre-fix), there's
+                // no Supabase session here → listFactors returns 403 "missing sub claim".
+                // Surface that clearly instead of a silent error.
+                const { data: sessionData } = await supabase.auth.getSession();
+                const session = sessionData?.session;
+                if (!session?.user?.id) {
+                    setHasSupabaseSession(false);
+                    return;
+                }
+                setHasSupabaseSession(true);
+                setSessionEmail(session.user.email ?? '');
+
                 const { data } = await supabase.auth.mfa.listFactors();
                 const active = data?.totp?.filter(f => f.status === 'verified') ?? [];
                 setHasMFA(active.length > 0);
-            } catch { /* non-fatal */ }
+            } catch (e) {
+                console.warn('[settings/security] checkMFA error (non-fatal):', e);
+            }
             finally { setLoading(false); }
         };
         checkMFA();
@@ -144,16 +162,38 @@ export default function SecuritySettingsPage() {
                     </div>
                 )}
 
-                {/* Step: idle */}
-                {step === 'idle' && !hasMFA && (
-                    <button
-                        onClick={handleEnroll}
-                        disabled={enrolling}
-                        className="w-full flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                        {enrolling ? <Loader2 className="animate-spin" size={18} /> : <QrCode size={18} />}
-                        {enrolling ? 'Gerando QR Code...' : 'Ativar autenticação em 2 etapas'}
-                    </button>
+                {/* No Supabase session (logged in via Telegram/custom auth only) */}
+                {!hasSupabaseSession && step === 'idle' && (
+                    <div className="rounded-xl border border-amber-700 bg-amber-900/20 p-5 text-sm">
+                        <p className="font-semibold text-amber-300 mb-2">Sessão Supabase necessária para MFA</p>
+                        <p className="text-slate-300 mb-3">
+                            A autenticação em 2 etapas (TOTP) usa o serviço Supabase e precisa de uma sessão ativa.
+                            Você entrou via Telegram — faça login também com seu email para ativar o MFA.
+                        </p>
+                        <a
+                            href="/login?mode=email&returnUrl=%2Fsettings%2Fsecurity"
+                            className="inline-flex items-center gap-2 bg-amber-700 hover:bg-amber-600 text-white font-medium py-2 px-4 rounded-lg"
+                        >
+                            Fazer login por email
+                        </a>
+                    </div>
+                )}
+
+                {/* Step: idle (with valid Supabase session) */}
+                {hasSupabaseSession && step === 'idle' && !hasMFA && (
+                    <>
+                        {sessionEmail && (
+                            <p className="text-xs text-slate-500 mb-2">Sessão: {sessionEmail}</p>
+                        )}
+                        <button
+                            onClick={handleEnroll}
+                            disabled={enrolling}
+                            className="w-full flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                            {enrolling ? <Loader2 className="animate-spin" size={18} /> : <QrCode size={18} />}
+                            {enrolling ? 'Gerando QR Code...' : 'Ativar autenticação em 2 etapas'}
+                        </button>
+                    </>
                 )}
 
                 {/* Step: show QR */}
