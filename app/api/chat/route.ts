@@ -485,15 +485,18 @@ async function handlePost(req: NextRequest, auth: AuthContext): Promise<NextResp
                 .catch(err => console.error('[Intelink Chat] Memory extraction error:', err));
         }
 
-        return NextResponse.json({ 
-            response,
+        // INTELINK-014: return sanitized response when PII is detected (don't leak CPF/RG/etc. back).
+        // Original `response` stays in audit trail (intelink_audit_logs) via provenance chain.
+        const clientResponse = responsePIIFindings.length > 0 ? sanitizedResponseForMemory : response;
+        return NextResponse.json({
+            response: clientResponse,
             usage: completion.usage,
             mode,
             contextSize: enhancedContext.length,
             sessionId: savedSessionId,
             compliance: {
                 atrian: { passed: responseAtrian.passed, score: responseAtrian.score, violations: responseAtrian.violations.length },
-                pii: { findings: responsePIIFindings.length, summary: getPIISummary(responsePIIFindings) }
+                pii: { findings: responsePIIFindings.length, summary: getPIISummary(responsePIIFindings), masked: responsePIIFindings.length > 0 }
             }
         });
 
