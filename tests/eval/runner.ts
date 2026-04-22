@@ -127,7 +127,8 @@ async function main() {
     renderReport(report);
 
     if (REPORT_JSON) {
-        await Bun.write(REPORT_JSON, JSON.stringify(report, null, 2));
+        const fs = await import('node:fs/promises');
+        await fs.writeFile(REPORT_JSON, JSON.stringify(report, null, 2));
         console.log(`📄 Report written to ${REPORT_JSON}`);
     }
 

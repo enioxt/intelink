@@ -96,7 +96,7 @@ export function createJudge(config: JudgeConfig = {}) {
         const json = await res.json() as any;
         const content = json.choices?.[0]?.message?.content ?? '';
         try {
-            const jsonMatch = content.match(/\{[^}]*"score"[^}]*\}/s);
+            const jsonMatch = content.match(/\{[\s\S]*?"score"[\s\S]*?\}/);
             const parsed = JSON.parse(jsonMatch?.[0] ?? content) as JudgeResponse;
             const score = typeof parsed.score === 'number' ? Math.max(0, Math.min(1, parsed.score)) : 0;
             return { score, reason: parsed.reason ?? '' };
