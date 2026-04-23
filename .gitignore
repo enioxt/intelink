@@ -11,3 +11,4 @@ coverage/
 
 # Eval runtime reports (uploaded as CI artifacts, may contain test PII fixtures)
 tests/eval/reports/*.json
+2026-05-23
