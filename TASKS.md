@@ -219,12 +219,12 @@
 
 ### I3 — Verificação tri-canal
 
-- [ ] `AUTH-PUB-005` `POST /api/auth/verify/request` — OTP 6 dígitos, hash bcrypt, TTL 10min, dispara envio
-- [ ] `AUTH-PUB-006` Email OTP via Resend (já em deps) — template PT-BR
-- [ ] `AUTH-PUB-007` Telegram OTP via bot `sendMessage` — requer chat_id pré-linkado OU fluxo `/start verify-<token>`
+- [x] `AUTH-PUB-005` `POST /api/auth/verify/request` — OTP 6 dígitos, hash bcrypt (rounds=10), TTL 10min + `lib/auth/verification.ts` orquestrador (2026-04-23)
+- [x] `AUTH-PUB-006` Email OTP via `lib/email.ts` (Resend) — reaproveita `sendCodeEmail` (2026-04-23)
+- [x] `AUTH-PUB-007` Telegram OTP via `sendMessage` — exige `telegram_chat_id` pré-linkado (2026-04-23)
 - [ ] `AUTH-PUB-008` WhatsApp OTP — **DEFERRED** para F1-extra (Meta WABA requer CNPJ). Lançar com email+telegram
-- [ ] `AUTH-PUB-009` Página `/auth/verify` — input 6 dígitos + resend timer 60s
-- [ ] `AUTH-PUB-010` `POST /api/auth/verify/confirm` — valida OTP, seta `verified_at`, invalida token
+- [x] `AUTH-PUB-009` Página `/auth/verify` — choose channel + input 6 dígitos + resend timer 60s (2026-04-23)
+- [x] `AUTH-PUB-010` `POST /api/auth/verify/confirm` — valida OTP + MAX_ATTEMPTS=5, seta `verified_at` para signup (2026-04-23)
 - [ ] `AUTH-PUB-011` `middleware.ts`: bloquear rotas protegidas se `verified_at IS NULL` → redirect `/auth/verify`
 
 ### I4 — Recovery tri-canal
