@@ -197,7 +197,185 @@
 
 ---
 
-*Atualizado: 2026-04-18 (sessão 5c — Deploy VPS OK, webhook 200, DATA-003h smoke test ✅)*
+*Atualizado: 2026-04-23 (sessão: plano divulgação pública + auth bulletproof)*
+
+---
+
+## P0 — Fase I: AUTH Bulletproof (Pré-Divulgação) — 2026-04-23+
+
+> Objetivo: signup + verificação obrigatória (email/telegram/whatsapp) + recovery tri-canal.
+> Blocker de divulgação pública. Gate de saída: conta não-verificada não acessa nada.
+
+### I1 — Schema + estado
+
+- [ ] `AUTH-PUB-001` Migration: adicionar `verified_at`, `verification_channel`, `verification_token` (hash bcrypt), `verification_expires_at`, `verification_attempts` em `intelink_unit_members`
+- [ ] `AUTH-PUB-001b` Default `verified_at=now()` para rows existentes na migration (não bloquear membros atuais)
+
+### I2 — Signup
+
+- [ ] `AUTH-PUB-002` Página `/signup` — form email + nome + telefone opcional + chat_id opcional
+- [ ] `AUTH-PUB-003` `POST /api/auth/signup` — cria membro `verified_at=NULL` + rate limit 3/hora/IP
+- [ ] `AUTH-PUB-004` Validação unicidade: email, telefone, chat_id
+
+### I3 — Verificação tri-canal
+
+- [ ] `AUTH-PUB-005` `POST /api/auth/verify/request` — OTP 6 dígitos, hash bcrypt, TTL 10min, dispara envio
+- [ ] `AUTH-PUB-006` Email OTP via Resend (já em deps) — template PT-BR
+- [ ] `AUTH-PUB-007` Telegram OTP via bot `sendMessage` — requer chat_id pré-linkado OU fluxo `/start verify-<token>`
+- [ ] `AUTH-PUB-008` WhatsApp OTP — **DEFERRED** para F1-extra (Meta WABA requer CNPJ). Lançar com email+telegram
+- [ ] `AUTH-PUB-009` Página `/auth/verify` — input 6 dígitos + resend timer 60s
+- [ ] `AUTH-PUB-010` `POST /api/auth/verify/confirm` — valida OTP, seta `verified_at`, invalida token
+- [ ] `AUTH-PUB-011` `middleware.ts`: bloquear rotas protegidas se `verified_at IS NULL` → redirect `/auth/verify`
+
+### I4 — Recovery tri-canal
+
+- [ ] `AUTH-PUB-012` `POST /api/auth/recover/request` — mesmo fluxo verify + finalidade `password_reset`
+- [ ] `AUTH-PUB-013` Página `/recover` — escolhe canal + identifier → OTP → nova senha
+- [ ] `AUTH-PUB-014` `POST /api/auth/recover/confirm` — valida OTP + redefine senha via Supabase admin API
+
+### I5 — Hardening + eval
+
+- [ ] `AUTH-PUB-015` Rate limit `/verify/request` e `/recover/request`: 5/hora/email, 10/hora/IP
+- [ ] `AUTH-PUB-016` Audit log em `intelink_audit_logs` — signup, verify_request, verify_confirm, login, recover_*
+- [ ] `AUTH-PUB-017` Golden eval cases: signup+verify email, signup+verify telegram, recovery, unverified_blocked, OTP_expired, OTP_wrong, rate_limit
+- [ ] `AUTH-PUB-018` `/auth/verify` polling leve 5s — auto-redirect se verificado em outra aba
+- [ ] `AUTH-PUB-019` Decidir: remover GitHub OAuth ou manter só admin?
+
+---
+
+## P0 — Fase J: UI Cleanup (www.intelink.ia.br) — 2026-04-23+
+
+- [ ] `UI-AUDIT-001` Mapa rotas `app/**/page.tsx` — classificar keep/remove/polish
+- [ ] `UI-AUDIT-002` Para cada rota keep: bugs, loading/empty/error states
+- [ ] `UI-CLEAN-001` Remover rotas `remove` (confirmar antes de deletar)
+- [ ] `UI-CLEAN-002` Remover componentes órfãos (grep imports)
+- [ ] `UI-CLEAN-003` Purgar mocks/fixtures de produção
+- [ ] `UI-POLISH-001` Loading skeletons nas telas principais
+- [ ] `UI-POLISH-002` Empty states com CTA
+- [ ] `UI-POLISH-003` Error boundaries por route group
+- [ ] `UI-POLISH-004` Nav consistente desktop+mobile, esconder por role
+- [ ] `UI-POLISH-005` Landing `/` pública (hero + features + CTA)
+- [ ] `UI-E2E-001` Playwright 5 fluxos (signup→verify→dash, login→busca, recovery, logout, settings)
+
+---
+
+## P0 — Fase K: Docs Sync para Divulgação — 2026-04-23+
+
+### K1 — Doc sync técnico
+
+- [ ] `DOC-PUB-001` Reescrever `README.md` — O que é / Quem usa / O que faz / Stack / Quickstart / Deploy
+- [ ] `DOC-PUB-002` `docs/FEATURES.md` — catálogo completo com status live/beta/planned
+- [ ] `DOC-PUB-003` Auditar `docs/CAPABILITIES_STATUS.md` vs código — marcar phantoms / atualizar VERIFIED_AT
+- [ ] `DOC-PUB-004` `docs/AUTH.md` — fluxos signup/verify/login/recovery com screenshots
+- [ ] `DOC-PUB-005` `docs/SLASH_COMMANDS.md` + `docs/PROVENANCE.md` + `docs/STREAMING.md`
+- [ ] `DOC-PUB-006` Auditar `API_REFERENCE.md`, `BOT_ARCHITECTURE.md`, `ETL_GUIDE.md`, `VPS_ARCHITECTURE.md` — drift fix
+
+### K2 — Doc público não-técnico
+
+- [ ] `DOC-PUB-007` `docs/PUBLIC_OVERVIEW.md` — pitch em linguagem simples
+- [ ] `DOC-PUB-008` `docs/USE_CASES.md` — 3 casos reais sem PII
+- [ ] `DOC-PUB-009` `docs/LGPD_COMPLIANCE.md` — PII masking, ATRiAN, audit, RBAC, retenção
+
+### K3 — Cross-refs e governança
+
+- [ ] `DOC-PUB-010` `egos/docs/CROSS_REPO_CONTEXT_ROUTER.md` entry intelink
+- [ ] `DOC-PUB-011` `docs/CHATBOT_EVAL.md` (obrigatório R7)
+- [ ] `DOC-PUB-012` Validar R7 + INC-008 em `AGENTS.md`
+- [ ] `DOC-PUB-013` Append `docs/MIGRATION_HISTORY.md` — entrada 2026-04-23
+
+---
+
+## P0 — Fase L: Data Safety (contínuo) — 2026-04-23+
+
+- [ ] `DATA-SAFE-001` Backup cron diário: pg_dump Supabase + neo4j-admin dump → `/opt/backups/` (Hermes)
+- [ ] `DATA-SAFE-002` `scripts/pre-deploy-check.ts` — valida Neo4j+Supabase conectividade + row counts
+- [ ] `DATA-SAFE-003` Restauração testada dry-run em staging
+- [ ] `DATA-SAFE-004` Golden eval case: busca CPF real no intelink-neo4j, falha se vazio
+
+---
+
+## P0 — Automações críticas para lançamento
+
+- [ ] `AUTO-INT-002` Pre-commit `pii-mask-path-check.ts` — bloqueia commits tocando stream sem mask (2h)
+- [ ] `AUTO-INT-006` Hermes cron nightly eval regression monitor — GitHub issue se drift >5% (4h)
+- [ ] `AUTO-INT-001` Pre-commit `claim-evidence-gate.ts` — docs CLAIM:<id> exige manifest+test (1d)
+
+---
+
+## P1 — Fase M: Lançamento — Semana 4
+
+- [ ] `LAUNCH-001` Smoke E2E prod: 3 contas fake (email/telegram/whatsapp-se-pronto), cada verify→login→3 features→recovery
+- [ ] `LAUNCH-002` Monitoring ativo: Langfuse/telemetry, dashboard ops, alertas SLO
+- [ ] `LAUNCH-003` Página `/status` pública (up/down por componente)
+- [ ] `LAUNCH-004` Artigo lançamento (integrar article-writer pipeline)
+- [ ] `LAUNCH-005` Thread X.com lançamento
+- [ ] `LAUNCH-006` Vídeo demo 2min
+
+---
+
+## P1 — Automações pós-lançamento
+
+- [ ] `AUTO-INT-003` Post-commit `tasks-md-auto-tick.ts` — novo commit `chore(tasks):` (não amend)
+- [ ] `AUTO-INT-004` Pre-commit `features-md-check.ts` + AI subagent doc-gen
+- [ ] `AUTO-INT-005` Pre-commit cross-ref checker scoped intelink
+- [ ] `AUTO-INT-007` Hermes red team cron (dep. EVAL-B3)
+- [ ] `AUTO-INT-008` `eval-flywheel.ts` — red team fail → golden PR auto
+- [ ] `AUTO-INT-009` Langfuse dedicado intelink + instrumentação route.ts
+- [ ] `AUTO-INT-010` Codex Review routing para safety-critical paths
+
+---
+
+## P2 — Bloco Eval continuação
+
+- [x] `EVAL-A1..A4` `@egos/eval-runner` package + golden dataset 50 casos + CI gate + judge-LLM (2026-04-22)
+- [x] `EVAL-A6` Trajectory exposure em response JSON (2026-04-22)
+- [x] `EVAL-B1` Promptfoo YAML scaffold (2026-04-22)
+- [x] `EVAL-B2` Judge-LLM em REFUSE-005 e ATRIAN-004 (2026-04-22)
+- [ ] `EVAL-A5` Migrar asserts rígidos → judge-LLM (5 casos, 3h)
+- [ ] `EVAL-A7` Golden cases cobrindo streaming path (depende AUTO-INT-002)
+- [ ] `EVAL-B3` Red team cron + `tests/eval/redteam.yaml` (4h)
+- [ ] `EVAL-B4` Flywheel promoter (parte de AUTO-INT-008)
+- [ ] `EVAL-F1` Playwright 5 user flows (1d)
+- [ ] `EVAL-F2` Playwright CI gate (4h)
+- [ ] `EVAL-D1` RAGAS Python script — faithfulness + context_relevance (1d)
+- [ ] `EVAL-D2` RAGAS hook no runner (4h)
+
+---
+
+## P2 — Refactor dívida técnica
+
+- [x] `INTELINK-002` SSE streaming opt-in (2026-04-22)
+- [x] `INTELINK-003` Provenance hash-chained (2026-04-22)
+- [x] `INTELINK-004` Slash commands /link /unlink /help (2026-04-22)
+- [x] `INTELINK-008` FallbackProvider (2026-04-22)
+- [x] `INTELINK-010` Tests coverage provenance/tools/legal/risk (2026-04-22)
+- [x] `INTELINK-011` Chat history tables migration (2026-04-22)
+- [x] `INTELINK-012` Audit.ts schema fix resource_* → target_* (2026-04-22)
+- [x] `INTELINK-014` PII stub bug fixed (wired real scanner) (2026-04-22)
+- [x] `INTELINK-AUTH-015` Telegram redirect + MFA session guard (2026-04-22)
+- [ ] `INTELINK-013` `app/api/chat/route.ts` usar `FallbackProvider` (4h)
+- [ ] `INTELINK-014b` Stream PII masking (depende AUTO-INT-002 + EVAL-A7, 2h)
+- [ ] `INTELINK-015` Extrair tool orchestration → `lib/intelink/tool-orchestrator.ts` (4h)
+
+---
+
+## P2 — Frontend adoption
+
+- [ ] `INT-FE-001` ChatContext consome `trajectory[]` — passos colapsáveis (4h)
+- [ ] `INT-FE-002` Cliente SSE `useStream:true` + UI incremental (6h)
+- [ ] `INT-FE-003` Header mostra `linkedInvestigationId` vinculado (2h)
+- [ ] `INT-FE-004` Autocomplete visual slash commands (4h)
+- [ ] `INT-FE-005` Tela `/settings/provenance` — hash-chain consulta + export CSV (3d)
+
+---
+
+## P3 — Longo prazo
+
+- [ ] `EVAL-X3` Publicar `@egosbr/eval-runner` npm (4h)
+- [ ] `EVAL-X4` Remover shims compat `852/src/eval/` após migração
+- [ ] `EVAL-X5` Documentar protocolo vendoring em `egos/docs/modules/CHATBOT_SSOT.md §18`
+- [ ] `GEM-HUNTER-001` Gem-hunter chatbot conversacional `@egos/agent-runtime` (1 semana)
+- [ ] `INTELINK-MT-001` Multi-tenant (Opção A) — quando 3ª delegacia confirmada (2 semanas)
 
 ---
 
