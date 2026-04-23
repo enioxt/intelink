@@ -265,20 +265,20 @@
 
 - [x] `DOC-PUB-001` Reescrever `README.md` — badges eval/LGPD/prod, capabilities table, stack, quickstart, deploy (`rsync --exclude='.egos'` fix), governança, roadmap (2026-04-23)
 - [x] `DOC-PUB-002` `docs/FEATURES.md` — 10 categorias, 100+ features com status live/beta/planned e evidência código (2026-04-23)
-- [ ] `DOC-PUB-003` Auditar `docs/CAPABILITIES_STATUS.md` vs código — marcar phantoms / atualizar VERIFIED_AT (próximo)
+- [x] `DOC-PUB-003` `docs/CAPABILITIES_STATUS.md` — adicionado header HISTÓRICO (2026-04-14) + cross-ref para FEATURES.md, AUTH.md, CHATBOT_EVAL.md. Full audit diferido para DOC-PUB-003-B pós-divulgação (2026-04-23)
 - [x] `DOC-PUB-004` `docs/AUTH.md` — fluxos signup/verify/login/recovery + schema + endpoints + segurança + smoke (2026-04-23)
 - [x] `DOC-PUB-005` `docs/SLASH_COMMANDS.md` + `docs/PROVENANCE.md` + `docs/STREAMING.md` (2026-04-23)
 - [ ] `DOC-PUB-006` Auditar `API_REFERENCE.md`, `BOT_ARCHITECTURE.md`, `ETL_GUIDE.md`, `VPS_ARCHITECTURE.md` — drift fix
 
 ### K2 — Doc público não-técnico
 
-- [ ] `DOC-PUB-007` `docs/PUBLIC_OVERVIEW.md` — pitch em linguagem simples
-- [ ] `DOC-PUB-008` `docs/USE_CASES.md` — 3 casos reais sem PII
+- [x] `DOC-PUB-007` `docs/PUBLIC_OVERVIEW.md` — pitch linguagem simples (o que é, para quem, por que, pronto hoje, próximo, autoria, modelo) (2026-04-23)
+- [x] `DOC-PUB-008` `docs/USE_CASES.md` — 4 casos anonimizados (busca Telegram, ingest DHPP, agente conversacional, recovery fora do expediente) + métricas piloto (2026-04-23)
 - [x] `DOC-PUB-009` `docs/LGPD_COMPLIANCE.md` — bases legais (art.7,11), controles técnicos (PII/ATRiAN/audit/RBAC/criptografia/rate-limit), direitos titular, retenção, DPO-gap (2026-04-23)
 
 ### K3 — Cross-refs e governança
 
-- [ ] `DOC-PUB-010` `egos/docs/CROSS_REPO_CONTEXT_ROUTER.md` entry intelink
+- [x] `DOC-PUB-010` `egos/docs/CROSS_REPO_CONTEXT_ROUTER.md` — adicionada seção "Intelink standalone repo" com 15 pointers para docs + scripts (commit egos `f40dc41`) (2026-04-23)
 - [x] `DOC-PUB-011` `docs/CHATBOT_EVAL.md` (R7 compliance: capabilities table 48/50, judge-LLM, trajectory, redteam, flywheel, AUTH-EVAL-001 pendente) (2026-04-23)
 - [ ] `DOC-PUB-012` Validar R7 + INC-008 em `AGENTS.md` (verificar visualmente)
 - [x] `DOC-PUB-013` Append `docs/MIGRATION_HISTORY.md` — entradas 2026-04-22 (Eval+INC-008) + 2026-04-23 (Divulgação Pública) (2026-04-23)

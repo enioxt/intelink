@@ -1,6 +1,19 @@
 # Status Real das Capacidades — Intelink
-> **SSOT:** `docs/CAPABILITIES_STATUS.md` | Updated: 2026-04-14
-> **Verificado no código-fonte** — não é documentação especulativa.
+
+> ⚠️ **DOCUMENTO HISTÓRICO (2026-04-14, pré-consolidação).**
+>
+> Este arquivo mistura referências a **dois codebases**: o Intelink TypeScript (este repo) e a API Python legacy que foi migrada para `/home/enio/egos-lab/apps/intelink-api/`.
+>
+> **Para capabilities atuais, use:**
+> - [FEATURES.md](FEATURES.md) — catálogo completo pós-consolidação (100+ features live)
+> - [AUTH.md](AUTH.md) — sistema de auth tri-canal (2026-04-23)
+> - [CHATBOT_EVAL.md](CHATBOT_EVAL.md) — eval coverage R7 (48/50 pass)
+>
+> Este arquivo permanece como referência histórica e será auditado em DOC-PUB-003-B (pós-divulgação).
+
+---
+
+> **SSOT histórico:** `docs/CAPABILITIES_STATUS.md` | Última verificação: 2026-04-14
 
 **Legenda:** ✅ Funcionando em produção | ⚠️ Código existe, sem teste formal | 🟡 Parcial | 🔴 Não existe / não funcional
 
