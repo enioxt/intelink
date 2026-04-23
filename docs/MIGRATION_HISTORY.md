@@ -114,3 +114,56 @@ ls /home/enio/policia/
 ---
 
 *Migração executada: 2026-04-18 | Claude Code + Enio Rocha*
+
+---
+
+## 2026-04-22 — Fase Eval + INC-008
+
+- **Golden eval harness canônico** extraído para `egos/packages/eval-runner/` (EVAL-A1) e vendorizado em `tests/eval/lib/`
+- **Dataset 50 casos** behavioral em `tests/eval/golden/intelink.ts` (EVAL-A2..A6)
+- **Promptfoo YAML layer** + judge-LLM (Haiku 4.5) — EVAL-B1/B2
+- **INC-008 fix crítico:** `lib/shared.ts` tinha stubs silenciosos (`return []`, `return text`) retornando no-op para `scanForPII` e `sanitizeText`. Wired para `lib/pii-scanner.ts`. 151 unit tests + typecheck + lint estavam verdes enquanto PII vazava. Postmortem: `/home/enio/egos/docs/INCIDENTS/INC-008-phantom-compliance-stubs.md`.
+- **R7 propagado** (kernel governance): capability declarada exige eval comportamental. Commit `45f12c8`.
+- **Auth fixes** INTELINK-AUTH-015: Telegram redirect para `/auth/callback` (não `#access_token` leak) + MFA session guard em `/settings/security`
+
+Commits chave: `b92e9d9` (eval-runner), `83608f3` (INC-008 fix), `0129362` (auth-015), `2b74c9f` (judge-LLM), `ec272d7` (TASKS v2.81.0).
+
+---
+
+## 2026-04-23 — Fase Divulgação Pública (em progresso)
+
+**AUTH Bulletproof (Fase I, AUTH-PUB-001..017):**
+- Schema: colunas `verified_at`, `verification_channel`, `verification_token_hash`, `verification_token_expires_at`, `verification_attempts` em `intelink_unit_members` (migration `20260423000000_auth_verification.sql`)
+- Backfill: 13/13 membros ativos grandfathered como verified
+- Novo fluxo: signup self-service (`/signup`) → verify tri-canal (`/auth/verify`) → login (Supabase) → recover (`/recover`)
+- Canais: email (Resend) + Telegram (bot sendMessage). WhatsApp deferred (requer CNPJ)
+- Middleware gate: cookie `intelink_verified=1` (HttpOnly+Secure+SameSite=Strict, 30d). Sem cookie → redirect `/auth/verify`
+- OTP: 6 dígitos, bcrypt rounds=10, TTL 10min, MAX_ATTEMPTS=5
+- Rate limits: signup 3/h/IP, verify/request 5/h, verify/confirm 10/h, recover/reset 5/h
+- Audit hash-chained: 6 novas actions (`auth.signup`, `auth.verify_*`, `auth.login.bridge`, `auth.password_reset.*`)
+- Smoke E2E: `scripts/smoke-auth-flow.ts` — 10/11 pass against prod (duplicate blocked by rate limit)
+
+**Fix collateral:** Supabase trigger `init_user_ethik_points` removido — referenciava tabela `ethik_points` inexistente, bloqueava `auth.admin.createUser` com erro obscuro.
+
+**Docs pré-divulgação (Fase K, DOC-PUB-001..013, parcial):**
+- `README.md` reescrito (público)
+- `docs/FEATURES.md` — catálogo 100+ features live com evidência
+- `docs/AUTH.md` — fluxos + schema + endpoints + segurança
+- `docs/CHATBOT_EVAL.md` — R7 compliance (48/50 eval)
+- `docs/SLASH_COMMANDS.md`, `docs/PROVENANCE.md`, `docs/STREAMING.md`
+- `docs/LGPD_COMPLIANCE.md` — bases legais + controles técnicos + direitos do titular
+- `docs/_current_handoffs/ui-audit-2026-04-23.md` — 61 rotas classificadas (47 keep / 3 remove / 5 investigate)
+
+**VPS deploy fix:** `.egos` symlink excluído do rsync — estava criando symlink quebrado no container, quebrando build.
+
+**Próximo (blockers do lançamento):**
+- DATA-SAFE-001: backup cron diário Supabase + Neo4j
+- UI-CLEAN-001: deletar rotas órfãs (após aprovação)
+- UI-POLISH-001..005: loading/empty/error + landing `/` pública
+- LAUNCH-001..006: smoke prod + monitoring + artigo + thread
+
+Commits chave deste dia: `e49afe7` (AUTH-PUB-001), `2b8cd0c` (signup), `2073666` (verify), `935815e` (middleware+recovery), `cf7c1a9` (smoke+audit), `b0a8949` (docs wave 1).
+
+---
+
+*Última atualização: 2026-04-23 | Claude Code + Enio Rocha*
