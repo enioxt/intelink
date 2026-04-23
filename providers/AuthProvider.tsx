@@ -96,7 +96,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         refreshUser();
-        runBridgeIfNeeded();
+        // TEMP: disabled to debug 483 error in bridge
+        // runBridgeIfNeeded();
 
         // Listen for storage changes (cross-tab sync)
         const handleStorageChange = (e: StorageEvent) => {

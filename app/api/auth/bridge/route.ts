@@ -117,7 +117,10 @@ export async function POST(request: NextRequest) {
 
         return response;
     } catch (e) {
-        console.error('[Auth Bridge]', e);
+        console.error('[Auth Bridge] Exception:', {
+            error: e instanceof Error ? e.message : String(e),
+            stack: e instanceof Error ? e.stack : undefined,
+        });
         return NextResponse.json({ error: 'Bridge error' }, { status: 500 });
     }
 }
