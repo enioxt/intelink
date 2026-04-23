@@ -208,8 +208,8 @@
 
 ### I1 — Schema + estado
 
-- [ ] `AUTH-PUB-001` Migration: adicionar `verified_at`, `verification_channel`, `verification_token` (hash bcrypt), `verification_expires_at`, `verification_attempts` em `intelink_unit_members`
-- [ ] `AUTH-PUB-001b` Default `verified_at=now()` para rows existentes na migration (não bloquear membros atuais)
+- [x] `AUTH-PUB-001` Migration: adicionar `verified_at`, `verification_channel`, `verification_token_hash`, `verification_token_expires_at`, `verification_attempts` em `intelink_unit_members` (2026-04-23, 13/13 backfilled)
+- [x] `AUTH-PUB-001b` Default `verified_at=COALESCE(approved_at, created_at, now())` backfill para rows ativos (2026-04-23)
 
 ### I2 — Signup
 
