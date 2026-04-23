@@ -8,11 +8,31 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-const ALLOWED_ORIGINS = new Set([
-    process.env.NEXT_PUBLIC_APP_URL ?? '',
-    'http://localhost:3000',
-    'http://localhost:3001',
-]);
+// Canonical: apex (https://intelink.ia.br). www redirects to apex in prod,
+// but we accept both here so requests during the redirect hop don't 403.
+// NEXT_PUBLIC_APP_URL may be either form in different envs — accept both.
+function buildAllowedOrigins(): Set<string> {
+    const origins = new Set<string>([
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://localhost:3009',
+    ]);
+    const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (envUrl) {
+        origins.add(envUrl);
+        try {
+            const u = new URL(envUrl);
+            if (u.hostname.startsWith('www.')) {
+                origins.add(`${u.protocol}//${u.hostname.slice(4)}`);
+            } else {
+                origins.add(`${u.protocol}//www.${u.hostname}`);
+            }
+        } catch { /* invalid URL in env — ignore */ }
+    }
+    return origins;
+}
+
+const ALLOWED_ORIGINS = buildAllowedOrigins();
 
 /**
  * Returns a 403 NextResponse if the request Origin doesn't match the app,
