@@ -118,51 +118,61 @@ export function useRole(): UserPermissions {
                     return;
                 }
 
-                const { data: { session } } = await supabase.auth.getSession();
-                
-                if (!session) {
-                    // Also check legacy tokens for backward compatibility
-                    const memberId = localStorage.getItem('intelink_member_id');
-                    const accessToken = localStorage.getItem('intelink_access_token');
-                    
-                    if (memberId || accessToken) {
-                        const authValue = accessToken || memberId;
-                        const res = await fetch('/api/v2/auth/me', {
-                            headers: { 'Authorization': `Bearer ${authValue}` },
-                            credentials: 'include',
-                        });
-                        if (res.ok) {
-                            const data = await res.json();
-                            const systemRole = data.member?.systemRole || data.system_role || 'contributor';
-                            setRole(systemRole as SystemRole);
-                            setIsLoading(false);
-                            return;
-                        }
+                // R4: use /api/v2/auth/verify as the single source of truth.
+                // Old code queried 'intelink_members' (table doesn't exist) and
+                // read 'intelink_access_token' from localStorage (field doesn't
+                // exist — v2 uses the httpOnly cookie 'intelink_access').
+                const verifyRes = await fetch('/api/v2/auth/verify', {
+                    method: 'GET',
+                    credentials: 'include',
+                });
+
+                if (verifyRes.ok) {
+                    const data = await verifyRes.json();
+                    if (data.valid && data.member?.systemRole) {
+                        setRole(data.member.systemRole as SystemRole);
+                        setIsLoading(false);
+                        return;
                     }
-                    
-                    console.log('[useRole] No session, defaulting to public (full read access)');
+                }
+
+                // No valid v2 session — fall back to checking Supabase session
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session?.user?.email) {
                     setRole('public');
                     setIsLoading(false);
                     return;
                 }
 
-                // GitHub OAuth session exists — user is a contributor
-                console.log('[useRole] GitHub session found for:', session.user.email);
-                
-                // Check if user has admin role in our system
-                const { data: member } = await supabase
-                    .from('intelink_members')
-                    .select('system_role')
-                    .eq('github_id', session.user.user_metadata?.user_name || session.user.id)
-                    .single();
-                
-                if (member?.system_role === 'super_admin') {
-                    setRole('super_admin');
-                } else if (member?.system_role === 'admin') {
-                    setRole('admin');
-                } else {
-                    setRole('contributor');
-                }
+                // Supabase session exists but v2 not ready yet — trigger bridge
+                // and retry verify once.
+                try {
+                    const bridgeRes = await fetch('/api/auth/bridge', {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${session.access_token}`,
+                        },
+                        body: JSON.stringify({ email: session.user.email }),
+                    });
+                    if (bridgeRes.ok) {
+                        const retryRes = await fetch('/api/v2/auth/verify', {
+                            method: 'GET',
+                            credentials: 'include',
+                        });
+                        if (retryRes.ok) {
+                            const retryData = await retryRes.json();
+                            if (retryData.valid && retryData.member?.systemRole) {
+                                setRole(retryData.member.systemRole as SystemRole);
+                                setIsLoading(false);
+                                return;
+                            }
+                        }
+                    }
+                } catch { /* bridge failed — fall through to public */ }
+
+                setRole('public');
             } catch (e) {
                 console.error('[useRole] Error:', e);
                 setError('Error checking permissions');
