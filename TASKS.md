@@ -245,8 +245,8 @@
 
 ## P0 — Fase J: UI Cleanup (www.intelink.ia.br) — 2026-04-23+
 
-- [ ] `UI-AUDIT-001` Mapa rotas `app/**/page.tsx` — classificar keep/remove/polish
-- [ ] `UI-AUDIT-002` Para cada rota keep: bugs, loading/empty/error states
+- [x] `UI-AUDIT-001` Mapa 61 rotas `app/**/page.tsx` classificado em `docs/_current_handoffs/ui-audit-2026-04-23.md` — 47 KEEP, 3 REMOVE, 5 INVESTIGATE, 6 overlap-candidates (2026-04-23)
+- [ ] `UI-AUDIT-002` Para cada rota keep: bugs, loading/empty/error states (depende de aprovação UI-CLEAN-001)
 - [ ] `UI-CLEAN-001` Remover rotas `remove` (confirmar antes de deletar)
 - [ ] `UI-CLEAN-002` Remover componentes órfãos (grep imports)
 - [ ] `UI-CLEAN-003` Purgar mocks/fixtures de produção
@@ -263,11 +263,11 @@
 
 ### K1 — Doc sync técnico
 
-- [ ] `DOC-PUB-001` Reescrever `README.md` — O que é / Quem usa / O que faz / Stack / Quickstart / Deploy
-- [ ] `DOC-PUB-002` `docs/FEATURES.md` — catálogo completo com status live/beta/planned
-- [ ] `DOC-PUB-003` Auditar `docs/CAPABILITIES_STATUS.md` vs código — marcar phantoms / atualizar VERIFIED_AT
-- [ ] `DOC-PUB-004` `docs/AUTH.md` — fluxos signup/verify/login/recovery com screenshots
-- [ ] `DOC-PUB-005` `docs/SLASH_COMMANDS.md` + `docs/PROVENANCE.md` + `docs/STREAMING.md`
+- [x] `DOC-PUB-001` Reescrever `README.md` — badges eval/LGPD/prod, capabilities table, stack, quickstart, deploy (`rsync --exclude='.egos'` fix), governança, roadmap (2026-04-23)
+- [ ] `DOC-PUB-002` `docs/FEATURES.md` — catálogo completo com status live/beta/planned (próximo)
+- [ ] `DOC-PUB-003` Auditar `docs/CAPABILITIES_STATUS.md` vs código — marcar phantoms / atualizar VERIFIED_AT (próximo)
+- [x] `DOC-PUB-004` `docs/AUTH.md` — fluxos signup/verify/login/recovery + schema + endpoints + segurança + smoke (2026-04-23)
+- [ ] `DOC-PUB-005` `docs/SLASH_COMMANDS.md` + `docs/PROVENANCE.md` + `docs/STREAMING.md` (próximo)
 - [ ] `DOC-PUB-006` Auditar `API_REFERENCE.md`, `BOT_ARCHITECTURE.md`, `ETL_GUIDE.md`, `VPS_ARCHITECTURE.md` — drift fix
 
 ### K2 — Doc público não-técnico
@@ -279,8 +279,8 @@
 ### K3 — Cross-refs e governança
 
 - [ ] `DOC-PUB-010` `egos/docs/CROSS_REPO_CONTEXT_ROUTER.md` entry intelink
-- [ ] `DOC-PUB-011` `docs/CHATBOT_EVAL.md` (obrigatório R7)
-- [ ] `DOC-PUB-012` Validar R7 + INC-008 em `AGENTS.md`
+- [x] `DOC-PUB-011` `docs/CHATBOT_EVAL.md` (R7 compliance: capabilities table 48/50, judge-LLM, trajectory, redteam, flywheel, AUTH-EVAL-001 pendente) (2026-04-23)
+- [ ] `DOC-PUB-012` Validar R7 + INC-008 em `AGENTS.md` (verificar visualmente)
 - [ ] `DOC-PUB-013` Append `docs/MIGRATION_HISTORY.md` — entrada 2026-04-23
 
 ---
