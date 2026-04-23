@@ -5,6 +5,19 @@
 
 ---
 
+## P0 — TASKS Operating Model v1 Pilot
+
+> Validação de novo modelo de governança. Grace period: até 2026-05-23. Spec: `docs/governance/TASKS_OPERATING_MODEL_v1.md`
+
+- [ ] **TASKS-PILOT-001 [P0]**: Install husky + pre-commit hook (copy from egos kernel) — shell 30min
+- [ ] **TASKS-PILOT-002 [P0]**: Copy `.tasks-policy.json` com grace period (2026-05-23) — shell 5min
+- [ ] **TASKS-PILOT-003 [P0]**: Run `bun scripts/tasks-archive.ts --dry` para preview — validar 0 false positives
+- [ ] **TASKS-PILOT-004 [P0]**: Archive 12 completed sections com `bun scripts/tasks-archive.ts --exec` (done antes de 2026-04-23)
+- [ ] **TASKS-PILOT-005 [P0]**: Commit chore(tasks): archive post-model-v1 — validar 0 duplicate IDs em audit
+- [ ] **TASKS-PILOT-006 [P1]**: Observe 7 dias — confirmar pre-commit firing, zero regressions, no false alerts
+
+---
+
 ## P0 — Fase A: UX Telegram + Web Links ✅
 
 - [x] `UX-001` Refactor `buscar.ts` — template rico com source, date, bairro, BOs, Markdown escape
