@@ -6,8 +6,8 @@
  * Rate limit: 10/hour/IP — defends against brute force; attempt counter in DB is per-account.
  */
 
-import { NextRequest } from 'next/server';
-import { errorResponse, validationError, successResponse } from '@/lib/api-utils';
+import { NextRequest, NextResponse } from 'next/server';
+import { errorResponse, validationError } from '@/lib/api-utils';
 import { checkRateLimit, tooManyRequestsResponse } from '@/lib/security/rate-limit';
 import { confirmVerification, type VerificationPurpose } from '@/lib/auth/verification';
 
@@ -58,9 +58,22 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    return successResponse({
+    const response = NextResponse.json({
+        success: true,
         memberId: result.memberId,
         channel: result.channel,
         verified: true,
     });
+
+    // AUTH-PUB-011: middleware reads this cookie to permit protected routes.
+    // HttpOnly + Secure + SameSite=Strict; 30-day max-age (refreshed on each login bridge).
+    response.cookies.set('intelink_verified', '1', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 60 * 60 * 24 * 30,
+        path: '/',
+    });
+
+    return response;
 }

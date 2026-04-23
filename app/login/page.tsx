@@ -169,10 +169,17 @@ function LoginContent() {
                         <div className="flex items-center justify-between">
                             <button
                                 type="button"
-                                onClick={handleForgotPassword}
+                                onClick={() => router.push(`/recover${email ? `?email=${encodeURIComponent(email)}` : ''}`)}
                                 className="text-slate-500 hover:text-cyan-400 text-xs transition-colors"
                             >
                                 Esqueceu a senha?
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => router.push('/signup')}
+                                className="text-cyan-400 hover:text-cyan-300 text-xs transition-colors"
+                            >
+                                Criar conta
                             </button>
                         </div>
                         <button

@@ -6,7 +6,11 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const PUBLIC_PATHS = [
     '/login',
-    '/api/auth',       // login, bridge, refresh endpoints
+    '/signup',
+    '/auth/verify',    // public verification page (user may not have session yet)
+    '/auth/callback',  // Supabase auth callback
+    '/recover',        // password recovery page
+    '/api/auth',       // login, bridge, refresh, signup, verify, recover endpoints
     '/api/telegram',   // Telegram webhook (no auth — verified by bot token)
     '/_next',          // Next.js assets
     '/favicon.ico',
@@ -18,6 +22,15 @@ const PUBLIC_PATHS = [
     '/api/health',          // healthcheck must be public
     '/api/internal',        // gateway discovery — no auth. NOTE: `_internal` = Next.js private folder (not routed), so path is `/api/internal`.
 ];
+
+// AUTH-PUB-011: routes that require account verification (verified_at IS NOT NULL).
+// If user has auth but no `intelink_verified` cookie → redirect to /auth/verify.
+// The cookie is set by /api/auth/verify/confirm and /api/auth/bridge when member.verified_at is present.
+// Tampering the cookie only grants page access; sensitive API routes re-check DB.
+function needsVerification(request: NextRequest): boolean {
+    const verifiedCookie = request.cookies.get('intelink_verified')?.value;
+    return verifiedCookie !== '1';
+}
 
 function isPublic(pathname: string): boolean {
     return PUBLIC_PATHS.some(p => pathname.startsWith(p));
@@ -59,6 +72,14 @@ export function middleware(request: NextRequest) {
         loginUrl.pathname = '/login';
         loginUrl.searchParams.set('redirect', pathname);
         return NextResponse.redirect(loginUrl);
+    }
+
+    // AUTH-PUB-011: account must be verified before accessing protected routes.
+    if (needsVerification(request)) {
+        const verifyUrl = request.nextUrl.clone();
+        verifyUrl.pathname = '/auth/verify';
+        verifyUrl.searchParams.set('redirect', pathname);
+        return NextResponse.redirect(verifyUrl);
     }
 
     return NextResponse.next();

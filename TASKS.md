@@ -225,13 +225,13 @@
 - [ ] `AUTH-PUB-008` WhatsApp OTP — **DEFERRED** para F1-extra (Meta WABA requer CNPJ). Lançar com email+telegram
 - [x] `AUTH-PUB-009` Página `/auth/verify` — choose channel + input 6 dígitos + resend timer 60s (2026-04-23)
 - [x] `AUTH-PUB-010` `POST /api/auth/verify/confirm` — valida OTP + MAX_ATTEMPTS=5, seta `verified_at` para signup (2026-04-23)
-- [ ] `AUTH-PUB-011` `middleware.ts`: bloquear rotas protegidas se `verified_at IS NULL` → redirect `/auth/verify`
+- [x] `AUTH-PUB-011` `middleware.ts` lê cookie `intelink_verified`; sem cookie → redirect `/auth/verify`. Cookie setado por `/api/auth/verify/confirm` e `/api/auth/bridge` (HttpOnly+Secure+SameSite=Strict, 30d) (2026-04-23)
 
 ### I4 — Recovery tri-canal
 
-- [ ] `AUTH-PUB-012` `POST /api/auth/recover/request` — mesmo fluxo verify + finalidade `password_reset`
-- [ ] `AUTH-PUB-013` Página `/recover` — escolhe canal + identifier → OTP → nova senha
-- [ ] `AUTH-PUB-014` `POST /api/auth/recover/confirm` — valida OTP + redefine senha via Supabase admin API
+- [x] `AUTH-PUB-012` Reusa `POST /api/auth/verify/request` com `purpose='recovery'` (mesmo OTP orchestrator, TTL 10min) (2026-04-23)
+- [x] `AUTH-PUB-013` Página `/recover` — escolhe canal + OTP + nova senha em single flow (2026-04-23)
+- [x] `AUTH-PUB-014` `POST /api/auth/recover/reset` — re-valida OTP (defense-in-depth) + `supabase.auth.admin.updateUserById` + audit (2026-04-23)
 
 ### I5 — Hardening + eval
 

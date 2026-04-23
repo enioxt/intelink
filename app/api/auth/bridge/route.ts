@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
         const serviceSupabase = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY!);
         const { data: member, error } = await serviceSupabase
             .from('intelink_unit_members')
-            .select('id, name, email, phone, role, system_role, unit_id, telegram_chat_id, telegram_username')
+            .select('id, name, email, phone, role, system_role, unit_id, telegram_chat_id, telegram_username, verified_at')
             .eq('email', email)
             .single();
 
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Membro não encontrado' }, { status: 404 });
         }
 
-        return NextResponse.json({
+        const response = NextResponse.json({
             member_id: member.id,
             name: member.name,
             phone: member.phone,
@@ -74,7 +74,25 @@ export async function POST(request: NextRequest) {
             unit_id: member.unit_id,
             telegram_chat_id: member.telegram_chat_id,
             telegram_username: member.telegram_username,
+            verified_at: member.verified_at,
+            needs_verification: !member.verified_at,
         });
+
+        // AUTH-PUB-011: set cookie so middleware permits protected routes.
+        // Absent/deleted when verified_at is null → middleware redirects to /auth/verify.
+        if (member.verified_at) {
+            response.cookies.set('intelink_verified', '1', {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: 60 * 60 * 24 * 30,
+                path: '/',
+            });
+        } else {
+            response.cookies.delete('intelink_verified');
+        }
+
+        return response;
     } catch (e) {
         console.error('[Auth Bridge]', e);
         return NextResponse.json({ error: 'Bridge error' }, { status: 500 });
