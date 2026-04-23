@@ -56,8 +56,14 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // If we could verify the session, enforce email match
-        if (callerEmail !== null && callerEmail.toLowerCase() !== email.toLowerCase()) {
+        // Require verified Supabase identity — reject anonymous callers.
+        // Before: callerEmail=null (no Bearer + no cookie) was silently allowed,
+        // meaning any request with a valid CSRF origin could bridge any email.
+        if (callerEmail === null) {
+            return NextResponse.json({ error: 'Sessão Supabase obrigatória' }, { status: 401 });
+        }
+
+        if (callerEmail.toLowerCase() !== email.toLowerCase()) {
             return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
         }
 
