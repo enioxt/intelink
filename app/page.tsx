@@ -245,11 +245,21 @@ export default function IntelinkHome() {
         localStorage.removeItem('intelink_member_id');
         localStorage.removeItem('intelink_role');
         localStorage.removeItem('intelink_keep_logged');
-        
+
         try {
             await fetch('/api/v2/auth/logout', { method: 'POST', credentials: 'include' });
         } catch (e) {
             console.error('Logout error:', e);
+        }
+
+        // R3: close the Supabase session too — otherwise the next /login visit
+        // bounces to /central on a ghost session.
+        try {
+            const { getSupabaseClient } = await import('@/lib/supabase-client');
+            const supabase = getSupabaseClient();
+            await supabase?.auth.signOut({ scope: 'local' });
+        } catch (e) {
+            console.error('Supabase signOut error:', e);
         }
         
         document.cookie = 'intelink_session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';

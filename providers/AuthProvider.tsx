@@ -122,12 +122,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const logout = useCallback(async () => {
         // Call logout API to clear server-side cookies
         try {
-            await fetch('/api/v2/auth/logout', { 
+            await fetch('/api/v2/auth/logout', {
                 method: 'POST',
                 credentials: 'include',
             });
         } catch (e) {
             console.error('Logout API error:', e);
+        }
+
+        // R3: also end the Supabase session. Without this, the token persisted
+        // in localStorage (storageKey 'intelink-auth-token') survives logout
+        // and the next visit to /login bounces straight to /central (ghost
+        // session) while the v2 JWT is already revoked.
+        try {
+            const supabase = getSupabaseClient();
+            await supabase?.auth.signOut({ scope: 'local' });
+        } catch (e) {
+            console.error('Supabase signOut error:', e);
         }
 
         setUser(null);
