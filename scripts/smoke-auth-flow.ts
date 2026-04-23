@@ -177,7 +177,7 @@ async function main() {
         JSON.stringify(resetData),
     );
 
-    // ── Duplicate email signup rejected ─────────────────────
+    // ── Duplicate email signup rejected (BEFORE cleanup) ────
     const dupRes = await fetch(`${BASE_URL}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
