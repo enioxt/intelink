@@ -28,14 +28,49 @@ function LoginContent() {
     const telegramWidgetRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        // R1: Supabase session alone is NOT enough to proceed — the app's v2
+        // session (intelink_access cookie) is what /api/v2/auth/verify checks.
+        // Before, we pushed to returnUrl on any Supabase session, creating a
+        // ghost-session loop (Supabase alive, v2 dead → /central redirects to /).
+        // Now: verify v2 is valid OR bridge successfully; otherwise stay on /login.
         const checkSession = async () => {
             try {
                 const supabase = getSupabaseClient();
                 if (!supabase) return;
                 const { data: { session } } = await supabase.auth.getSession();
-                if (session) router.push(returnUrl);
+                if (!session?.user?.email) return;
+
+                const verifyRes = await fetch('/api/v2/auth/verify', {
+                    method: 'GET',
+                    credentials: 'include',
+                });
+                if (verifyRes.ok) {
+                    const v = await verifyRes.json();
+                    if (v?.valid) {
+                        router.push(returnUrl);
+                        return;
+                    }
+                }
+
+                const bridgeRes = await fetch('/api/auth/bridge', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({ email: session.user.email }),
+                });
+                if (bridgeRes.ok) {
+                    router.push(returnUrl);
+                    return;
+                }
+
+                // Stale Supabase session with no app-side binding — clear it so
+                // the user can log in fresh without being bounced around.
+                await supabase.auth.signOut({ scope: 'local' });
             } catch {
-                // session check failed — show login form
+                // silent — show login form
             } finally {
                 setCheckingSession(false);
             }
@@ -59,12 +94,18 @@ function LoginContent() {
         container.appendChild(script);
     }, [checkingSession]);
 
-    const bridgeMember = async (userEmail: string) => {
+    const bridgeMember = async (
+        userEmail: string,
+        accessToken?: string,
+    ): Promise<{ ok: boolean; error?: string }> => {
         try {
             const res = await fetch('/api/auth/bridge', {
                 method: 'POST',
                 credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
                 body: JSON.stringify({ email: userEmail }),
             });
             if (res.ok) {
@@ -76,8 +117,13 @@ function LoginContent() {
                     if (data.phone) localStorage.setItem('intelink_phone', data.phone);
                     if (data.name) localStorage.setItem('intelink_username', data.name);
                 }
+                return { ok: true };
             }
-        } catch { /* bridge is best-effort */ }
+            const errorData = await res.json().catch(() => ({}));
+            return { ok: false, error: errorData.error || 'Falha ao vincular sessão ao membro' };
+        } catch {
+            return { ok: false, error: 'Falha ao vincular sessão ao membro' };
+        }
     };
 
     const handleEmailLogin = async (e: React.FormEvent) => {
@@ -91,7 +137,12 @@ function LoginContent() {
             if (authError) {
                 setError(authError.message === 'Invalid login credentials' ? 'Email ou senha incorretos' : authError.message);
             } else {
-                await bridgeMember(email);
+                const { data: { session } } = await supabase.auth.getSession();
+                const bridgeResult = await bridgeMember(email, session?.access_token);
+                if (!bridgeResult.ok) {
+                    setError(bridgeResult.error || 'Não foi possível concluir o login');
+                    return;
+                }
                 router.push(returnUrl);
             }
         } catch {
