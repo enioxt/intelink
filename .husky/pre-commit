@@ -1,0 +1,62 @@
+#!/bin/bash
+# Pre-commit hook: TASKS Operating Model v1 enforcement
+# Minimal version for intelink (2026-04-23)
+# Spec: /home/enio/egos/docs/governance/TASKS_OPERATING_MODEL_v1.md
+
+set -e
+
+echo "🔒 Intelink TASKS hygiene check"
+
+# Load policy
+POLICY_FILE=".tasks-policy.json"
+if [ ! -f "$POLICY_FILE" ]; then
+  echo "⚠️  No .tasks-policy.json found"
+  exit 0
+fi
+
+GRACE_END=$(jq -r '.grace_end // ""' "$POLICY_FILE" 2>/dev/null || echo "")
+SOFT_WARN=$(jq -r '.thresholds.soft_warn // 500' "$POLICY_FILE" 2>/dev/null || echo 500)
+ARCHIVE_REQ=$(jq -r '.thresholds.archive_required // 650' "$POLICY_FILE" 2>/dev/null || echo 650)
+HARD_BLOCK=$(jq -r '.thresholds.hard_block // 900' "$POLICY_FILE" 2>/dev/null || echo 900)
+
+# Determine grace status
+GRACE_ACTIVE="true"
+if [ -n "$GRACE_END" ]; then
+  TODAY=$(date +%Y-%m-%d)
+  if [[ "$TODAY" > "$GRACE_END" ]]; then
+    GRACE_ACTIVE="false"
+  fi
+fi
+
+# Check TASKS.md size
+if [ -f "TASKS.md" ]; then
+  LINES=$(wc -l < TASKS.md)
+
+  # Hard-block check
+  if [ "$LINES" -ge "$HARD_BLOCK" ] && [ "$GRACE_ACTIVE" = "false" ]; then
+    echo "🔴 HARD-BLOCK: TASKS.md has $LINES lines (hard-block: $HARD_BLOCK, grace expired)"
+    echo "   → Run: bun /home/enio/egos/scripts/tasks-archive.ts --root=$(pwd) --exec"
+    exit 1
+  fi
+
+  # Archive-required check
+  if [ "$LINES" -ge "$ARCHIVE_REQ" ]; then
+    echo "🟡 ARCHIVE-REQUIRED: TASKS.md has $LINES lines"
+    echo "   → Run: bun /home/enio/egos/scripts/tasks-archive.ts --root=$(pwd) --dry"
+  fi
+
+  # Soft-warn check
+  if [ "$LINES" -ge "$SOFT_WARN" ]; then
+    echo "🔵 SOFT-WARN: TASKS.md has $LINES lines (soft threshold)"
+  fi
+fi
+
+# Duplicate ID check (strict)
+if grep -E '^- \[[x ]\] \*\*[A-Z]+-[0-9]+\*\*:' TASKS.md 2>/dev/null | \
+   sed 's/.*\*\*\([A-Z0-9-]*\)\*\*.*/\1/' | \
+   sort | uniq -d | grep -q .; then
+  echo "🔴 DUPLICATE TASK IDs — must fix before commit"
+  exit 1
+fi
+
+echo "✅ TASKS hygiene check passed"

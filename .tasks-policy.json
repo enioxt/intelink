@@ -1,0 +1,12 @@
+{
+  "_comment": "TASKS Operating Model policy — see docs/governance/TASKS_OPERATING_MODEL_v1.md",
+  "grace_end": "2026-05-23",
+  "thresholds": {
+    "soft_warn": 500,
+    "archive_required": 650,
+    "hard_block": 900
+  },
+  "immediate_blocks": [
+    "duplicate_task_ids"
+  ]
+}
