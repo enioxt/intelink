@@ -23,7 +23,7 @@ HARD_BLOCK=$(jq -r '.thresholds.hard_block // 900' "$POLICY_FILE" 2>/dev/null ||
 GRACE_ACTIVE="true"
 if [ -n "$GRACE_END" ]; then
   TODAY=$(date +%Y-%m-%d)
-  if [[ "$TODAY" > "$GRACE_END" ]]; then
+  if [ "$TODAY" \> "$GRACE_END" ]; then
     GRACE_ACTIVE="false"
   fi
 fi
