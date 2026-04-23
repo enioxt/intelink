@@ -287,8 +287,8 @@
 
 ## P0 — Fase L: Data Safety (contínuo) — 2026-04-23+
 
-- [ ] `DATA-SAFE-001` Backup cron diário: pg_dump Supabase + neo4j-admin dump → `/opt/backups/` (Hermes)
-- [ ] `DATA-SAFE-002` `scripts/pre-deploy-check.ts` — valida Neo4j+Supabase conectividade + row counts
+- [x] `DATA-SAFE-001` Backup cron diário 03:00 VPS — `scripts/backup-daily.sh`: Neo4j dump (~12MB, funcionando) + Supabase managed backup diário auto (free tier 7d retention). Retenção 30d + monthly 12 (2026-04-23)
+- [x] `DATA-SAFE-002` `scripts/pre-deploy-check.ts` — 8/8 green vs prod (Supabase conn + members>0 + audit_chain + /health + auth reachable + discover manifest) (2026-04-23)
 - [ ] `DATA-SAFE-003` Restauração testada dry-run em staging
 - [ ] `DATA-SAFE-004` Golden eval case: busca CPF real no intelink-neo4j, falha se vazio
 
