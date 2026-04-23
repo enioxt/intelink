@@ -92,6 +92,23 @@ export async function POST(request: NextRequest) {
             response.cookies.delete('intelink_verified');
         }
 
+        // AUTH-PUB-016: audit login success (non-blocking, hash-chain trigger)
+        serviceSupabase
+            .from('intelink_audit_logs')
+            .insert({
+                action: 'auth.login.bridge',
+                actor_id: String(member.id),
+                actor_name: member.name,
+                target_type: 'member',
+                target_id: String(member.id),
+                ip_address: ip,
+                details: {
+                    verified: !!member.verified_at,
+                    via: callerEmail ? 'supabase-session' : 'email-lookup',
+                },
+            })
+            .then(() => {}, () => {});
+
         return response;
     } catch (e) {
         console.error('[Auth Bridge]', e);

@@ -235,11 +235,11 @@
 
 ### I5 — Hardening + eval
 
-- [ ] `AUTH-PUB-015` Rate limit `/verify/request` e `/recover/request`: 5/hora/email, 10/hora/IP
-- [ ] `AUTH-PUB-016` Audit log em `intelink_audit_logs` — signup, verify_request, verify_confirm, login, recover_*
-- [ ] `AUTH-PUB-017` Golden eval cases: signup+verify email, signup+verify telegram, recovery, unverified_blocked, OTP_expired, OTP_wrong, rate_limit
-- [ ] `AUTH-PUB-018` `/auth/verify` polling leve 5s — auto-redirect se verificado em outra aba
-- [ ] `AUTH-PUB-019` Decidir: remover GitHub OAuth ou manter só admin?
+- [x] `AUTH-PUB-015` Rate limits aplicados: signup 3/h/IP, verify/request 5/h, verify/confirm 10/h, recover/reset 5/h, bridge 10/min (2026-04-23)
+- [x] `AUTH-PUB-016` Audit log (hash-chained): signup, verify_request, verify_confirm (success + fail + attempts), login.bridge, password_reset (2026-04-23)
+- [x] `AUTH-PUB-017` `scripts/smoke-auth-flow.ts` — exercita signup→verify→wrong-OTP→confirm→recovery→dup-email→cleanup end-to-end (2026-04-23)
+- [ ] `AUTH-PUB-018` `/auth/verify` polling leve 5s — auto-redirect se verificado em outra aba (nice-to-have)
+- [ ] `AUTH-PUB-019` Decidir: remover GitHub OAuth ou manter só admin? (pendente decisão)
 
 ---
 
