@@ -77,25 +77,18 @@ export default function IntelinkHome() {
                 console.log('[Auth] v2 check failed, trying legacy');
             }
 
-            const savedAuth = localStorage.getItem('intelink_chat_id');
-            
-            if (savedAuth && savedAuth.startsWith('-')) {
-                console.log('[Auth] Cleaning up invalid chat_id:', savedAuth);
-                localStorage.removeItem('intelink_chat_id');
-                localStorage.removeItem('intelink_phone');
-                localStorage.removeItem('intelink_token');
-                localStorage.removeItem('intelink_username');
-                localStorage.removeItem('intelink_member_id');
-                localStorage.removeItem('intelink_role');
-                localStorage.removeItem('intelink_user');
-                setIsCheckingAuth(false);
-                return;
-            }
-            
-            if (savedAuth) {
-                setChatId(savedAuth);
-                await authenticateAndLoad(savedAuth);
-            }
+            // AUTH-PUB-LEAK-FIX: Do not reutilize localStorage without valid session.
+            // If Supabase session check failed, clear all localStorage data and show PublicLanding.
+            // This prevents showing previous user's data (jornada, etc.) to unauthenticated visitors.
+            console.log('[Auth] No valid Supabase session — clearing localStorage');
+            localStorage.removeItem('intelink_chat_id');
+            localStorage.removeItem('intelink_phone');
+            localStorage.removeItem('intelink_token');
+            localStorage.removeItem('intelink_username');
+            localStorage.removeItem('intelink_member_id');
+            localStorage.removeItem('intelink_role');
+            localStorage.removeItem('intelink_user');
+            localStorage.removeItem('intelink_keep_logged');
             setIsCheckingAuth(false);
         };
         checkAuth();

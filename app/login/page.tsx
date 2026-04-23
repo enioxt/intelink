@@ -10,7 +10,7 @@ import { getSupabaseClient } from '@/lib/supabase-client';
 function LoginContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const returnUrl = searchParams.get('returnUrl') || '/';
+    const returnUrl = searchParams.get('returnUrl') || '/central';
     const tgError = searchParams.get('error');
     const TG_ERROR_MSGS: Record<string, string> = {
         invalid_hash: 'Link do Telegram inválido. Tente novamente.',
@@ -63,6 +63,7 @@ function LoginContent() {
         try {
             const res = await fetch('/api/auth/bridge', {
                 method: 'POST',
+                credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: userEmail }),
             });

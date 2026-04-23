@@ -37,16 +37,22 @@ export async function POST(request: NextRequest) {
 
         if (authHeader?.startsWith('Bearer ')) {
             // Verify the bearer token is a valid Supabase JWT
-            const userSupabase = createClient(supabaseUrl, anonKey);
-            const { data: { user } } = await userSupabase.auth.getUser(authHeader.slice(7));
-            callerEmail = user?.email ?? null;
+            try {
+                const userSupabase = createClient(supabaseUrl, anonKey);
+                const { data: { user } } = await userSupabase.auth.getUser(authHeader.slice(7));
+                callerEmail = user?.email ?? null;
+            } catch {
+                // Invalid token, treat as unauthenticated
+            }
         } else if (sbTokenMatch) {
-            // Verify via cookie session
-            const userSupabase = createClient(supabaseUrl, anonKey);
-            const { data: { user } } = await userSupabase.auth.getUser(
-                decodeURIComponent(sbTokenMatch[1]).split('.').slice(0, 3).join('.')
-            );
-            callerEmail = user?.email ?? null;
+            // Verify via cookie session — just use the token as-is
+            try {
+                const userSupabase = createClient(supabaseUrl, anonKey);
+                const { data: { user } } = await userSupabase.auth.getUser(sbTokenMatch[1]);
+                callerEmail = user?.email ?? null;
+            } catch {
+                // Invalid token, treat as unauthenticated
+            }
         }
 
         // If we could verify the session, enforce email match

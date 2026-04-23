@@ -10,7 +10,7 @@ import { getSupabaseClient } from '@/lib/supabase-client';
 function SignupContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const returnUrl = searchParams.get('returnUrl') || '/';
+    const returnUrl = searchParams.get('returnUrl') || '/central';
 
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
