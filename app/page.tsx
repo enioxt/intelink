@@ -7,6 +7,7 @@ import { SkeletonInvestigationList, SkeletonQuickActions, SkeletonHero } from '@
 import { SkeletonPage } from '@/components/shared/Skeleton';
 import DemoWalkthrough, { useDemoWalkthrough } from '@/components/demo/DemoWalkthrough';
 import { DashboardHeader, InvestigationsList, MobileMenu } from '@/components/dashboard';
+import { PublicLanding } from '@/components/landing/PublicLanding';
 import type { Investigation } from '@/lib/utils/formatters';
 
 interface Stats {
@@ -287,8 +288,12 @@ export default function IntelinkHome() {
         );
     }
 
-    // PUBLIC MODE: show dashboard for everyone (data is clean)
-    const isVisitor = !isAuthenticated;
+    // UI-POLISH-005: unauthenticated visitors see marketing landing, not dashboard.
+    if (!isAuthenticated) {
+        return <PublicLanding />;
+    }
+
+    const isVisitor = false;
 
     return (
         <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900 text-white overflow-hidden">

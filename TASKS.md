@@ -254,7 +254,7 @@
 - [ ] `UI-POLISH-002` Empty states com CTA
 - [ ] `UI-POLISH-003` Error boundaries por route group
 - [ ] `UI-POLISH-004` Nav consistente desktop+mobile, esconder por role
-- [ ] `UI-POLISH-005` Landing `/` pública (hero + features + CTA)
+- [x] `UI-POLISH-005` `/` pública — `components/landing/PublicLanding.tsx`: hero + 6 features + 4 stats + público-alvo + 2 CTAs + footer. Middleware libera `/`, page renders PublicLanding se !isAuthenticated senão dashboard (2026-04-23)
 - [ ] `UI-E2E-001` Playwright 5 fluxos (signup→verify→dash, login→busca, recovery, logout, settings)
 
 ---
@@ -268,7 +268,7 @@
 - [x] `DOC-PUB-003` `docs/CAPABILITIES_STATUS.md` — adicionado header HISTÓRICO (2026-04-14) + cross-ref para FEATURES.md, AUTH.md, CHATBOT_EVAL.md. Full audit diferido para DOC-PUB-003-B pós-divulgação (2026-04-23)
 - [x] `DOC-PUB-004` `docs/AUTH.md` — fluxos signup/verify/login/recovery + schema + endpoints + segurança + smoke (2026-04-23)
 - [x] `DOC-PUB-005` `docs/SLASH_COMMANDS.md` + `docs/PROVENANCE.md` + `docs/STREAMING.md` (2026-04-23)
-- [ ] `DOC-PUB-006` Auditar `API_REFERENCE.md`, `BOT_ARCHITECTURE.md`, `ETL_GUIDE.md`, `VPS_ARCHITECTURE.md` — drift fix
+- [x] `DOC-PUB-006` Auditado: `API_REFERENCE.md` + `ETL_GUIDE.md` com banner histórico (Python API legacy em egos-lab/apps/intelink-api); `BOT_ARCHITECTURE.md` + `VPS_ARCHITECTURE.md` OK (Next.js/Docker atual) (2026-04-23)
 
 ### K2 — Doc público não-técnico
 
@@ -280,7 +280,7 @@
 
 - [x] `DOC-PUB-010` `egos/docs/CROSS_REPO_CONTEXT_ROUTER.md` — adicionada seção "Intelink standalone repo" com 15 pointers para docs + scripts (commit egos `f40dc41`) (2026-04-23)
 - [x] `DOC-PUB-011` `docs/CHATBOT_EVAL.md` (R7 compliance: capabilities table 48/50, judge-LLM, trajectory, redteam, flywheel, AUTH-EVAL-001 pendente) (2026-04-23)
-- [ ] `DOC-PUB-012` Validar R7 + INC-008 em `AGENTS.md` (verificar visualmente)
+- [x] `DOC-PUB-012` Validado: `AGENTS.md` linha 65 (INC-008 ref) + linha 69-91 (R7 + postmortem) — Windsurf propagou corretamente via disseminate (2026-04-23)
 - [x] `DOC-PUB-013` Append `docs/MIGRATION_HISTORY.md` — entradas 2026-04-22 (Eval+INC-008) + 2026-04-23 (Divulgação Pública) (2026-04-23)
 
 ---

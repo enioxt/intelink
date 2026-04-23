@@ -23,6 +23,10 @@ const PUBLIC_PATHS = [
     '/api/internal',        // gateway discovery — no auth. NOTE: `_internal` = Next.js private folder (not routed), so path is `/api/internal`.
 ];
 
+// UI-POLISH-005: `/` is public — landing page renders marketing for unauthenticated
+// visitors and dashboard for authenticated users. Handled at page level, not middleware.
+const PUBLIC_EXACT_PATHS = new Set(['/']);
+
 // AUTH-PUB-011: routes that require account verification (verified_at IS NOT NULL).
 // If user has auth but no `intelink_verified` cookie → redirect to /auth/verify.
 // The cookie is set by /api/auth/verify/confirm and /api/auth/bridge when member.verified_at is present.
@@ -33,6 +37,7 @@ function needsVerification(request: NextRequest): boolean {
 }
 
 function isPublic(pathname: string): boolean {
+    if (PUBLIC_EXACT_PATHS.has(pathname)) return true;
     return PUBLIC_PATHS.some(p => pathname.startsWith(p));
 }
 

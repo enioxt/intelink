@@ -1,5 +1,20 @@
 # ETL Guide — Como Adicionar Pipelines de Dados
-> **SSOT:** `docs/ETL_GUIDE.md` | Updated: 2026-04-14
+
+> ⚠️ **ESCOPO MISTO (2026-04-14).**
+>
+> Este guia cobre pipelines Python legacy (em `/home/enio/egos-lab/apps/intelink-api/etl/`) + pipelines TS atuais neste repo.
+>
+> **Pipelines TS ativos neste repo:**
+> - [`scripts/etl-photos.ts`](../scripts/etl-photos.ts) — fotos Telegram → Person.photo_url (PHOTO-001..010)
+> - `scripts/etl-reds.ts` (se presente) — REDS xlsx/csv → Neo4j (ETL-001/002)
+>
+> **Pipelines Python legacy** (BNMP, DataJud, PCMG): migrados para `egos-lab/apps/intelink-api/`.
+>
+> Full audit deferido para DOC-PUB-006-B (pós-divulgação).
+
+---
+
+> **SSOT histórico:** `docs/ETL_GUIDE.md` | Updated: 2026-04-14
 
 ---
 

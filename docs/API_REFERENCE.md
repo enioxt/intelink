@@ -1,7 +1,24 @@
-# API Reference — EGOS Inteligência (Intelink)
+# API Reference — Intelink
 
-> **SSOT:** `docs/API_REFERENCE.md` | Updated: 2026-04-14
-> **Fonte principal de verdade:** OpenAPI Schema (`/docs` ou `/redoc` na API rodando)
+> ⚠️ **ESTE ARQUIVO DOCUMENTA A API PYTHON LEGACY (FastAPI).**
+>
+> Após a consolidação de 2026-04-18, a API Python vive em `/home/enio/egos-lab/apps/intelink-api/`.
+> O **frontend Next.js + suas rotas API** (`app/api/**`) vivem neste repo.
+>
+> **Para rotas do Next.js App Router, ver:**
+> - Código fonte: [`app/api/`](../app/api/)
+> - Fluxo de auth: [AUTH.md](AUTH.md)
+> - Contrato de streaming: [STREAMING.md](STREAMING.md)
+> - Slash commands: [SLASH_COMMANDS.md](SLASH_COMMANDS.md)
+> - Provenance API: [PROVENANCE.md](PROVENANCE.md)
+> - Gateway manifest: [`app/api/internal/discover/route.ts`](../app/api/internal/discover/route.ts)
+>
+> Este arquivo permanece como referência histórica e será auditado em DOC-PUB-006-B (pós-divulgação).
+
+---
+
+> **SSOT histórico:** Updated: 2026-04-14
+> **Fonte principal (API Python):** OpenAPI Schema (`/docs` ou `/redoc` na API rodando em `/home/enio/egos-lab/apps/intelink-api/`)
 
 ---
 
