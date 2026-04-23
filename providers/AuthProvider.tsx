@@ -73,12 +73,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const supabase = getSupabaseClient();
         if (!supabase) return;
         const { data: { session: sbSession } } = await supabase.auth.getSession();
-        if (!sbSession?.user?.email) return;
+        if (!sbSession?.user?.email || !sbSession.access_token) return;
         try {
+            // R5: send Authorization: Bearer — Supabase persists its token in
+            // localStorage (storageKey 'intelink-auth-token'), not cookies, so
+            // the bridge's cookie-based session check can't find it. Without
+            // Bearer, callerEmail stays null and the bridge's email-match gate
+            // is bypassed (see app/api/auth/bridge/route.ts:59).
             const res = await fetch('/api/auth/bridge', {
                 method: 'POST',
                 credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${sbSession.access_token}`,
+                },
                 body: JSON.stringify({ email: sbSession.user.email }),
             });
             if (res.ok) {
