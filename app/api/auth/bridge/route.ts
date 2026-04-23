@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { assertSameOrigin } from '@/lib/auth';
+import { assertSameOrigin, createSession, setAuthCookies } from '@/lib/auth';
 import { isRateLimited, retryAfterSeconds } from '@/lib/auth/rate-limit';
+import type { Member } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,6 +72,32 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Membro não encontrado' }, { status: 404 });
         }
 
+        // Create JWT session in app's auth system (bridge from Supabase → app session)
+        const memberData: Member = {
+            id: member.id,
+            name: member.name,
+            phone: member.phone || '',
+            email: member.email || '',
+            role: member.role,
+            systemRole: member.system_role || 'member',
+            unitId: member.unit_id || '',
+            telegramChatId: member.telegram_chat_id,
+            telegramUsername: member.telegram_username,
+        };
+
+        const sessionResult = await createSession({
+            member: memberData,
+            deviceInfo: {
+                userAgent: request.headers.get('user-agent') || 'Supabase Bridge',
+                ip: request.headers.get('x-forwarded-for')?.split(',')[0],
+            },
+        });
+
+        if (!sessionResult.success || !sessionResult.session) {
+            console.error('[Auth Bridge] Failed to create session:', sessionResult.error);
+            return NextResponse.json({ error: 'Falha ao criar sessão' }, { status: 500 });
+        }
+
         const response = NextResponse.json({
             member_id: member.id,
             name: member.name,
@@ -82,7 +109,16 @@ export async function POST(request: NextRequest) {
             telegram_username: member.telegram_username,
             verified_at: member.verified_at,
             needs_verification: !member.verified_at,
+            session: {
+                id: sessionResult.session.id,
+                expiresAt: sessionResult.session.expiresAt,
+            },
         });
+
+        // Set JWT session cookies so /api/v2/auth/verify can find them
+        if (sessionResult.accessToken && sessionResult.refreshToken) {
+            setAuthCookies(response, sessionResult.accessToken, sessionResult.refreshToken);
+        }
 
         // AUTH-PUB-011: set cookie so middleware permits protected routes.
         // Absent/deleted when verified_at is null → middleware redirects to /auth/verify.
