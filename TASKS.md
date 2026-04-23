@@ -213,9 +213,9 @@
 
 ### I2 — Signup
 
-- [ ] `AUTH-PUB-002` Página `/signup` — form email + nome + telefone opcional + chat_id opcional
-- [ ] `AUTH-PUB-003` `POST /api/auth/signup` — cria membro `verified_at=NULL` + rate limit 3/hora/IP
-- [ ] `AUTH-PUB-004` Validação unicidade: email, telefone, chat_id
+- [x] `AUTH-PUB-002` Página `/signup` — form nome + email + telefone opcional + senha (2026-04-23)
+- [x] `AUTH-PUB-003` `POST /api/auth/signup` — cria Supabase auth user + membro `verified_at=NULL` + rate limit 3/hora/IP + rollback em falha (2026-04-23)
+- [x] `AUTH-PUB-004` Validação unicidade: email + telefone (chat_id coletado em /auth/verify) (2026-04-23)
 
 ### I3 — Verificação tri-canal
 
