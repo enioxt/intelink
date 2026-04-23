@@ -75,7 +75,7 @@ export function middleware(request: NextRequest) {
     if (!hasAuth(request)) {
         const loginUrl = request.nextUrl.clone();
         loginUrl.pathname = '/login';
-        loginUrl.searchParams.set('redirect', pathname);
+        loginUrl.searchParams.set('returnUrl', pathname);
         return NextResponse.redirect(loginUrl);
     }
 
@@ -83,7 +83,7 @@ export function middleware(request: NextRequest) {
     if (needsVerification(request)) {
         const verifyUrl = request.nextUrl.clone();
         verifyUrl.pathname = '/auth/verify';
-        verifyUrl.searchParams.set('redirect', pathname);
+        verifyUrl.searchParams.set('returnUrl', pathname);
         return NextResponse.redirect(verifyUrl);
     }
 

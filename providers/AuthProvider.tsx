@@ -77,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             const res = await fetch('/api/auth/bridge', {
                 method: 'POST',
+                credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: sbSession.user.email }),
             });
