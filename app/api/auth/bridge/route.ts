@@ -126,6 +126,16 @@ export async function POST(request: NextRequest) {
             setAuthCookies(response, sessionResult.accessToken, sessionResult.refreshToken);
         }
 
+        // Also set intelink_member_id cookie — required by lib/api-security.ts
+        // (the legacy security middleware that protects /api/stats, /api/investigations, etc.)
+        response.cookies.set('intelink_member_id', member.id, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 30,
+            path: '/',
+        });
+
         // AUTH-PUB-011: set cookie so middleware permits protected routes.
         // Absent/deleted when verified_at is null → middleware redirects to /auth/verify.
         if (member.verified_at) {

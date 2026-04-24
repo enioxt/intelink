@@ -44,14 +44,49 @@ export interface AuthContext {
 export async function getAuthContext(req: NextRequest): Promise<AuthContext | null> {
     const supabase = getSupabaseAdmin();
     let memberId: string | null = null;
-    
-    // Priority 1: HTTP-only cookie (most secure)
-    const memberIdCookie = req.cookies.get('intelink_member_id')?.value;
-    if (memberIdCookie && memberIdCookie.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-        memberId = memberIdCookie;
+
+    // Priority 0: v2 JWT cookie (intelink_access) — single source of truth
+    if (!memberId) {
+        const jwtCookie = req.cookies.get('intelink_access')?.value;
+        if (jwtCookie) {
+            try {
+                const { verifyAccessToken } = await import('@/lib/auth/jwt');
+                const result = await verifyAccessToken(jwtCookie);
+                if (result.success && result.payload?.sub) {
+                    memberId = result.payload.sub;
+                }
+            } catch { /* fall through */ }
+        }
     }
-    
-    // Priority 2: Session token cookie
+
+    // Priority 1: intelink_member_id cookie (set by bridge alongside JWT)
+    if (!memberId) {
+        const memberIdCookie = req.cookies.get('intelink_member_id')?.value;
+        if (memberIdCookie && memberIdCookie.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            memberId = memberIdCookie;
+        }
+    }
+
+    // Priority 2: Authorization Bearer — v2 JWT or UUID member_id
+    if (!memberId) {
+        const authHeader = req.headers.get('Authorization');
+        if (authHeader?.startsWith('Bearer ')) {
+            const token = authHeader.split(' ')[1];
+            if (token.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                memberId = token;
+            } else {
+                try {
+                    const { verifyAccessToken } = await import('@/lib/auth/jwt');
+                    const result = await verifyAccessToken(token);
+                    if (result.success && result.payload?.sub) {
+                        memberId = result.payload.sub;
+                    }
+                } catch { /* fall through */ }
+            }
+        }
+    }
+
+    // Priority 3 (legacy): intelink_session cookie → intelink_sessions table
     if (!memberId) {
         const sessionCookie = req.cookies.get('intelink_session')?.value;
         if (sessionCookie) {
@@ -60,34 +95,7 @@ export async function getAuthContext(req: NextRequest): Promise<AuthContext | nu
                 .select('member_id')
                 .eq('access_token', sessionCookie)
                 .single();
-            
-            if (session?.member_id) {
-                memberId = session.member_id;
-            }
-        }
-    }
-    
-    // Priority 3: Authorization header (for API clients)
-    if (!memberId) {
-        const authHeader = req.headers.get('Authorization');
-        if (authHeader?.startsWith('Bearer ')) {
-            const token = authHeader.split(' ')[1];
-            
-            // Check if token is a UUID (member_id)
-            if (token.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-                memberId = token;
-            } else {
-                // Try to find session by access_token
-                const { data: session } = await supabase
-                    .from('intelink_sessions')
-                    .select('member_id')
-                    .eq('access_token', token)
-                    .single();
-                
-                if (session?.member_id) {
-                    memberId = session.member_id;
-                }
-            }
+            if (session?.member_id) memberId = session.member_id;
         }
     }
     
