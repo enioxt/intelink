@@ -178,7 +178,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         Object.entries(COL_MAP).map(([k, cands]) => [k, findCol(headers, cands)])
     ) as Record<ColKey, string | null>;
 
-    const get = (row: Row, key: ColKey): string => colMap[key] ? (row[colMap[key]!] ?? '').trim() : '';
+    const get = (row: Row, key: ColKey): string => colMap[key] ? String(row[colMap[key]!] ?? '').trim() : '';
 
     // Build occurrence + person batches
     const occMap = new Map<string, Record<string, string>>();
