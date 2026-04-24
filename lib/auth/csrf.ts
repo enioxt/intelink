@@ -8,27 +8,26 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-// Canonical: apex (https://intelink.ia.br). www redirects to apex in prod,
-// but we accept both here so requests during the redirect hop don't 403.
-// NEXT_PUBLIC_APP_URL may be either form in different envs — accept both.
+// Hardcoded canonical domains. Intentionally not derived from
+// NEXT_PUBLIC_APP_URL: Next.js inlines NEXT_PUBLIC_* at BUILD time, and our
+// Docker build doesn't receive .env vars, so the inlined value was undefined
+// and the Set lost the production origin. See prod-403 incident (2026-04-23).
+//
+// ALLOWED_ORIGINS (server-only env, no NEXT_PUBLIC_ prefix) can append extras
+// at runtime, e.g. for preview deploys or custom domains.
 function buildAllowedOrigins(): Set<string> {
     const origins = new Set<string>([
+        'https://intelink.ia.br',
+        'https://www.intelink.ia.br',
         'http://localhost:3000',
         'http://localhost:3001',
         'http://localhost:3009',
     ]);
-    const envUrl = process.env.NEXT_PUBLIC_APP_URL;
-    if (envUrl) {
-        origins.add(envUrl);
-        try {
-            const u = new URL(envUrl);
-            if (u.hostname.startsWith('www.')) {
-                origins.add(`${u.protocol}//${u.hostname.slice(4)}`);
-            } else {
-                origins.add(`${u.protocol}//www.${u.hostname}`);
-            }
-        } catch { /* invalid URL in env — ignore */ }
-    }
+    const extra = (process.env.ALLOWED_ORIGINS ?? '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+    extra.forEach(o => origins.add(o));
     return origins;
 }
 

@@ -17,7 +17,7 @@ function CallbackContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const returnUrl = searchParams.get('returnUrl') || '/';
-    
+
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
     const [message, setMessage] = useState('Authenticating...');
 
@@ -48,12 +48,31 @@ function CallbackContent() {
 
                     // Bridge Supabase → intelink_member_id
                     if (session.user.email) {
-                        fetch(`/api/auth/bridge`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({email: session.user.email}) })
-                          .then(r => r.ok ? r.json() : null)
-                          .then(d => { if (d?.member_id) { localStorage.setItem("intelink_member_id", d.member_id); localStorage.setItem("intelink_role", d.system_role||"member"); if(d.telegram_chat_id) localStorage.setItem("intelink_chat_id", String(d.telegram_chat_id)); else if(d.phone) localStorage.setItem("intelink_chat_id", d.phone); } })
-                          .catch(()=>{});
+                        const bridgeRes = await fetch(`/api/auth/bridge`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${session.access_token}`,
+                            },
+                            body: JSON.stringify({ email: session.user.email }),
+                        });
+
+                        if (!bridgeRes.ok) {
+                            const bridgeError = await bridgeRes.json().catch(() => ({}));
+                            setStatus('error');
+                            setMessage(bridgeError.error || 'Falha ao vincular a sessão ao membro');
+                            return;
+                        }
+
+                        const d = await bridgeRes.json();
+                        if (d?.member_id) {
+                            localStorage.setItem('intelink_member_id', d.member_id);
+                            localStorage.setItem('intelink_role', d.system_role || 'member');
+                            if (d.telegram_chat_id) localStorage.setItem('intelink_chat_id', String(d.telegram_chat_id));
+                            else if (d.phone) localStorage.setItem('intelink_chat_id', d.phone);
+                        }
                     }
-                    
+
                     // Brief delay to show success message
                     setTimeout(() => {
                         router.push(returnUrl);
