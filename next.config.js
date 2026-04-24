@@ -27,6 +27,7 @@ const nextConfig = {
   experimental: {
     externalDir: true,
     optimizePackageImports: ['lucide-react', '@supabase/supabase-js'],
+    serverBodySizeLimit: '50mb',
   },
 
   // Compressão de imagens
