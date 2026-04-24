@@ -15,31 +15,55 @@ const MAX_BYTES = 20 * 1024 * 1024; // 20MB
 
 // ── Column detection ──────────────────────────────────────────────────────────
 const COL_MAP = {
-    reds_number:     ['numero_reds', 'num_reds', 'reds', 'bo', 'numero_bo', 'numero_ocorrencia'],
-    data_fato:       ['data_fato', 'data_ocorrencia', 'data', 'dt_fato'],
+    reds_number:     ['numero_reds', 'num_reds', 'reds', 'bo', 'numero_bo', 'numero_ocorrencia',
+                      'número da ocorrência', 'numero da ocorrencia', 'num_ocorrencia'],
+    data_fato:       ['data_fato', 'data_ocorrencia', 'data', 'dt_fato',
+                      'data hora do fato', 'data_hora_do_fato', 'data hora fato'],
     hora_fato:       ['hora_fato', 'hora_ocorrencia', 'hora'],
-    tipo:            ['tipo_ocorrencia', 'tipo', 'natureza', 'especie'],
-    municipio:       ['municipio', 'cidade_ocorrencia', 'municipio_fato'],
-    bairro:          ['bairro', 'bairro_fato', 'bairro_ocorrencia'],
-    logradouro:      ['logradouro', 'endereco', 'rua'],
-    modo_acao:       ['modo_acao', 'modus_operandi', 'modo', 'circunstancia'],
-    consumado:       ['consumado', 'tentado', 'tentativa'],
-    nome:            ['nome', 'nome_envolvido', 'nome_completo', 'nome_pessoa'],
+    tipo:            ['tipo_ocorrencia', 'tipo', 'natureza', 'especie',
+                      'natureza principal', 'natureza_principal'],
+    municipio:       ['municipio', 'cidade_ocorrencia', 'municipio_fato',
+                      'município do fato', 'municipio do fato', 'município_do_fato'],
+    bairro:          ['bairro', 'bairro_fato', 'bairro_ocorrencia',
+                      'bairro do fato', 'bairro_do_fato'],
+    logradouro:      ['logradouro', 'endereco', 'rua',
+                      'endereço da ocorrência', 'endereco da ocorrencia', 'endereço_da_ocorrência'],
+    modo_acao:       ['modo_acao', 'modus_operandi', 'modo', 'circunstancia',
+                      'modo ação criminosa', 'modo acao criminosa', 'modo_acao_criminosa'],
+    consumado:       ['consumado', 'tentado', 'tentativa', 'consumado?'],
+    nome:            ['nome', 'nome_envolvido', 'nome_completo', 'nome_pessoa',
+                      'nome do envolvido', 'nome_do_envolvido'],
     cpf:             ['cpf', 'cpf_envolvido'],
     rg:              ['rg', 'rg_envolvido'],
-    data_nascimento: ['data_nascimento', 'dt_nascimento', 'nascimento'],
-    nome_mae:        ['nome_mae', 'mae', 'nomemae'],
+    data_nascimento: ['data_nascimento', 'dt_nascimento', 'nascimento',
+                      'data de nascimento', 'data_de_nascimento'],
+    nome_mae:        ['nome_mae', 'mae', 'nomemae',
+                      'nome mãe envolvido', 'nome mae envolvido', 'nome_mae_envolvido'],
     sexo:            ['sexo', 'genero'],
-    papel:           ['papel', 'envolvimento', 'tipo_envolvido', 'qualificacao'],
+    papel:           ['papel', 'envolvimento', 'tipo_envolvido', 'qualificacao',
+                      'tipo de envolvimento', 'tipo_de_envolvimento'],
+    latitude:        ['latitude', 'lat'],
+    longitude:       ['longitude', 'lng', 'lon', 'long'],
 };
 
 type ColKey = keyof typeof COL_MAP;
 type Row = Record<string, string>;
 
 function findCol(headers: string[], cands: string[]): string | null {
-    const norm = headers.map(h => h.toLowerCase().trim().replace(/\s+/g, '_'));
-    for (const c of cands) {
-        const i = norm.findIndex(h => h.includes(c));
+    const norm = headers.map(h =>
+        h.toLowerCase().trim()
+         .normalize('NFD').replace(/[̀-ͯ]/g, '') // remove accents
+         .replace(/[^a-z0-9_\s]/g, '')                     // remove punctuation
+         .replace(/\s+/g, '_')
+    );
+    const normCands = cands.map(c =>
+        c.toLowerCase().trim()
+         .normalize('NFD').replace(/[̀-ͯ]/g, '')
+         .replace(/[^a-z0-9_\s]/g, '')
+         .replace(/\s+/g, '_')
+    );
+    for (const c of normCands) {
+        const i = norm.findIndex(h => h.includes(c) || c.includes(h));
         if (i >= 0) return headers[i];
     }
     return null;
