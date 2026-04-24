@@ -76,6 +76,10 @@ export function middleware(request: NextRequest) {
 
     if (isPublic(pathname)) return NextResponse.next();
 
+    // Bot/CLI requests bypass verification check — route handler validates the token
+    const isBotRequest = !!request.headers.get('x-intelink-bot-token');
+    if (isBotRequest) return NextResponse.next();
+
     if (!hasAuth(request)) {
         const loginUrl = request.nextUrl.clone();
         loginUrl.pathname = '/login';
