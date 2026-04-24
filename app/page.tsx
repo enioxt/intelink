@@ -69,6 +69,34 @@ export default function IntelinkHome() {
                             systemRole: verifyData.member.systemRole,
                         });
                         setChatId(verifyData.member.phone || verifyData.member.id);
+
+                        // Load stats + investigations for v2-authenticated users
+                        // (authenticateAndLoad only runs for legacy chat_id flow)
+                        try {
+                            const [statsRes, invRes] = await Promise.all([
+                                fetch('/api/stats', { credentials: 'include' }),
+                                fetch('/api/investigations?limit=20', { credentials: 'include' }),
+                            ]);
+                            if (statsRes.ok) {
+                                const s = await statsRes.json();
+                                setStats({
+                                    investigations: s.investigations || 0,
+                                    entities: s.entities || 0,
+                                    relationships: s.relationships || 0,
+                                    evidence: s.evidence || 0,
+                                });
+                            }
+                            if (invRes.ok) {
+                                const iv = await invRes.json();
+                                const cases = iv.investigations || [];
+                                setInvestigations(cases.sort((a: Investigation, b: Investigation) => {
+                                    if (a.status === 'active' && b.status !== 'active') return -1;
+                                    if (a.status !== 'active' && b.status === 'active') return 1;
+                                    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+                                }));
+                            }
+                        } catch { /* non-fatal */ }
+
                         setIsCheckingAuth(false);
                         return;
                     }
