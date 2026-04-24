@@ -10,7 +10,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # Configurações
 VPS_HOST="${VPS_HOST:-204.168.217.125}"
 VPS_USER="${VPS_USER:-root}"
-DEPLOY_PATH="${DEPLOY_PATH:-/opt/egos-inteligencia}"
+DEPLOY_PATH="${DEPLOY_PATH:-/opt/intelink-nextjs}"
 
 echo "🚀 EGOS Inteligência — Deploy Hetzner VPS"
 echo "=========================================="
