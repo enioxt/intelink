@@ -4,183 +4,129 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { useRouter } from 'next/navigation';
 import { getSupabaseClient } from '@/lib/supabase-client';
 
-interface User {
+/**
+ * Auth provider — single source of truth is /api/v2/auth/verify (reads
+ * httpOnly intelink_access cookie). No more localStorage tokens, no more
+ * chat_id, no more v1 flow. Only thing in localStorage is `intelink_member_id`
+ * which is a convenience cache for components that need it synchronously.
+ */
+
+interface Member {
     id: string;
     name: string;
     role: string;
+    system_role: string;
     unit_id?: string;
 }
 
-interface Session {
-    token: string;
-    expires_at?: string;
-}
-
 interface AuthContextType {
-    user: User | null;
-    session: Session | null;
+    member: Member | null;
     loading: boolean;
     isAuthenticated: boolean;
-    login: (user: User, session: Session) => void;
-    logout: () => void;
-    refreshUser: () => void;
+    refresh: () => Promise<void>;
+    logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
-    user: null,
-    session: null,
+    member: null,
     loading: true,
     isAuthenticated: false,
-    login: () => {},
-    logout: () => {},
-    refreshUser: () => {},
+    refresh: async () => {},
+    logout: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
-    const [session, setSession] = useState<Session | null>(null);
+    const [member, setMember] = useState<Member | null>(null);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
-    const refreshUser = useCallback(() => {
+    const refresh = useCallback(async () => {
         if (typeof window === 'undefined') return;
-        
-        const storedUser = localStorage.getItem('intelink_user');
-        const storedToken = localStorage.getItem('intelink_token');
-        
-        if (storedUser && storedToken) {
-            try {
-                setUser(JSON.parse(storedUser));
-                setSession({ token: storedToken });
-            } catch (e) {
-                console.error('Error parsing stored user:', e);
-                localStorage.removeItem('intelink_user');
-                localStorage.removeItem('intelink_token');
-                setUser(null);
-                setSession(null);
+        try {
+            const res = await fetch('/api/v2/auth/verify', { credentials: 'include' });
+            if (!res.ok) {
+                setMember(null);
+                setLoading(false);
+                return;
             }
-        } else {
-            setUser(null);
-            setSession(null);
+            const data = await res.json();
+            if (data.valid && data.member) {
+                const m: Member = {
+                    id: data.member.id,
+                    name: data.member.name,
+                    role: data.member.role || 'member',
+                    system_role: data.member.systemRole || 'member',
+                    unit_id: data.member.unitId,
+                };
+                setMember(m);
+                localStorage.setItem('intelink_member_id', m.id);
+                localStorage.setItem('intelink_role', m.system_role);
+            } else {
+                setMember(null);
+            }
+        } catch {
+            setMember(null);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     }, []);
 
-    // Auto-bridge: if Supabase session exists but intelink_member_id is missing, fetch member data
-    const runBridgeIfNeeded = useCallback(async () => {
-        if (typeof window === 'undefined') return;
-        if (localStorage.getItem('intelink_member_id')) return;
+    // Auto-bridge: if Supabase session exists but v2 doesn't, call bridge once.
+    const autoBridge = useCallback(async () => {
         const supabase = getSupabaseClient();
         if (!supabase) return;
-        const { data: { session: sbSession } } = await supabase.auth.getSession();
-        if (!sbSession?.user?.email || !sbSession.access_token) return;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.email || !session.access_token) return;
+
         try {
-            // R5: send Authorization: Bearer — Supabase persists its token in
-            // localStorage (storageKey 'intelink-auth-token'), not cookies, so
-            // the bridge's cookie-based session check can't find it. Without
-            // Bearer, callerEmail stays null and the bridge's email-match gate
-            // is bypassed (see app/api/auth/bridge/route.ts:59).
-            const res = await fetch('/api/auth/bridge', {
+            await fetch('/api/auth/bridge', {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
-                    Authorization: `Bearer ${sbSession.access_token}`,
+                    Authorization: `Bearer ${session.access_token}`,
                 },
-                body: JSON.stringify({ email: sbSession.user.email }),
+                body: JSON.stringify({ email: session.user.email }),
             });
-            if (res.ok) {
-                const data = await res.json();
-                if (data.member_id) {
-                    localStorage.setItem('intelink_member_id', data.member_id);
-                    localStorage.setItem('intelink_role', data.system_role || 'member');
-                    if (data.telegram_chat_id) localStorage.setItem('intelink_chat_id', String(data.telegram_chat_id));
-                    if (data.phone) localStorage.setItem('intelink_phone', data.phone);
-                    if (data.name) localStorage.setItem('intelink_username', data.name);
-                }
-            }
         } catch { /* best-effort */ }
     }, []);
 
     useEffect(() => {
-        refreshUser();
-        runBridgeIfNeeded();
-
-        // Listen for storage changes (cross-tab sync)
-        const handleStorageChange = (e: StorageEvent) => {
-            if (e.key === 'intelink_token' || e.key === 'intelink_user') {
-                refreshUser();
+        (async () => {
+            await refresh();
+            // If not authenticated after first refresh, try bridging once
+            if (typeof window !== 'undefined' && !localStorage.getItem('intelink_member_id')) {
+                await autoBridge();
+                await refresh();
             }
-        };
-
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
-    }, [refreshUser, runBridgeIfNeeded]);
-
-    const login = useCallback((newUser: User, newSession: Session) => {
-        setUser(newUser);
-        setSession(newSession);
-        localStorage.setItem('intelink_user', JSON.stringify(newUser));
-        localStorage.setItem('intelink_token', newSession.token);
-        
-        // Set cookie for middleware
-        document.cookie = `intelink_session=${newSession.token}; path=/; max-age=${60*60*24*30}; SameSite=Lax`;
-    }, []);
+        })();
+    }, [refresh, autoBridge]);
 
     const logout = useCallback(async () => {
-        // Call logout API to clear server-side cookies
         try {
-            await fetch('/api/v2/auth/logout', {
-                method: 'POST',
-                credentials: 'include',
-            });
-        } catch (e) {
-            console.error('Logout API error:', e);
-        }
-
-        // R3: also end the Supabase session. Without this, the token persisted
-        // in localStorage (storageKey 'intelink-auth-token') survives logout
-        // and the next visit to /login bounces straight to /central (ghost
-        // session) while the v2 JWT is already revoked.
+            await fetch('/api/v2/auth/logout', { method: 'POST', credentials: 'include' });
+        } catch {}
         try {
             const supabase = getSupabaseClient();
             await supabase?.auth.signOut({ scope: 'local' });
-        } catch (e) {
-            console.error('Supabase signOut error:', e);
-        }
+        } catch {}
 
-        setUser(null);
-        setSession(null);
-        
-        // Clear all auth data
-        localStorage.removeItem('intelink_user');
-        localStorage.removeItem('intelink_token');
-        localStorage.removeItem('intelink_chat_id');
-        localStorage.removeItem('intelink_username');
         localStorage.removeItem('intelink_member_id');
         localStorage.removeItem('intelink_role');
-        localStorage.removeItem('intelink_remember_token');
-        localStorage.removeItem('intelink_phone');
-        
-        // Clear cookies (both legacy and v2) - client side backup
-        document.cookie = 'intelink_session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-        document.cookie = 'intelink_access=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-        document.cookie = 'intelink_refresh=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-        document.cookie = 'intelink_member_id=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-        
+        setMember(null);
         router.push('/login');
     }, [router]);
 
     return (
-        <AuthContext.Provider value={{ 
-            user, 
-            session, 
-            loading, 
-            isAuthenticated: !!user && !!session,
-            login, 
-            logout,
-            refreshUser 
-        }}>
+        <AuthContext.Provider
+            value={{
+                member,
+                loading,
+                isAuthenticated: !!member,
+                refresh,
+                logout,
+            }}
+        >
             {children}
         </AuthContext.Provider>
     );

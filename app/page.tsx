@@ -105,100 +105,16 @@ export default function IntelinkHome() {
                 console.log('[Auth] v2 check failed, trying legacy');
             }
 
-            // AUTH-PUB-LEAK-FIX: Do not reutilize localStorage without valid session.
-            // If Supabase session check failed, clear all localStorage data and show PublicLanding.
-            // This prevents showing previous user's data (jornada, etc.) to unauthenticated visitors.
-            console.log('[Auth] No valid Supabase session — clearing localStorage');
-            localStorage.removeItem('intelink_chat_id');
-            localStorage.removeItem('intelink_phone');
-            localStorage.removeItem('intelink_token');
-            localStorage.removeItem('intelink_username');
+            // No valid v2 session — clear any stale v2 state and show PublicLanding
             localStorage.removeItem('intelink_member_id');
             localStorage.removeItem('intelink_role');
-            localStorage.removeItem('intelink_user');
-            localStorage.removeItem('intelink_keep_logged');
             setIsCheckingAuth(false);
         };
         checkAuth();
     }, []);
 
-    const authenticateAndLoad = async (id: string) => {
-        setLoading(true);
-        setError('');
-        
-        try {
-            if (id.startsWith('-')) {
-                console.log('[Auth] Rejecting fake chat_id:', id);
-                setError('Sessão inválida. Por favor, faça login novamente.');
-                setLoading(false);
-                localStorage.removeItem('intelink_chat_id');
-                return;
-            }
-            
-            const cleanId = id.replace(/\D/g, '');
-            const isLikelyPhone = cleanId.length >= 10 && cleanId.length <= 11;
-            const requestBody = isLikelyPhone ? { phone: cleanId } : { chat_id: id };
-            
-            const sessionRes = await fetch('/api/session', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody)
-            });
-
-            if (!sessionRes.ok) {
-                const errorData = await sessionRes.json().catch(() => ({}));
-                setError(errorData.error || 'Credencial não encontrada.');
-                setLoading(false);
-                return;
-            }
-
-            const sessionData = await sessionRes.json();
-            setIsAuthenticated(true);
-            localStorage.setItem('intelink_chat_id', id);
-
-            if (sessionData.member) {
-                if (sessionData.member.id) {
-                    localStorage.setItem('intelink_member_id', sessionData.member.id);
-                }
-                setMemberInfo({ 
-                    name: sessionData.member.name, 
-                    displayName: sessionData.member.displayName || sessionData.member.telegram_username || sessionData.member.name,
-                    role: sessionData.member.role, 
-                    phone: sessionData.member.phone,
-                    systemRole: sessionData.member.systemRole || sessionData.member.system_role || 'member'
-                });
-            }
-
-            const invRes = await fetch('/api/investigations?limit=20');
-            if (invRes.ok) {
-                const invData = await invRes.json();
-                const cases = invData.investigations || [];
-                const sortedCases = cases.sort((a: Investigation, b: Investigation) => {
-                    if (a.status === 'active' && b.status !== 'active') return -1;
-                    if (a.status !== 'active' && b.status === 'active') return 1;
-                    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-                });
-                setInvestigations(sortedCases);
-            }
-
-            const statsRes = await fetch('/api/stats');
-            if (statsRes.ok) {
-                const statsData = await statsRes.json();
-                setStats({
-                    investigations: statsData.investigations || 0,
-                    entities: statsData.entities || 0,
-                    relationships: statsData.relationships || 0,
-                    evidence: statsData.evidence || 0
-                });
-            }
-
-        } catch (e) {
-            console.error('Auth error:', e);
-            setError('Erro ao carregar dados.');
-        } finally {
-            setLoading(false);
-        }
-    };
+    // Legacy authenticateAndLoad (chat_id flow via /api/session) removed —
+    // v2 auth via /api/v2/auth/verify is the single entry point.
 
     useEffect(() => {
         if (!isAuthenticated) return;
@@ -267,12 +183,9 @@ export default function IntelinkHome() {
     };
 
     const handleLogout = async () => {
-        localStorage.removeItem('intelink_chat_id');
-        localStorage.removeItem('intelink_username');
-        localStorage.removeItem('intelink_token');
+        // v2 cleanup only — legacy keys (intelink_token, intelink_chat_id, etc.) are gone.
         localStorage.removeItem('intelink_member_id');
         localStorage.removeItem('intelink_role');
-        localStorage.removeItem('intelink_keep_logged');
 
         try {
             await fetch('/api/v2/auth/logout', { method: 'POST', credentials: 'include' });

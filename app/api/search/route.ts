@@ -264,7 +264,7 @@ export async function GET(request: NextRequest) {
 
         // 3. Search Members
         const { data: members } = await supabase
-            .from('intelink_members')
+            .from('intelink_unit_members')
             .select('id, name, role')
             .or(`name.ilike.%${query}%`)
             .limit(5);

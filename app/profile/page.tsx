@@ -71,81 +71,29 @@ export default function ProfilePage() {
     const loadProfile = async () => {
         setLoading(true);
         try {
-            // Try multiple ways to get member info
-            const memberId = localStorage.getItem('intelink_member_id');
-            const chatId = localStorage.getItem('intelink_chat_id');
-            const token = localStorage.getItem('intelink_token');
-            
-            // Method 1: Direct member ID lookup
-            if (memberId) {
-                const res = await fetch(`/api/members/${memberId}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.member) {
-                        setMemberInfo(data.member);
-                        setLoading(false);
-                        return;
-                    }
+            // Single source of truth: v2 session cookie → /api/v2/auth/verify
+            const res = await fetch('/api/v2/auth/verify', { credentials: 'include' });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (!data.valid || !data.member) return;
+
+            const memberRes = await fetch(`/api/members/${data.member.id}`, { credentials: 'include' });
+            if (memberRes.ok) {
+                const memberData = await memberRes.json();
+                if (memberData.member) {
+                    setMemberInfo(memberData.member);
+                    return;
                 }
             }
-            
-            // Method 2: Use auth/me API to get member info
-            const authValue = memberId || token;
-            if (authValue) {
-                const res = await fetch('/api/v2/auth/me', {
-                    headers: { 'Authorization': `Bearer ${authValue}` }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.id) {
-                        // Now fetch full member info
-                        const memberRes = await fetch(`/api/members/${data.id}`);
-                        if (memberRes.ok) {
-                            const memberData = await memberRes.json();
-                            if (memberData.member) {
-                                // Save member_id for future use
-                                localStorage.setItem('intelink_member_id', data.id);
-                                setMemberInfo(memberData.member);
-                                setLoading(false);
-                                return;
-                            }
-                        }
-                        
-                        // Fallback: use auth/me data directly
-                        setMemberInfo({
-                            id: data.id,
-                            name: data.name || 'Usuário',
-                            role: data.role || 'member',
-                            system_role: data.system_role || 'member',
-                            unit: data.unit
-                        });
-                        return;
-                    }
-                }
-            }
-            
-            // Method 3: Use session to find member
-            if (chatId) {
-                const sessionRes = await fetch('/api/session', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ chat_id: chatId })
-                });
-                if (sessionRes.ok) {
-                    const sessionData = await sessionRes.json();
-                    if (sessionData.member_id) {
-                        localStorage.setItem('intelink_member_id', sessionData.member_id);
-                        const memberRes = await fetch(`/api/members/${sessionData.member_id}`);
-                        if (memberRes.ok) {
-                            const memberData = await memberRes.json();
-                            setMemberInfo(memberData.member);
-                            return;
-                        }
-                    }
-                }
-            }
-            
-            console.log('[Profile] No authentication found');
+
+            // Fallback to verify payload if members endpoint fails
+            setMemberInfo({
+                id: data.member.id,
+                name: data.member.name || 'Usuário',
+                role: data.member.role || 'member',
+                system_role: data.member.systemRole || 'member',
+                unit: data.member.unitId,
+            });
         } catch (error) {
             console.error('Error loading profile:', error);
         } finally {

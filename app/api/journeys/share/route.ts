@@ -72,8 +72,8 @@ export async function POST(request: NextRequest) {
 CREATE TABLE IF NOT EXISTS intelink_journey_shares (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     journey_id UUID NOT NULL REFERENCES intelink_journeys(id) ON DELETE CASCADE,
-    shared_with_id UUID NOT NULL REFERENCES intelink_members(id) ON DELETE CASCADE,
-    shared_by_id UUID NOT NULL REFERENCES intelink_members(id),
+    shared_with_id UUID NOT NULL REFERENCES intelink_unit_members(id) ON DELETE CASCADE,
+    shared_by_id UUID NOT NULL REFERENCES intelink_unit_members(id),
     share_type TEXT DEFAULT 'view' CHECK (share_type IN ('view', 'collaborate', 'edit')),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(journey_id, shared_with_id)

@@ -111,7 +111,7 @@ async function handleGet(request: NextRequest, auth: AuthContext): Promise<NextR
             .from('intelink_merge_votes')
             .select(`
                 id, vote, created_at,
-                member:intelink_members(id, name)
+                member:intelink_unit_members(id, name)
             `)
             .eq('entity1_id', entity1_id)
             .eq('entity2_id', entity2_id);
