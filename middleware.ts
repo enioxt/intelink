@@ -60,6 +60,10 @@ function hasAuth(request: NextRequest): boolean {
     const authHeader = request.headers.get('Authorization') ?? request.headers.get('authorization');
     if (authHeader?.startsWith('Bearer ')) return true;
 
+    // Accept internal bot token (Telegram bot / CLI ingest — route handler re-validates)
+    const botToken = request.headers.get('x-intelink-bot-token');
+    if (botToken) return true;
+
     // Supabase sets sb-<project>-auth-token
     const sbCookie = [...request.cookies.getAll()].find(c =>
         c.name.startsWith('sb-') && c.name.endsWith('-auth-token')
