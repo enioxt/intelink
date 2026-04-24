@@ -10,30 +10,34 @@ import { join } from 'path';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAccessToken } from '@/lib/auth/jwt';
 
-const PHOTOS_DIR = process.env.PHOTOS_DIR || '/opt/intelink/photos/photos';
+const PHOTOS_DIR = process.env.PHOTOS_DIR || '/photos-disk';
 
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
-    // Auth: verifica JWT header ou sessão Supabase
-    const auth = request.headers.get('authorization');
     let authenticated = false;
 
-    if (auth?.startsWith('Bearer ')) {
-        const result = await verifyAccessToken(auth.slice(7));
-        if (result.success) authenticated = true;
+    // Priority 1: Bot token (Telegram bot / CLI)
+    const botToken = request.headers.get('x-intelink-bot-token');
+    if (botToken && botToken === process.env.TELEGRAM_BOT_TOKEN) authenticated = true;
+
+    // Priority 2: v2 JWT cookie (primary web flow)
+    if (!authenticated) {
+        const cookieJwt = request.cookies.get('intelink_access')?.value;
+        if (cookieJwt) {
+            const result = await verifyAccessToken(cookieJwt);
+            if (result.success) authenticated = true;
+        }
     }
 
+    // Priority 3: Bearer header (API clients)
     if (!authenticated) {
-        // Tenta sessão Supabase via cookie
-        const supabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            { global: { headers: { cookie: request.headers.get('cookie') || '' } } }
-        );
-        const { data: { user } } = await supabase.auth.getUser();
-        authenticated = !!user;
+        const auth = request.headers.get('authorization');
+        if (auth?.startsWith('Bearer ')) {
+            const result = await verifyAccessToken(auth.slice(7));
+            if (result.success) authenticated = true;
+        }
     }
 
     if (!authenticated) {
