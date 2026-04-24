@@ -66,9 +66,9 @@ export async function extractPersonsFromText(text: string): Promise<ExtractionRe
     if (!apiKey) throw new Error('OPENROUTER_API_KEY não configurada');
 
     const models = [
-        'google/gemini-2.0-flash-exp:free',
+        'anthropic/claude-haiku-4-5',
+        'anthropic/claude-haiku-4-5-20251001',
         'minimax/minimax-m1',
-        'google/gemini-flash-1.5',
     ];
 
     let lastError: Error | null = null;
@@ -89,7 +89,6 @@ export async function extractPersonsFromText(text: string): Promise<ExtractionRe
                         { role: 'system', content: EXTRACTION_PROMPT },
                         { role: 'user', content: `TEXTO DO DOCUMENTO:\n\n${text.slice(0, 8000)}` },
                     ],
-                    response_format: { type: 'json_object' },
                     temperature: 0.1,
                     max_tokens: 3000,
                 }),
