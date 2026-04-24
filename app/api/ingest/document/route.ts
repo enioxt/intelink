@@ -19,14 +19,21 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-    // Auth check
-    const anonClient = createClient(
-        SUPABASE_URL,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { global: { headers: { cookie: request.headers.get('cookie') || '' } } }
-    );
-    const { data: { user } } = await anonClient.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Auth: bot token OR Supabase session
+    const botToken = request.headers.get('x-intelink-bot-token');
+    const isBotCall = botToken && botToken === process.env.TELEGRAM_BOT_TOKEN;
+    let userId = 'bot';
+
+    if (!isBotCall) {
+        const anonClient = createClient(
+            SUPABASE_URL,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            { global: { headers: { cookie: request.headers.get('cookie') || '' } } }
+        );
+        const { data: { user } } = await anonClient.auth.getUser();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        userId = user.id;
+    }
 
     let formData: FormData;
     try {
@@ -57,7 +64,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
         // Store in Supabase Storage
-        const storagePath = `ingest/${user.id}/${Date.now()}_${filename}`;
+        const storagePath = `ingest/${userId}/${Date.now()}_${filename}`;
         await supabase.storage.from('intelink-photos').upload(storagePath, buffer, {
             contentType: mimeType,
             upsert: false,
@@ -73,7 +80,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 status: 'manual_review',
                 match_tier: 4,
                 match_confidence: 0.3,
-                notes: `uploaded by ${user.id}`,
+                notes: `uploaded by ${userId}`,
             })
             .select('id')
             .single();
@@ -141,7 +148,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         .from('intelink_audit_logs')
         .insert({
             action: 'ingest.document',
-            actor_id: user.id,
+            actor_id: userId,
             target_type: 'ingest_job',
             target_id: null,
             details: {
