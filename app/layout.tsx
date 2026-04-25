@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { ToastProvider } from '@/components/intelink/Toast';
 import { AuthProvider } from '@/providers/AuthProvider';
@@ -12,7 +12,8 @@ import PasskeyNudge from '@/components/PasskeyNudge';
 import ServiceWorkerRegistration from '@/components/pwa/ServiceWorkerRegistration';
 import JourneyFABGlobal from '@/components/shared/JourneyFABGlobal';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono', weight: ['400', '500', '600', '700'] });
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -45,7 +46,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <body className={inter.className}>
+      <body className={`${inter.variable} ${mono.variable} font-sans`}>
         <AuthProvider>
           <JourneyProvider>
             <IntelinkFocusProvider>

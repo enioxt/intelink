@@ -1,330 +1,249 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Network, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
-import { SkeletonInvestigationList, SkeletonQuickActions, SkeletonHero } from '@/components/ui/Skeleton';
-import { SkeletonPage } from '@/components/shared/Skeleton';
-import DemoWalkthrough, { useDemoWalkthrough } from '@/components/demo/DemoWalkthrough';
-import { DashboardHeader, InvestigationsList, MobileMenu } from '@/components/dashboard';
+import { useRouter } from 'next/navigation';
+import { IL } from '@/lib/design/tokens';
+import { ILCard } from '@/components/il/ILCard';
+import { ILTag } from '@/components/il/ILTag';
+import { ILHeader } from '@/components/il/ILHeader';
+import { GlobalSearch } from '@/components/il/GlobalSearch';
 import { PublicLanding } from '@/components/landing/PublicLanding';
 import type { Investigation } from '@/lib/utils/formatters';
 
-interface Stats {
-    investigations: number;
-    entities: number;
-    relationships: number;
-    evidence: number;
-}
+interface Stats { investigations: number; entities: number; relationships: number; evidence: number; }
+interface Alert { id: number; severity: 'high' | 'medium' | 'low'; text: string; }
+interface Member { id: string; name: string; role: string; system_role: string; }
 
-interface MemberInfo {
-    name: string;
-    displayName?: string;
-    role: string;
-    phone?: string;
-    systemRole?: string;
-}
+const STARTERS = [
+  'Quem tem mais vínculos no sistema?',
+  'Últimas ocorrências de homicídio',
+  'Pessoas em múltiplas operações',
+  'Análise de centralidade da rede',
+  'Fotos não vinculadas recentes',
+  'Cruzamento por veículo',
+];
 
 export default function IntelinkHome() {
-    const [chatId, setChatId] = useState('');
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [isCheckingAuth, setIsCheckingAuth] = useState(true); 
-    const [investigations, setInvestigations] = useState<Investigation[]>([]);
-    const [stats, setStats] = useState<Stats>({ investigations: 0, entities: 0, relationships: 0, evidence: 0 });
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [visibleCount, setVisibleCount] = useState(5);
-    const [userMenuOpen, setUserMenuOpen] = useState(false);
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [memberInfo, setMemberInfo] = useState<MemberInfo | null>(null);
-    
-    const canAccessAdmin = memberInfo?.systemRole && ['super_admin', 'unit_admin'].includes(memberInfo.systemRole);
-    const [showDeleted, setShowDeleted] = useState(false);
-    const [investigationSearch, setInvestigationSearch] = useState('');
-    const [sortBy, setSortBy] = useState<'recent' | 'activity' | 'name'>('recent');
-    
-    const [viewAsRole, setViewAsRole] = useState<'visitor' | 'member' | 'admin' | null>(null);
-    const [presentationMenuOpen, setPresentationMenuOpen] = useState(false);
-    const isViewingAs = viewAsRole !== null;
-    
-    const { isOpen: isDemoOpen, openDemo, closeDemo, DemoComponent } = useDemoWalkthrough();
+  const router = useRouter();
+  const [member, setMember] = useState<Member | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [investigations, setInvestigations] = useState<Investigation[]>([]);
+  const [stats, setStats] = useState<Stats>({ investigations: 0, entities: 0, relationships: 0, evidence: 0 });
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const searchRef = React.useRef<HTMLInputElement>(null);
 
-    useEffect(() => {
-        const checkAuth = async () => {
-            try {
-                const verifyRes = await fetch('/api/v2/auth/verify', {
-                    method: 'GET',
-                    credentials: 'include',
-                });
-                
-                if (verifyRes.ok) {
-                    const verifyData = await verifyRes.json();
-                    if (verifyData.valid && verifyData.member) {
-                        setIsAuthenticated(true);
-                        setMemberInfo({
-                            name: verifyData.member.name,
-                            displayName: verifyData.member.name,
-                            role: verifyData.member.role || 'member',
-                            phone: verifyData.member.phone,
-                            systemRole: verifyData.member.systemRole,
-                        });
-                        setChatId(verifyData.member.phone || verifyData.member.id);
-
-                        // Load stats + investigations for v2-authenticated users
-                        // (authenticateAndLoad only runs for legacy chat_id flow)
-                        try {
-                            const [statsRes, invRes] = await Promise.all([
-                                fetch('/api/stats', { credentials: 'include' }),
-                                fetch('/api/investigations?limit=20', { credentials: 'include' }),
-                            ]);
-                            if (statsRes.ok) {
-                                const s = await statsRes.json();
-                                setStats({
-                                    investigations: s.investigations || 0,
-                                    entities: s.entities || 0,
-                                    relationships: s.relationships || 0,
-                                    evidence: s.evidence || 0,
-                                });
-                            }
-                            if (invRes.ok) {
-                                const iv = await invRes.json();
-                                const cases = iv.investigations || [];
-                                setInvestigations(cases.sort((a: Investigation, b: Investigation) => {
-                                    if (a.status === 'active' && b.status !== 'active') return -1;
-                                    if (a.status !== 'active' && b.status === 'active') return 1;
-                                    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-                                }));
-                            }
-                        } catch { /* non-fatal */ }
-
-                        setIsCheckingAuth(false);
-                        return;
-                    }
-                }
-            } catch (e) {
-                console.log('[Auth] v2 check failed, trying legacy');
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/api/v2/auth/verify', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.valid && data.member) {
+            setMember(data.member);
+            const [statsRes, invRes] = await Promise.all([
+              fetch('/api/stats', { credentials: 'include' }),
+              fetch('/api/investigations?limit=6', { credentials: 'include' }),
+            ]);
+            if (statsRes.ok) {
+              const s = await statsRes.json();
+              setStats({ investigations: s.investigations || 0, entities: s.entities || 0, relationships: s.relationships || 0, evidence: s.evidence || 0 });
             }
-
-            // No valid v2 session — clear any stale v2 state and show PublicLanding
-            localStorage.removeItem('intelink_member_id');
-            localStorage.removeItem('intelink_role');
+            if (invRes.ok) {
+              const iv = await invRes.json();
+              setInvestigations((iv.investigations || []).sort((a: Investigation, b: Investigation) =>
+                new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+              ).slice(0, 6));
+            }
             setIsCheckingAuth(false);
-        };
-        checkAuth();
-    }, []);
-
-    // Legacy authenticateAndLoad (chat_id flow via /api/session) removed —
-    // v2 auth via /api/v2/auth/verify is the single entry point.
-
-    useEffect(() => {
-        if (!isAuthenticated) return;
-        
-        const loadInvestigations = async () => {
-            setLoading(true);
-            try {
-                const invRes = await fetch(`/api/investigations?limit=20&deleted=${showDeleted}`);
-                if (invRes.ok) {
-                    const invData = await invRes.json();
-                    const cases = invData.investigations || [];
-                    const sortedCases = cases.sort((a: Investigation, b: Investigation) => {
-                        if (a.status === 'active' && b.status !== 'active') return -1;
-                        if (a.status !== 'active' && b.status === 'active') return 1;
-                        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-                    });
-                    setInvestigations(sortedCases);
-                }
-            } catch (e) {
-                console.error('Error loading investigations:', e);
-            } finally {
-                setLoading(false);
-            }
-        };
-        
-        loadInvestigations();
-    }, [showDeleted, isAuthenticated]);
-
-    const handleToggleStatus = async (e: React.MouseEvent, inv: Investigation) => {
-        e.preventDefault(); 
-        e.stopPropagation();
-
-        const newStatus = inv.status === 'active' ? 'archived' : 'active';
-        
-        const updatedList = investigations.map(i => 
-            i.id === inv.id ? { ...i, status: newStatus } : i
-        ).sort((a, b) => {
-            const statA = a.id === inv.id ? newStatus : a.status;
-            const statB = b.id === inv.id ? newStatus : b.status;
-            if (statA === 'active' && statB !== 'active') return -1;
-            if (statA !== 'active' && statB === 'active') return 1;
-            return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-        });
-        
-        setInvestigations(updatedList);
-
-        await fetch('/api/investigations', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: inv.id, status: newStatus })
-        });
-    };
-
-    const handleRestore = async (e: React.MouseEvent, inv: Investigation) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        try {
-            const res = await fetch(`/api/investigation/${inv.id}/restore`, { method: 'POST' });
-            if (res.ok) {
-                setInvestigations(prev => prev.filter(i => i.id !== inv.id));
-            }
-        } catch (e) {
-            console.error('Error restoring investigation:', e);
+            return;
+          }
         }
+      } catch { /* show public */ }
+      localStorage.removeItem('intelink_member_id');
+      localStorage.removeItem('intelink_role');
+      setIsCheckingAuth(false);
     };
+    checkAuth();
+  }, []);
 
-    const handleLogout = async () => {
-        // v2 cleanup only — legacy keys (intelink_token, intelink_chat_id, etc.) are gone.
-        localStorage.removeItem('intelink_member_id');
-        localStorage.removeItem('intelink_role');
+  useEffect(() => {
+    if (member) setTimeout(() => searchRef.current?.focus(), 100);
+  }, [member]);
 
-        try {
-            await fetch('/api/v2/auth/logout', { method: 'POST', credentials: 'include' });
-        } catch (e) {
-            console.error('Logout error:', e);
-        }
-
-        // R3: close the Supabase session too — otherwise the next /login visit
-        // bounces to /central on a ghost session.
-        try {
-            const { getSupabaseClient } = await import('@/lib/supabase-client');
-            const supabase = getSupabaseClient();
-            await supabase?.auth.signOut({ scope: 'local' });
-        } catch (e) {
-            console.error('Supabase signOut error:', e);
-        }
-        
-        document.cookie = 'intelink_session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-        document.cookie = 'intelink_access=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-        document.cookie = 'intelink_refresh=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-        document.cookie = 'intelink_member_id=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-        
-        window.location.href = '/login';
-    };
-
-    if (isCheckingAuth) {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900 text-white p-6">
-                <div className="max-w-7xl mx-auto space-y-6">
-                    <div className="flex items-center justify-between py-3">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-slate-700/50 rounded-lg animate-pulse" />
-                            <div className="space-y-2">
-                                <div className="w-24 h-5 bg-slate-700/50 rounded animate-pulse" />
-                                <div className="w-32 h-3 bg-slate-700/50 rounded animate-pulse" />
-                            </div>
-                        </div>
-                    </div>
-                    <SkeletonHero />
-                    <SkeletonQuickActions />
-                    <SkeletonInvestigationList count={3} />
-                </div>
-            </div>
-        );
-    }
-
-    // UI-POLISH-005: unauthenticated visitors see marketing landing, not dashboard.
-    if (!isAuthenticated) {
-        return <PublicLanding />;
-    }
-
-    const isVisitor = false;
-
+  if (isCheckingAuth) {
     return (
-        <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900 text-white overflow-hidden">
-            <DemoComponent />
-            <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-                {isVisitor && (
-                    <div className="w-full px-4 py-3 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border-b border-cyan-500/20 flex items-center justify-between">
-                        <span className="text-sm text-slate-300">
-                            Modo visitante — <span className="text-cyan-400 font-medium">explore o sistema livremente</span>
-                        </span>
-                        <Link href="/login" className="px-3 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/30 rounded-lg text-xs font-semibold text-cyan-300 transition-colors">
-                            Fazer Login
-                        </Link>
-                    </div>
-                )}
-                <DashboardHeader
-                    memberInfo={memberInfo}
-                    canAccessAdmin={canAccessAdmin || false}
-                    userMenuOpen={userMenuOpen}
-                    setUserMenuOpen={setUserMenuOpen}
-                    mobileMenuOpen={mobileMenuOpen}
-                    setMobileMenuOpen={setMobileMenuOpen}
-                    presentationMenuOpen={presentationMenuOpen}
-                    setPresentationMenuOpen={setPresentationMenuOpen}
-                    viewAsRole={viewAsRole}
-                    setViewAsRole={setViewAsRole}
-                    isViewingAs={isViewingAs}
-                    onLogout={handleLogout}
-                />
-
-                <MobileMenu
-                    isOpen={mobileMenuOpen}
-                    onClose={() => setMobileMenuOpen(false)}
-                    canAccessAdmin={canAccessAdmin || false}
-                />
-
-                <main className="w-full px-6 py-6 space-y-6">
-                    {/* Central Strip */}
-                    <Link 
-                        href="/central"
-                        className="flex items-center justify-between px-5 py-3 bg-gradient-to-r from-slate-800/80 to-slate-800/40 hover:from-slate-700/80 hover:to-slate-700/40 border border-slate-700/50 hover:border-cyan-500/30 rounded-xl group transition-all"
-                    >
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-lg group-hover:from-cyan-500/30 group-hover:to-blue-500/30 transition-colors">
-                                <Network className="w-5 h-5 text-cyan-400" />
-                            </div>
-                            <span className="font-semibold text-white group-hover:text-cyan-100 transition-colors">Central</span>
-                        </div>
-                        
-                        <div className="hidden sm:flex items-center gap-6">
-                            <div className="flex items-center gap-2">
-                                <span className="text-lg font-bold text-cyan-400">{stats.investigations}</span>
-                                <span className="text-xs text-slate-400">Operações</span>
-                            </div>
-                            <div className="h-4 w-px bg-slate-600"/>
-                            <div className="flex items-center gap-2">
-                                <span className="text-lg font-bold text-blue-400">{stats.entities}</span>
-                                <span className="text-xs text-slate-400">Entidades</span>
-                            </div>
-                            <div className="h-4 w-px bg-slate-600"/>
-                            <div className="flex items-center gap-2">
-                                <span className="text-lg font-bold text-purple-400">{stats.relationships}</span>
-                                <span className="text-xs text-slate-400">Vínculos</span>
-                            </div>
-                        </div>
-                        
-                        <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />
-                    </Link>
-
-                    <InvestigationsList
-                        investigations={investigations}
-                        loading={loading}
-                        showDeleted={showDeleted}
-                        setShowDeleted={setShowDeleted}
-                        investigationSearch={investigationSearch}
-                        setInvestigationSearch={setInvestigationSearch}
-                        sortBy={sortBy}
-                        setSortBy={setSortBy}
-                        visibleCount={visibleCount}
-                        setVisibleCount={setVisibleCount}
-                        onToggleStatus={handleToggleStatus}
-                        onRestore={handleRestore}
-                    />
-                    
-                    <div className="h-24"></div>
-                </main>
-            </div>
-        </div>
+      <div style={{ minHeight: '100vh', background: `linear-gradient(135deg, ${IL.bg0}, ${IL.bg1}, ${IL.bg0})`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 24, height: 24, border: `2px solid ${IL.cyan}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
     );
+  }
+
+  if (!member) return <PublicLanding />;
+
+  const firstName = member.name?.split(' ')[0] ?? 'Investigador';
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+  const today = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  return (
+    <div style={{ minHeight: '100vh', background: `linear-gradient(135deg, ${IL.bg0}, ${IL.bg1}, ${IL.bg0})`, color: IL.ink }}>
+      <ILHeader active="dash" />
+
+      <main style={{ maxWidth: 1280, margin: '0 auto', padding: '48px 32px 64px' }}>
+        {/* Greeting */}
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <div style={{ fontSize: 11, color: IL.cyan, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.18em', marginBottom: 6 }}>{today}</div>
+          <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: '-0.02em' }}>{greeting}, {firstName}.</h1>
+        </div>
+
+        {/* Search hero */}
+        <div style={{ position: 'relative', maxWidth: 720, margin: '0 auto 36px' }}>
+          <span style={{ position: 'absolute', left: 22, top: '50%', transform: 'translateY(-50%)', color: IL.ink2, fontSize: 18 }}>⌕</span>
+          <input
+            ref={searchRef}
+            readOnly
+            placeholder="Buscar pessoas, CPFs, placas, telefones, ocorrências..."
+            onClick={() => (window as any).__ilOpenSearch?.()}
+            style={{
+              width: '100%', padding: '20px 22px 20px 56px',
+              background: IL.surf, border: `1px solid ${IL.border}`,
+              borderRadius: 14, color: IL.ink, fontSize: 15,
+              fontFamily: 'inherit', outline: 'none', cursor: 'pointer',
+              boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+            }}
+          />
+          <kbd style={{ position: 'absolute', right: 22, top: '50%', transform: 'translateY(-50%)', fontFamily: 'var(--font-mono)', fontSize: 10, padding: '3px 8px', background: IL.bg2, border: `1px solid ${IL.border}`, borderRadius: 4, color: IL.ink2, pointerEvents: 'none' }}>Ctrl+K</kbd>
+        </div>
+
+        {/* Chat + Atalhos */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 20, marginBottom: 24 }}>
+          {/* Chat card */}
+          <ILCard hover={false} style={{ padding: 20, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: IL.cyan, boxShadow: `0 0 8px ${IL.cyan}` }} />
+                <span style={{ fontSize: 11, color: IL.cyan, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Chat IA</span>
+              </div>
+              <Link href="/chat" style={{ fontSize: 11, color: IL.ink2, textDecoration: 'none' }}>Maximizar →</Link>
+            </div>
+            <p style={{ fontSize: 13, color: IL.ink2, margin: '0 0 14px', lineHeight: 1.6 }}>Pergunte sobre pessoas, operações, vínculos. As respostas citam REDS, documentos e fotos como fonte.</p>
+
+            {/* Starters */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+              {STARTERS.map((s, i) => (
+                <button key={i} onClick={() => router.push('/chat?q=' + encodeURIComponent(s))} style={{
+                  padding: '7px 12px', fontSize: 12, color: IL.ink,
+                  background: IL.surf, border: `1px solid ${IL.border}`, borderRadius: 999,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}>
+                  {s}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 'auto', display: 'flex', gap: 8 }}>
+              <textarea
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (chatInput.trim()) router.push('/chat?q=' + encodeURIComponent(chatInput)); } }}
+                placeholder="Pergunte algo... (Enter para enviar)"
+                rows={2}
+                style={{
+                  flex: 1, padding: '10px 14px', background: IL.bg2,
+                  border: `1px solid ${IL.border}`, borderRadius: 10,
+                  color: IL.ink, fontSize: 13, fontFamily: 'inherit',
+                  outline: 'none', resize: 'none',
+                }}
+              />
+              <button
+                onClick={() => { if (chatInput.trim()) router.push('/chat?q=' + encodeURIComponent(chatInput)); }}
+                style={{ padding: '10px 18px', background: IL.cyan, color: IL.bg1, border: 'none', borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer', alignSelf: 'flex-end' }}
+              >Enviar</button>
+            </div>
+          </ILCard>
+
+          {/* Right column: atalhos */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <Link href="/investigation/new" style={{
+              padding: '14px 18px', background: `linear-gradient(135deg, ${IL.cyan}, ${IL.blue})`, color: IL.bg1,
+              borderRadius: 12, fontWeight: 600, fontSize: 14, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none',
+            }}>
+              <span>+ Nova operação</span>
+              <span style={{ fontSize: 12, opacity: 0.7 }}>Ctrl+N</span>
+            </Link>
+
+            {/* Operações */}
+            <ILCard hover={false} style={{ padding: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <span style={{ fontSize: 11, color: IL.ink2, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Operações ativas</span>
+                <ILTag color={IL.cyan}>{stats.investigations}</ILTag>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {investigations.length === 0 && (
+                  <p style={{ fontSize: 12, color: IL.dim, margin: 0 }}>Nenhuma operação. Crie a primeira.</p>
+                )}
+                {investigations.map(inv => (
+                  <Link key={inv.id} href={`/investigation/${inv.id}`} style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
+                    borderRadius: 6, color: IL.ink, fontSize: 12, textDecoration: 'none',
+                  }}>
+                    <span style={{ width: 4, height: 4, borderRadius: '50%', background: inv.status === 'active' ? IL.cyan : IL.dim, flexShrink: 0 }} />
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.title}</span>
+                    <span style={{ color: IL.dim, fontSize: 10, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
+                      {(inv as unknown as Record<string, number>).entities_count ?? 0}E
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </ILCard>
+
+            {/* Alertas placeholder */}
+            {alerts.length > 0 && (
+              <ILCard hover={false} style={{ padding: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ fontSize: 11, color: IL.amber, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Alertas</span>
+                  <ILTag color={IL.amber}>{alerts.length}</ILTag>
+                </div>
+                {alerts.map(a => (
+                  <div key={a.id} style={{ padding: '6px 0', borderTop: `1px solid ${IL.border}`, fontSize: 12, color: IL.ink2, lineHeight: 1.5 }}>
+                    <span style={{ color: a.severity === 'high' ? IL.red : a.severity === 'medium' ? IL.amber : IL.dim, fontSize: 9, fontFamily: 'var(--font-mono)', marginRight: 6 }}>●</span>
+                    {a.text}
+                  </div>
+                ))}
+              </ILCard>
+            )}
+
+            <Link href="/central?tab=fotos&filter=unlinked" style={{
+              padding: '12px 14px', background: IL.surf, border: `1px solid ${IL.border}`,
+              borderRadius: 10, fontSize: 12, color: IL.ink2, textDecoration: 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <span>Fotos não vinculadas</span>
+              <ILTag color={IL.purple}>ver todas</ILTag>
+            </Link>
+          </div>
+        </div>
+
+        {/* Resumo do dia */}
+        <div style={{
+          padding: '14px 18px', background: IL.surf, border: `1px solid ${IL.border}`,
+          borderRadius: 10, display: 'flex', gap: 32, fontSize: 13, color: IL.ink2,
+          fontFamily: 'var(--font-mono)', flexWrap: 'wrap',
+        }}>
+          <span style={{ color: IL.dim, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: 10 }}>Sistema</span>
+          <span><span style={{ color: IL.ink, fontWeight: 600 }}>{stats.investigations}</span> operações</span>
+          <span><span style={{ color: IL.cyan, fontWeight: 600 }}>{stats.entities.toLocaleString('pt-BR')}</span> entidades</span>
+          <span><span style={{ color: IL.blue, fontWeight: 600 }}>{stats.relationships.toLocaleString('pt-BR')}</span> vínculos</span>
+          <span style={{ marginLeft: 'auto', fontSize: 11 }}>Neo4j: 16.140 pessoas · 2.092 REDS · 2.718 fotos</span>
+        </div>
+      </main>
+
+      <GlobalSearch />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
 }
