@@ -252,23 +252,23 @@
 
 ### P0 — Bugs críticos
 
-- [ ] `UI-001` **Pessoa vazia ao clicar da Central** — ID URL-encoded chega double-encoded na page. Fix: `decodeURIComponent(id)` na página antes do fetch
-- [ ] `UI-002` **Nome exibido como ID URL-encoded** — quando fetch falha, fallback mostra o id bruto em vez de "Carregando..."
-- [ ] `UI-003` **Dados da pessoa não preenchidos** — API `/api/neo4j/pessoa` retorna campos mas mapeamento incompleto (nome_original não decodificado, source_doc em vez de source)
+- [x] `UI-001` decodeURIComponent(id) — pessoa vazia corrigida (90a16f9)
+- [x] `UI-002` Fallback 'Não identificado' em vez de ID bruto (90a16f9)
+- [ ] `UI-003` **Dados da pessoa ainda incompletos em alguns casos** — verificar mapeamento telefone/source
 
 ### P0 — Normalização de dados (SSOT)
 
-- [ ] `DATA-001` **CPF SSOT = 11 dígitos sem separadores** (`11122233300`). Todos os formatos (`111.222.333-00`, `111222333 00`, etc) devem ser convertidos. Script de migration Neo4j + validação no ingest.
-- [ ] `DATA-002` **Telefone SSOT = DDD com 0 + dígito 9 + 8 dígitos** (`034999999999`). Implementar normalização no ingest + lib compartilhada de parsing.
-- [ ] `DATA-003` **Telefone internacional** — detectar país via prefixo, manter formato E.164 se não-brasileiro (`+1...` EUA, etc)
-- [ ] `DATA-004` **Script de limpeza Neo4j** — converter todos os CPFs e telefones existentes para SSOT no grafo
+- [x] `DATA-001` `lib/normalize/identifiers.ts` — normalizeCPF, formatCPF criados (90a16f9)
+- [x] `DATA-002` normalizePhone BR (034999999999), formatPhone criados (90a16f9)
+- [x] `DATA-003` normalizePhone com detecção de EUA e E.164 internacional (90a16f9)
+- [ ] `DATA-004` **Script Cypher de limpeza Neo4j** — converter CPFs/telefones existentes para SSOT (ainda não aplicado ao grafo)
 
 ### P1 — UX correções rápidas
 
-- [ ] `UI-004` **Floating button "Jornada Completa"** — mover para canto inferior **esquerdo** (atualmente inferior direito)
-- [ ] `UI-005` **Menu perfil (canto superior direito)** — ao clicar no avatar, abrir dropdown com: Meu Perfil, Configurações, Alterar Senha, Sair. Resgatar o que existia antes.
-- [ ] `UI-006` **Pessoas com nomes inválidos** — "JOAO MAMAO", "A APURAR E OUTROS", "A APURAR ORDEM DE SERVICO" são placeholders do banco. Filtrar/marcar com `[NÃO IDENTIFICADO]` na UI.
-- [ ] `UI-007` **Fontes mal formatadas** — `REDS_HOMICIDIO`, `RECEPTION_DATA`, `DHPP_CS` exibir como `REDS Homicídio`, `Recepção`, `DHPP CS`
+- [x] `UI-004` JourneyFAB → canto inferior esquerdo (x=20) (90a16f9)
+- [x] `UI-005` Menu perfil dropdown — Meu Perfil, Atividades, Senha, Config, Sair (90a16f9)
+- [x] `UI-006` Placeholder names marcados com badge 'placeholder' na Central (90a16f9)
+- [x] `UI-007` formatSource() — REDS_HOMICIDIO → 'REDS Homicídio' etc (90a16f9)
 
 ### P1 — Merge e deduplicação de entidades
 
