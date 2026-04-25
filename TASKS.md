@@ -245,3 +245,53 @@
 - [ ] `[migrated] VIZ-GRAPH-001` InvestigationGraph.tsx — integrar com caso DHPP real, drill-down 3 graus
 - [ ] `[migrated] VALID-001` Enio usa sistema com 1 caso DHPP real completo (entrada → busca → grafo → laudo)
 - [ ] `[migrated] VALID-002` Lídia faz onboarding sem treinamento — meta: entende 80% em 30min
+
+---
+
+## UI-REDESIGN — Sprint 2026-04-24 (v2 design system)
+
+### P0 — Bugs críticos
+
+- [ ] `UI-001` **Pessoa vazia ao clicar da Central** — ID URL-encoded chega double-encoded na page. Fix: `decodeURIComponent(id)` na página antes do fetch
+- [ ] `UI-002` **Nome exibido como ID URL-encoded** — quando fetch falha, fallback mostra o id bruto em vez de "Carregando..."
+- [ ] `UI-003` **Dados da pessoa não preenchidos** — API `/api/neo4j/pessoa` retorna campos mas mapeamento incompleto (nome_original não decodificado, source_doc em vez de source)
+
+### P0 — Normalização de dados (SSOT)
+
+- [ ] `DATA-001` **CPF SSOT = 11 dígitos sem separadores** (`11122233300`). Todos os formatos (`111.222.333-00`, `111222333 00`, etc) devem ser convertidos. Script de migration Neo4j + validação no ingest.
+- [ ] `DATA-002` **Telefone SSOT = DDD com 0 + dígito 9 + 8 dígitos** (`034999999999`). Implementar normalização no ingest + lib compartilhada de parsing.
+- [ ] `DATA-003` **Telefone internacional** — detectar país via prefixo, manter formato E.164 se não-brasileiro (`+1...` EUA, etc)
+- [ ] `DATA-004` **Script de limpeza Neo4j** — converter todos os CPFs e telefones existentes para SSOT no grafo
+
+### P1 — UX correções rápidas
+
+- [ ] `UI-004` **Floating button "Jornada Completa"** — mover para canto inferior **esquerdo** (atualmente inferior direito)
+- [ ] `UI-005` **Menu perfil (canto superior direito)** — ao clicar no avatar, abrir dropdown com: Meu Perfil, Configurações, Alterar Senha, Sair. Resgatar o que existia antes.
+- [ ] `UI-006` **Pessoas com nomes inválidos** — "JOAO MAMAO", "A APURAR E OUTROS", "A APURAR ORDEM DE SERVICO" são placeholders do banco. Filtrar/marcar com `[NÃO IDENTIFICADO]` na UI.
+- [ ] `UI-007` **Fontes mal formatadas** — `REDS_HOMICIDIO`, `RECEPTION_DATA`, `DHPP_CS` exibir como `REDS Homicídio`, `Recepção`, `DHPP CS`
+
+### P1 — Merge e deduplicação de entidades
+
+- [ ] `MERGE-001` **Diagnóstico de duplicatas** — "ABILIO BRAZ COELHO" aparece 2x com CPFs diferentes (formato diferente do mesmo CPF). Identificar via normalização.
+- [ ] `MERGE-002` **Endpoint `/api/neo4j/merge`** — dado dois IDs Neo4j, mesclar Person nodes preservando campos com maior confiança, criando relacionamento `SAME_AS`
+- [ ] `MERGE-003` **UI de merge** — na lista Central/Pessoas, poder selecionar 2+ registros e acionar merge
+- [ ] `MERGE-004` **Auto-sugestão de merge** — matching por CPF normalizado, nome + mãe, nome + nascimento. Listar candidatos na Central
+
+### P1 — Features legadas a resgatar
+
+- [ ] `LEGACY-001` **Diagnóstico completo de features pré-redesign** — listar tudo que funcionava antes (rotas, modais, componentes) para reintegrar ao novo layout
+- [ ] `LEGACY-002` **Sistema de propostas** (`/propostas`) — existia, verificar se está integrado
+- [ ] `LEGACY-003` **Modo Apresentação** no header (via DashboardHeader antigo)
+- [ ] `LEGACY-004` **Grafo de força** (`/graph/[id]`) — ForceGraph2D existia, verificar integração
+- [ ] `LEGACY-005` **Timeline da investigação** — existia `InvestigationTimeline`, reintegrar
+
+### P2 — Central: abas faltando
+
+- [ ] `CENTRAL-001` **Aba Veículos** — tabela de 665 veículos com filtros (placa, modelo, cor)
+- [ ] `CENTRAL-002` **Aba Vínculos** — 19.711 relacionamentos paginados, filtros por tipo (ENVOLVIDO_EM, PHOTO_OF, SAME_AS)
+- [ ] `CENTRAL-003` **Vínculos cross-case** — pessoas em múltiplas operações, pendentes de revisão
+
+### P2 — Novos designs (egos 7)
+
+- [ ] `DESIGN-001` **Analisar `/home/enio/Downloads/egos (7)/nextjs-export/`** — importar componentes úteis do HQ para o Intelink
+- [ ] `DESIGN-002` **hq-layout.tsx** — avaliar como base para layout de perfil
