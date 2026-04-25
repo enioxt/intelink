@@ -110,11 +110,11 @@ export function JourneyFABGlobal() {
                 setPosition(pos);
             } catch {
                 // Default position (bottom-right)
-                setPosition({ x: window.innerWidth - 100, y: window.innerHeight - 150 });
+                setPosition({ x: 20, y: window.innerHeight - 150 });
             }
         } else {
             // Default position
-            setPosition({ x: window.innerWidth - 100, y: window.innerHeight - 150 });
+            setPosition({ x: 20, y: window.innerHeight - 150 });
         }
     }, []);
     

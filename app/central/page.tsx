@@ -12,6 +12,7 @@ import { ConfBadge } from '@/components/il/ConfBadge';
 import { ILHeader } from '@/components/il/ILHeader';
 import { GlobalSearch } from '@/components/il/GlobalSearch';
 import type { ConfidenceKind } from '@/lib/design/tokens';
+import { formatCPF, formatSource, isPlaceholderName } from '@/lib/normalize/identifiers';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Neo4jPessoa {
@@ -134,12 +135,15 @@ function PessoasTab() {
                     {p.name?.split(' ').map(n => n[0]).slice(0, 2).join('') ?? '?'}
                   </div>
                 </td>
-                <td style={{ padding: '8px 12px', color: IL.ink, fontWeight: 500, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</td>
-                <td style={{ padding: '8px 12px', color: IL.ink2, fontFamily: 'var(--font-mono)', fontSize: 12, whiteSpace: 'nowrap' }}>{p.cpf ?? '—'}</td>
+                <td style={{ padding: '8px 12px', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ color: IL.ink, fontWeight: 500 }}>{p.name}</span>
+                  {isPlaceholderName(p.name) && <span style={{ marginLeft: 6, fontSize: 9, color: IL.dim, fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>placeholder</span>}
+                </td>
+                <td style={{ padding: '8px 12px', color: IL.ink2, fontFamily: 'var(--font-mono)', fontSize: 12, whiteSpace: 'nowrap' }}>{formatCPF(p.cpf)}</td>
                 <td style={{ padding: '8px 12px', color: IL.ink2, fontSize: 12, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.mae ?? '—'}</td>
                 <td style={{ padding: '8px 12px', color: IL.ink2, fontSize: 12, whiteSpace: 'nowrap' }}>{p.municipio ?? '—'}</td>
                 <td style={{ padding: '8px 12px', color: IL.ink2, fontSize: 12, whiteSpace: 'nowrap' }}>{p.bairro ?? '—'}</td>
-                <td style={{ padding: '8px 12px' }}>{p.source && <ILTag>{p.source.replace('_ETL', '').replace('_INGEST', '')}</ILTag>}</td>
+                <td style={{ padding: '8px 12px' }}>{p.source && <ILTag>{formatSource(p.source)}</ILTag>}</td>
                 <td style={{ padding: '8px 12px' }}><ConfBadge kind={sourceConf(p.source)} /></td>
                 <td style={{ padding: '8px 12px' }}>
                   <Link href={`/chat?q=${encodeURIComponent('Quem é ' + p.name)}`} onClick={e => e.stopPropagation()} style={{ fontSize: 11, color: IL.dim, textDecoration: 'none' }}>chat →</Link>

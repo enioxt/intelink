@@ -142,7 +142,9 @@ function VinculosTab({ coInvolved }: { coInvolved?: CoInvolved[] }) {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function PessoaPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+  // Next.js may pass the path segment still URL-encoded; always decode once.
+  const rawId = use(params).id;
+  const id = decodeURIComponent(rawId);
   const [person, setPerson] = useState<PersonData | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [tab, setTab] = useState('resumo');
@@ -157,10 +159,10 @@ export default function PessoaPage({ params }: { params: Promise<{ id: string }>
           const d = await res.json();
           setPerson(d.person ?? d);
         } else {
-          setPerson({ id, name: `Pessoa ${id}` });
+          setPerson({ id, name: 'Não identificado' });
         }
       } catch {
-        setPerson({ id, name: `Pessoa ${id}` });
+        setPerson({ id, name: 'Não identificado' });
       } finally {
         setLoading(false);
       }
