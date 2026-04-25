@@ -28,7 +28,9 @@ export async function GET(request: NextRequest) {
         const resolvedId = personRows[0].p?.elementId ?? '';
         const props = personRows[0].p?.properties ?? {};
         const nameRaw = props.nome_original ?? props.name ?? '';
-        const name = Array.isArray(nameRaw) ? (nameRaw as string[])[0] : String(nameRaw);
+        const nameFull = Array.isArray(nameRaw) ? (nameRaw as string[])[0] : String(nameRaw);
+        // Strip padding dashes/underscores some sources insert
+        const name = nameFull.replace(/^[-_\s]+|[-_\s]+$/g, '').trim() || nameFull;
 
         // Fetch all linked occurrences
         const occRows = await runQuery<{

@@ -107,7 +107,8 @@ interface SearchResult {
 function personResult(node: Neo4jNode): SearchResult {
     const p = node?.properties ?? {};
     const nameRaw = p.nome_original ?? p.name ?? '';
-    const name = Array.isArray(nameRaw) ? (nameRaw as string[])[0] : String(nameRaw);
+    const nameFull = Array.isArray(nameRaw) ? (nameRaw as string[])[0] : String(nameRaw);
+        const name = nameFull.replace(/^[-_\s]+|[-_\s]+$/g, "").trim() || nameFull;
     const cpf = p.cpf ? String(p.cpf) : null;
     const municipio = p.municipio ?? p.cidade ?? null;
     const detail = [cpf ? `CPF ${cpf}` : null, municipio].filter(Boolean).join(' · ');
