@@ -23,6 +23,31 @@ const TYPE_LABEL: Record<string, string> = {
   OCCURRENCE: 'Ocorrência', PHOTO: 'Foto', DOCUMENT: 'Documento',
 };
 
+// HighlightMatch: renders text with exact match highlighted in cyan,
+// non-matching suffix dimmed. Visual feedback as user types.
+function HighlightMatch({ text, query }: { text: string; query: string }) {
+  if (!query || !text) return <span>{text}</span>;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) {
+    // No match — dim the whole label (suggestion-only result)
+    return (
+      <span>
+        <span style={{ opacity: 0.55 }}>{text}</span>
+      </span>
+    );
+  }
+  const pre = text.slice(0, idx);
+  const match = text.slice(idx, idx + query.length);
+  const post = text.slice(idx + query.length);
+  return (
+    <span>
+      <span style={{ color: IL.ink2 }}>{pre}</span>
+      <span style={{ color: IL.cyan, fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 3, textDecorationColor: IL.cyan + '60' }}>{match}</span>
+      <span style={{ color: IL.ink2, opacity: 0.7 }}>{post}</span>
+    </span>
+  );
+}
+
 const TYPE_COLOR: Record<string, string> = {
   PERSON: IL.cyan, VEHICLE: IL.amber,
   OCCURRENCE: IL.red, PHOTO: IL.purple, DOCUMENT: IL.blue,
@@ -160,8 +185,10 @@ export function GlobalSearch() {
                 {TYPE_LABEL[r.type] ?? r.type}
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ color: IL.ink, fontSize: 14, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</div>
-                <div style={{ color: IL.ink2, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.detail}</div>
+                <div style={{ fontSize: 14, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <HighlightMatch text={r.label} query={q} />
+                </div>
+                <div style={{ color: IL.dim, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.detail}</div>
               </div>
               <ConfBadge kind={r.confidence} />
               {r.ops && <ILTag color={IL.cyan}>{r.ops} ops</ILTag>}
