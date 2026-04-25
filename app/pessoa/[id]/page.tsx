@@ -2,323 +2,220 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import {
-    ArrowLeft, User, FileSearch, AlertTriangle, Shield, MapPin,
-    Calendar, Hash, Users, Loader2, ChevronRight, Download
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { use } from 'react';
 import Link from 'next/link';
+import { IL, CONF } from '@/lib/design/tokens';
+import { ILCard } from '@/components/il/ILCard';
+import { ILTag } from '@/components/il/ILTag';
+import { ConfBadge } from '@/components/il/ConfBadge';
+import { ILHeader } from '@/components/il/ILHeader';
+import { GlobalSearch } from '@/components/il/GlobalSearch';
+import type { ConfidenceKind } from '@/lib/design/tokens';
 
-interface Occurrence {
-    id: string;
-    reds_number: string | null;
-    type: string | null;
-    data_fato: string | null;
-    bairro: string | null;
-    cidade: string | null;
-    delegacia: string | null;
-    descricao: string | null;
-    rel_type: string;
-}
-
-interface CoInvolved {
-    id: string;
-    name: string;
-    cpf: string;
-    shared_occurrences: number;
-}
-
-interface Person {
-    id: string;
-    name: string;
-    cpf: string;
-    rg: string;
-    bairro: string;
-    cidade: string;
-    delegacia: string;
-    source: unknown;
-    telefone: string | null;
-    labels: string[];
-}
-
+interface Photo { id: string; filename?: string; caption?: string; date?: string; source?: string; }
+interface NearLink { name: string; relation: string; evidence?: string; strength?: 'strong' | 'medium' | 'weak'; href?: string; }
 interface PersonData {
-    person: Person;
-    occurrences: Occurrence[];
-    co_involved: CoInvolved[];
-    stats: {
-        total_occurrences: number;
-        as_suspect: number;
-        as_victim: number;
-        co_involved_count: number;
+  id: string; name: string; cpf?: string; rg?: string; mae?: string;
+  nasc?: string; municipio?: string; bairro?: string;
+  source?: string; centrality?: number; hub_in_ops?: number;
+  photos?: Photo[]; near_links?: NearLink[];
+  counts?: { ocorrencias: number; documentos: number; vinculos: number; operacoes: number; };
+}
+
+function strengthColor(s?: 'strong' | 'medium' | 'weak') {
+  return s === 'strong' ? IL.cyan : s === 'medium' ? IL.amber : IL.dim;
+}
+
+function PhotoModal({ photo, onClose }: { photo: Photo; onClose: () => void }) {
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(2,6,23,0.95)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(640px, 90vw)', background: IL.bg1, border: `1px solid ${IL.border}`, borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{ aspectRatio: '4/3', background: '#152030', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`/api/photos/${photo.id}/file`} alt={photo.caption ?? ''} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0.2'; }} />
+        </div>
+        <div style={{ padding: 18 }}>
+          <div style={{ fontSize: 13, color: IL.ink2, marginBottom: 12 }}>{photo.caption ?? '—'}</div>
+          <div style={{ display: 'flex', gap: 20, fontSize: 12, color: IL.ink2, fontFamily: 'var(--font-mono)', marginBottom: 14 }}>
+            <span>Data: {photo.date ?? '—'}</span>
+            <span>Fonte: {photo.source ?? '—'}</span>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <a href={`/api/photos/${photo.id}/file`} download={photo.filename ?? photo.id} style={{ padding: '7px 14px', background: IL.cyan, color: IL.bg1, borderRadius: 6, fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>Download</a>
+            <button onClick={onClose} style={{ padding: '7px 14px', background: 'transparent', border: `1px solid ${IL.border}`, color: IL.ink, borderRadius: 6, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Fechar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function PessoaPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const [person, setPerson] = useState<PersonData | null>(null);
+  const [tab, setTab] = useState('resumo');
+  const [photoModal, setPhotoModal] = useState<Photo | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/neo4j/pessoa?id=${encodeURIComponent(id)}`, { credentials: 'include' });
+        if (res.ok) {
+          const d = await res.json();
+          setPerson(d.person ?? d);
+        } else {
+          setPerson({ id, name: `Pessoa ${id}`, counts: { ocorrencias: 0, documentos: 0, vinculos: 0, operacoes: 0 } });
+        }
+      } catch {
+        setPerson({ id, name: `Pessoa ${id}`, counts: { ocorrencias: 0, documentos: 0, vinculos: 0, operacoes: 0 } });
+      } finally {
+        setLoading(false);
+      }
     };
-}
+    load();
+  }, [id]);
 
-function relLabel(rel: string) {
-    if (rel === 'VICTIM_IN') return { label: 'Vítima', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' };
-    return { label: 'Envolvido', color: 'text-red-400 bg-red-500/10 border-red-500/20' };
-}
+  if (loading) return (
+    <div style={{ minHeight: '100vh', background: `linear-gradient(135deg, ${IL.bg0}, ${IL.bg1})`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ color: IL.cyan, fontFamily: 'var(--font-mono)', fontSize: 13 }}>Carregando…</div>
+    </div>
+  );
 
-function formatDate(d: string | null) {
-    if (!d) return '—';
-    try { return new Date(d).toLocaleDateString('pt-BR'); } catch { return d; }
-}
+  const p = person!;
+  const initials = p.name?.split(' ').map(n => n[0]).slice(0, 2).join('') ?? 'IL';
+  const conf: ConfidenceKind = p.source === 'REDS_ETL' ? 'reds' : p.source === 'PDF_INGEST' ? 'probable' : 'unconfirmed';
 
-export default function PessoaPage() {
-    const params = useParams();
-    const router = useRouter();
-    const id = decodeURIComponent(params?.id as string);
+  const TABS = [
+    { id: 'resumo', label: 'Resumo' },
+    { id: 'ocorrencias', label: `Ocorrências (${p.counts?.ocorrencias ?? 0})` },
+    { id: 'vinculos', label: `Vínculos (${p.counts?.vinculos ?? 0})` },
+    { id: 'docs', label: `Documentos (${p.counts?.documentos ?? 0})` },
+    { id: 'hist', label: 'Histórico' },
+  ];
 
-    const [data, setData] = useState<PersonData | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-    const [activeTab, setActiveTab] = useState<'ocorrencias' | 'vinculos'>('ocorrencias');
-    const [downloadingPdf, setDownloadingPdf] = useState(false);
+  return (
+    <div style={{ minHeight: '100vh', background: `linear-gradient(135deg, ${IL.bg0}, ${IL.bg1}, ${IL.bg0})`, color: IL.ink }}>
+      <ILHeader />
+      <main style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 32px 64px' }}>
+        <Link href="/central?tab=pessoas" style={{ fontSize: 12, color: IL.ink2, textDecoration: 'none' }}>← Central / Pessoas</Link>
 
-    const handleDownloadPdf = async () => {
-        setDownloadingPdf(true);
-        try {
-            const isCpf = /^\d{11}$/.test(id);
-            const pdfUrl = isCpf
-                ? `/api/neo4j/pessoa/pdf?cpf=${encodeURIComponent(id)}`
-                : `/api/neo4j/pessoa/pdf?id=${encodeURIComponent(id)}`;
-            const res = await fetch(pdfUrl);
-            if (!res.ok) throw new Error('Erro ao gerar PDF');
-            const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `relatorio_${data?.person.name?.replace(/\s+/g, '_').slice(0, 30) ?? 'pessoa'}.pdf`;
-            a.click();
-            URL.revokeObjectURL(url);
-        } catch { /* silently ignore */ }
-        finally { setDownloadingPdf(false); }
-    };
-
-    useEffect(() => {
-        if (!id) return;
-        // CPF (11 digits) comes from br-acc search results; elementId otherwise
-        const isCpf = /^\d{11}$/.test(id);
-        const apiUrl = isCpf
-            ? `/api/neo4j/pessoa?cpf=${encodeURIComponent(id)}`
-            : `/api/neo4j/pessoa?id=${encodeURIComponent(id)}`;
-        fetch(apiUrl)
-            .then(r => r.json())
-            .then(d => {
-                if (d.error) setError(d.error);
-                else setData(d);
-            })
-            .catch(() => setError('Erro ao carregar dados'))
-            .finally(() => setLoading(false));
-    }, [id]);
-
-    if (loading) return (
-        <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-            <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
-        </div>
-    );
-
-    if (error || !data) return (
-        <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-            <div className="text-center">
-                <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-                <p className="text-white text-lg">{error || 'Pessoa não encontrada'}</p>
-                <button onClick={() => router.back()} className="mt-4 text-cyan-400 hover:text-cyan-300 flex items-center gap-2 mx-auto">
-                    <ArrowLeft className="w-4 h-4" /> Voltar
-                </button>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginTop: 16, marginBottom: 24 }}>
+          <div style={{ width: 96, height: 96, borderRadius: 12, flexShrink: 0, background: '#152030', border: `2px solid ${IL.amber}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700, color: IL.amber, fontFamily: 'var(--font-mono)' }}>{initials}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0, letterSpacing: '-0.02em', lineHeight: 1.2 }}>{p.name}</h1>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16, marginTop: 8, fontSize: 13, color: IL.ink2 }}>
+              {p.cpf && <span style={{ fontFamily: 'var(--font-mono)' }}>CPF {p.cpf} <ConfBadge kind="reds" /></span>}
+              {p.rg && <span style={{ fontFamily: 'var(--font-mono)' }}>RG {p.rg}</span>}
+              {p.nasc && <span>Nasc {p.nasc}</span>}
+              {p.municipio && <span>{p.municipio}</span>}
+              {p.bairro && <span>{p.bairro}</span>}
             </div>
-        </div>
-    );
-
-    const { person, occurrences, co_involved, stats } = data;
-    const isREDS = (person.source as string[])?.includes?.('reds') || String(person.source).includes('reds');
-
-    return (
-        <div className="min-h-screen bg-slate-900 text-white">
-            {/* Topbar */}
-            <div className="bg-slate-800/80 border-b border-slate-700 px-6 py-4 flex items-center gap-4">
-                <button onClick={() => router.back()} className="text-slate-400 hover:text-white transition-colors">
-                    <ArrowLeft className="w-5 h-5" />
-                </button>
-                <div className="flex-1">
-                    <h1 className="text-lg font-bold text-white">{person.name || 'Sem nome'}</h1>
-                    <p className="text-xs text-slate-400">Perfil de pessoa — Neo4j local</p>
-                </div>
-                <div className="flex gap-2 items-center">
-                    <button
-                        onClick={handleDownloadPdf}
-                        disabled={downloadingPdf}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
-                    >
-                        {downloadingPdf ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-                        {downloadingPdf ? 'Gerando...' : 'PDF'}
-                    </button>
-                    {isREDS && (
-                        <span className="px-2 py-1 text-xs bg-red-500/10 border border-red-500/20 text-red-400 rounded">
-                            REDS
-                        </span>
-                    )}
-                    {person.labels.includes('ReceptionPerson') && (
-                        <span className="px-2 py-1 text-xs bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded">
-                            Recepção
-                        </span>
-                    )}
-                </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+              <button style={{ padding: '8px 14px', background: IL.cyan, color: IL.bg1, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Adicionar a operação</button>
+              <button style={{ padding: '8px 14px', background: 'transparent', border: `1px solid ${IL.border}`, color: IL.ink, borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Editar</button>
+              <button style={{ padding: '8px 14px', background: 'transparent', border: `1px solid ${IL.border}`, color: IL.ink, borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Exportar perfil</button>
+              <Link href={`/chat?q=${encodeURIComponent('Me fale sobre ' + p.name)}`} style={{ padding: '8px 14px', background: 'transparent', border: `1px solid ${IL.border}`, color: IL.ink2, borderRadius: 8, fontSize: 12, textDecoration: 'none', display: 'inline-block' }}>Chat IA</Link>
             </div>
-
-            <div className="max-w-5xl mx-auto px-6 py-6 space-y-6">
-                {/* Dados pessoais */}
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
-                    <div className="flex items-start gap-4">
-                        <div className="w-16 h-16 bg-cyan-500/10 rounded-xl flex items-center justify-center border border-cyan-500/20 shrink-0">
-                            <User className="w-8 h-8 text-cyan-400" />
-                        </div>
-                        <div className="flex-1 grid grid-cols-2 md:grid-cols-3 gap-4">
-                            {person.cpf && (
-                                <div>
-                                    <p className="text-xs text-slate-500 mb-1">CPF</p>
-                                    <p className="text-sm font-mono text-white">{person.cpf}</p>
-                                </div>
-                            )}
-                            {person.rg && (
-                                <div>
-                                    <p className="text-xs text-slate-500 mb-1">RG</p>
-                                    <p className="text-sm font-mono text-white">{person.rg}</p>
-                                </div>
-                            )}
-                            {(person.bairro || person.cidade) && (
-                                <div>
-                                    <p className="text-xs text-slate-500 mb-1">Localização</p>
-                                    <p className="text-sm text-white">{[person.bairro, person.cidade].filter(Boolean).join(', ')}</p>
-                                </div>
-                            )}
-                            {person.delegacia && (
-                                <div>
-                                    <p className="text-xs text-slate-500 mb-1">Delegacia</p>
-                                    <p className="text-sm text-white">{person.delegacia}</p>
-                                </div>
-                            )}
-                            {person.telefone && (
-                                <div>
-                                    <p className="text-xs text-slate-500 mb-1">Telefone</p>
-                                    <p className="text-sm text-white">{String(person.telefone)}</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {[
-                        { icon: FileSearch, label: 'Total Ocorrências', value: stats.total_occurrences, color: 'cyan' },
-                        { icon: Shield, label: 'Como Envolvido', value: stats.as_suspect, color: 'red' },
-                        { icon: AlertTriangle, label: 'Como Vítima', value: stats.as_victim, color: 'amber' },
-                        { icon: Users, label: 'Co-envolvidos', value: stats.co_involved_count, color: 'purple' },
-                    ].map(({ icon: Icon, label, value, color }) => (
-                        <div key={label} className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-center">
-                            <Icon className={`w-5 h-5 text-${color}-400 mx-auto mb-2`} />
-                            <p className={`text-2xl font-bold text-${color}-400`}>{value}</p>
-                            <p className="text-xs text-slate-400 mt-1">{label}</p>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Tabs */}
-                <div className="flex gap-1 bg-slate-800/50 border border-slate-700 rounded-xl p-1">
-                    {(['ocorrencias', 'vinculos'] as const).map(tab => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-                                activeTab === tab
-                                    ? 'bg-cyan-600 text-white'
-                                    : 'text-slate-400 hover:text-white'
-                            }`}
-                        >
-                            {tab === 'ocorrencias' ? `Ocorrências REDS (${stats.total_occurrences})` : `Co-envolvidos (${stats.co_involved_count})`}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Ocorrências */}
-                {activeTab === 'ocorrencias' && (
-                    <div className="space-y-3">
-                        {occurrences.length === 0 ? (
-                            <div className="text-center py-12 text-slate-500">
-                                <FileSearch className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                                <p>Nenhuma ocorrência REDS vinculada</p>
-                            </div>
-                        ) : occurrences.map(occ => {
-                            const { label, color } = relLabel(occ.rel_type);
-                            return (
-                                <div key={occ.id} className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 hover:border-slate-600 transition-colors">
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                                <span className={`px-2 py-0.5 text-xs rounded border ${color}`}>{label}</span>
-                                                {occ.reds_number && (
-                                                    <span className="text-xs font-mono text-slate-400">
-                                                        <Hash className="w-3 h-3 inline mr-0.5" />{String(occ.reds_number)}
-                                                    </span>
-                                                )}
-                                                {occ.data_fato && (
-                                                    <span className="text-xs text-slate-500 flex items-center gap-1">
-                                                        <Calendar className="w-3 h-3" />{formatDate(String(occ.data_fato))}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            {occ.type && (
-                                                <p className="text-sm font-medium text-white mb-1">{String(occ.type)}</p>
-                                            )}
-                                            {(occ.bairro || occ.cidade) && (
-                                                <p className="text-xs text-slate-400 flex items-center gap-1">
-                                                    <MapPin className="w-3 h-3" />
-                                                    {[occ.bairro, occ.cidade].filter(Boolean).map(String).join(', ')}
-                                                </p>
-                                            )}
-                                            {occ.delegacia && (
-                                                <p className="text-xs text-slate-500 mt-1">{String(occ.delegacia)}</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-
-                {/* Co-envolvidos */}
-                {activeTab === 'vinculos' && (
-                    <div className="space-y-3">
-                        {co_involved.length === 0 ? (
-                            <div className="text-center py-12 text-slate-500">
-                                <Users className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                                <p>Nenhum co-envolvido encontrado</p>
-                            </div>
-                        ) : co_involved.map(co => (
-                            <Link
-                                key={co.id}
-                                href={`/pessoa/${encodeURIComponent(co.id)}`}
-                                className="flex items-center gap-4 bg-slate-800/50 border border-slate-700 rounded-xl p-4 hover:border-cyan-500/40 hover:bg-slate-800 transition-colors group"
-                            >
-                                <div className="w-10 h-10 bg-purple-500/10 rounded-lg flex items-center justify-center border border-purple-500/20 shrink-0">
-                                    <User className="w-5 h-5 text-purple-400" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-white truncate">{co.name || 'Sem nome'}</p>
-                                    {co.cpf && <p className="text-xs font-mono text-slate-400">{co.cpf}</p>}
-                                </div>
-                                <div className="text-right shrink-0">
-                                    <p className="text-lg font-bold text-purple-400">{co.shared_occurrences}</p>
-                                    <p className="text-xs text-slate-500">ocorrência{co.shared_occurrences !== 1 ? 's' : ''} em comum</p>
-                                </div>
-                                <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-cyan-400 transition-colors" />
-                            </Link>
-                        ))}
-                    </div>
-                )}
-            </div>
+          </div>
         </div>
-    );
+
+        {/* Photos */}
+        {p.photos && p.photos.length > 0 && (
+          <ILCard hover={false} style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontSize: 11, color: IL.ink2, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Fotos ({p.photos.length})</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 10 }}>
+              {p.photos.slice(0, 8).map(ph => (
+                <div key={ph.id} onClick={() => setPhotoModal(ph)} style={{ aspectRatio: '1', cursor: 'pointer', borderRadius: 10, overflow: 'hidden', border: `1px solid ${IL.border}`, background: '#152030', position: 'relative' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`/api/photos/${ph.id}/file`} alt={ph.caption ?? ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0.1'; }} />
+                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(2,6,23,0.85), transparent 50%)', padding: 8, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                    <div style={{ fontSize: 9, color: IL.ink2, fontFamily: 'var(--font-mono)' }}>{ph.source ?? ''}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ILCard>
+        )}
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 4, borderBottom: `1px solid ${IL.border}`, marginBottom: 20, overflowX: 'auto' }}>
+          {TABS.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: '10px 16px', background: 'transparent', border: 'none', whiteSpace: 'nowrap', color: tab === t.id ? IL.cyan : IL.ink2, fontSize: 13, borderBottom: `2px solid ${tab === t.id ? IL.cyan : 'transparent'}`, cursor: 'pointer', fontFamily: 'inherit', marginBottom: -1 }}>{t.label}</button>
+          ))}
+        </div>
+
+        {tab === 'resumo' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <ILCard hover={false}>
+              <div style={{ fontSize: 11, color: IL.ink2, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 12 }}>Identificação</div>
+              {([['Nome', p.name, conf], ['CPF', p.cpf ?? '—', 'reds'], ['RG', p.rg ?? '—', 'confirmed'], ['Mãe', p.mae ?? '—', 'probable'], ['Nascimento', p.nasc ?? '—', 'reds'], ['Município', p.municipio ?? '—', 'reds'], ['Bairro', p.bairro ?? '—', 'unconfirmed']] as [string, string, ConfidenceKind][]).map(([l, v, c]) => (
+                <div key={l} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${IL.border}`, fontSize: 13 }}>
+                  <span style={{ color: IL.ink2 }}>{l}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ color: IL.ink, fontFamily: (l === 'CPF' || l === 'RG') ? 'var(--font-mono)' : 'inherit' }}>{v}</span>
+                    <ConfBadge kind={c} />
+                  </div>
+                </div>
+              ))}
+            </ILCard>
+
+            <ILCard hover={false}>
+              <div style={{ fontSize: 11, color: IL.amber, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 12 }}>Análise</div>
+              {p.centrality != null && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${IL.border}` }}>
+                  <span style={{ color: IL.ink2, fontSize: 13 }}>Centralidade</span>
+                  <span style={{ color: IL.amber, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{p.centrality.toFixed(2)}</span>
+                </div>
+              )}
+              {p.hub_in_ops != null && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${IL.border}` }}>
+                  <span style={{ color: IL.ink2, fontSize: 13 }}>Hub em</span>
+                  <span style={{ color: IL.ink, fontWeight: 600 }}>{p.hub_in_ops} operações</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${IL.border}` }}>
+                <span style={{ color: IL.ink2, fontSize: 13 }}>Fonte</span>
+                <ILTag color={CONF[conf].color}>{CONF[conf].label}</ILTag>
+              </div>
+              <div style={{ marginTop: 14 }}>
+                <Link href={`/chat?q=${encodeURIComponent('/analisar ' + p.name)}`} style={{ display: 'block', padding: '8px 12px', background: IL.bg2, border: `1px solid ${IL.border}`, borderRadius: 8, color: IL.cyan, fontSize: 12, textAlign: 'center', textDecoration: 'none' }}>
+                  Analisar no Chat IA
+                </Link>
+              </div>
+            </ILCard>
+
+            {p.near_links && p.near_links.length > 0 && (
+              <ILCard hover={false} style={{ gridColumn: '1 / -1' }}>
+                <div style={{ fontSize: 11, color: IL.cyan, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 12 }}>Vínculos próximos</div>
+                {p.near_links.map((l, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 0', borderTop: i > 0 ? `1px solid ${IL.border}` : 'none' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: strengthColor(l.strength), flexShrink: 0 }} />
+                    <span style={{ fontSize: 14, color: IL.ink, fontWeight: 500, minWidth: 200 }}>{l.name}</span>
+                    <ILTag color={IL.cyan}>{l.relation}</ILTag>
+                    {l.evidence && <span style={{ color: IL.ink2, fontSize: 12, fontStyle: 'italic', flex: 1 }}>{l.evidence}</span>}
+                    {l.href && <Link href={l.href} style={{ fontSize: 11, color: IL.cyan, textDecoration: 'none' }}>abrir →</Link>}
+                  </div>
+                ))}
+              </ILCard>
+            )}
+          </div>
+        )}
+
+        {tab !== 'resumo' && (
+          <ILCard hover={false} style={{ padding: 64, textAlign: 'center' }}>
+            <div style={{ fontSize: 14, color: IL.ink2, marginBottom: 12 }}>Em desenvolvimento.</div>
+            <Link href={`/chat?q=${encodeURIComponent('Me mostre ' + tab + ' de ' + p.name)}`} style={{ color: IL.cyan, fontSize: 13, textDecoration: 'none' }}>Perguntar ao Chat IA →</Link>
+          </ILCard>
+        )}
+      </main>
+
+      {photoModal && <PhotoModal photo={photoModal} onClose={() => setPhotoModal(null)} />}
+      <GlobalSearch />
+    </div>
+  );
 }
