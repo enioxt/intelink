@@ -30,18 +30,18 @@ const TYPE_COLOR: Record<string, string> = {
 
 async function fetchSearch(q: string): Promise<SearchResult[]> {
   if (q.length < 2) return [];
-  const res = await fetch(`/api/neo4j/search?q=${encodeURIComponent(q)}&limit=12`);
+  const res = await fetch(`/api/neo4j/search?q=${encodeURIComponent(q)}&limit=15`);
   if (!res.ok) return [];
   const data = await res.json();
   return (data.results ?? []).map((r: Record<string, unknown>) => ({
     type: (r.type as string)?.toUpperCase() ?? 'PERSON',
     id: r.id as string,
-    label: r.name as string ?? r.label as string ?? '',
+    label: r.label as string ?? r.name as string ?? '',
     detail: r.detail as string ?? '',
     source: r.source as string ?? '',
     confidence: (r.confidence as ConfidenceKind) ?? 'unconfirmed',
     ops: r.ops as number,
-    href: r.type === 'PERSON' ? `/pessoa/${r.id}` : r.type === 'VEHICLE' ? `/search?q=${r.id}` : `/busca-reds?q=${r.id}`,
+    href: r.href as string ?? `/pessoa/${r.id}`,
   }));
 }
 

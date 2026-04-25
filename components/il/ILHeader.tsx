@@ -12,7 +12,7 @@ interface Props {
 
 const NAV: { id: NavId; label: string; href: string }[] = [
   { id: 'dash',    label: 'Início',     href: '/' },
-  { id: 'invest',  label: 'Operações',  href: '/investigations' },
+  { id: 'invest',  label: 'Operações',  href: '/#operacoes' },
   { id: 'central', label: 'Central',    href: '/central' },
   { id: 'reports', label: 'Relatórios', href: '/reports' },
 ];
