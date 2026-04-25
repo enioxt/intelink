@@ -43,9 +43,6 @@ export async function GET(request: NextRequest) {
         const [rows, countRows] = await Promise.all([
             runQuery<{ p: { properties: Record<string, unknown>; elementId: string } }>(
                 `${baseCypher}
-                 OPTIONAL MATCH (p)-[:PHOTO_OF]-(:Photo)
-                 OPTIONAL MATCH (p)-[:ENVOLVIDO_EM|VICTIM_IN]->(:Occurrence)
-                 WITH p, count(DISTINCT _) as vinculos
                  RETURN p
                  ORDER BY p.name
                  SKIP $skip LIMIT $limit`,
