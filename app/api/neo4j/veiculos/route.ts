@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
         const params: Record<string, unknown> = { limit: neo4j.int(limitParam), skip: neo4j.int(offset) };
 
         if (q) {
-            conds.push('(toUpper(v.placa) CONTAINS toUpper($q) OR toLower(v.modelo) CONTAINS toLower($q) OR toLower(v.marca) CONTAINS toLower($q))');
+            conds.push('(toUpper(v.plate) CONTAINS toUpper($q) OR toLower(v.model) CONTAINS toLower($q) OR toLower(v.make) CONTAINS toLower($q))');
             params.q = q;
         }
         const where = conds.length ? 'WHERE ' + conds.join(' AND ') : '';
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
                 `MATCH (v:Vehicle) ${where}
                  OPTIONAL MATCH (:Person)-[:USES_VEHICLE|OWNS|ENVOLVIDO_EM]->(v)
                  RETURN v, count(*) AS envolvidos
-                 ORDER BY v.placa
+                 ORDER BY v.plate
                  SKIP $skip LIMIT $limit`,
                 params
             ),
@@ -43,12 +43,12 @@ export async function GET(request: NextRequest) {
             const p = r.v?.properties ?? {};
             return {
                 id: r.v?.elementId ?? '',
-                placa: p.placa ? String(p.placa) : null,
-                marca: p.marca ? String(p.marca) : null,
-                modelo: p.modelo ? String(p.modelo) : null,
-                cor: p.cor ? String(p.cor) : null,
-                ano: p.ano ? String(p.ano) : null,
-                chassi: p.chassi ? String(p.chassi) : null,
+                placa: p.plate ? String(p.plate) : (p.placa ? String(p.placa) : null),
+                marca: p.make ? String(p.make) : (p.marca ? String(p.marca) : null),
+                modelo: p.model ? String(p.model) : (p.modelo ? String(p.modelo) : null),
+                cor: p.color ? String(p.color) : (p.cor ? String(p.cor) : null),
+                ano: p.year ? String(p.year) : (p.ano ? String(p.ano) : null),
+                chassi: p.vin ? String(p.vin) : (p.chassi ? String(p.chassi) : null),
                 source: p.source ? String(p.source) : null,
                 envolvidos: Number(r.envolvidos ?? 0),
             };
