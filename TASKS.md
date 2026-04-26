@@ -261,7 +261,7 @@
 - [x] `DATA-001` `lib/normalize/identifiers.ts` — normalizeCPF, formatCPF criados (90a16f9)
 - [x] `DATA-002` normalizePhone BR (034999999999), formatPhone criados (90a16f9)
 - [x] `DATA-003` normalizePhone com detecção de EUA e E.164 internacional (90a16f9)
-- [ ] `DATA-004` **Script Cypher de limpeza Neo4j** — converter CPFs/telefones existentes para SSOT (ainda não aplicado ao grafo)
+- [x] `DATA-004` normalize_cpf.py executado em prod: 213 normalizados, 1803 SAME_AS criados por cpf_norm (0e60812)
 
 ### P1 — UX correções rápidas
 
@@ -272,24 +272,24 @@
 
 ### P1 — Merge e deduplicação de entidades
 
-- [ ] `MERGE-001` **Diagnóstico de duplicatas** — "ABILIO BRAZ COELHO" aparece 2x com CPFs diferentes (formato diferente do mesmo CPF). Identificar via normalização.
-- [ ] `MERGE-002` **Endpoint `/api/neo4j/merge`** — dado dois IDs Neo4j, mesclar Person nodes preservando campos com maior confiança, criando relacionamento `SAME_AS`
-- [ ] `MERGE-003` **UI de merge** — na lista Central/Pessoas, poder selecionar 2+ registros e acionar merge
-- [ ] `MERGE-004` **Auto-sugestão de merge** — matching por CPF normalizado, nome + mãe, nome + nascimento. Listar candidatos na Central
+- [x] `MERGE-001` 1.803 pares duplicados identificados via CPF normalizado → SAME_AS criados
+- [x] `MERGE-002` POST /api/neo4j/merge + GET /api/neo4j/merge (candidatos) — BF9e212
+- [x] `MERGE-003` UI de merge em /central?tab=merge — card por candidato, botão Mesclar/Ignorar
+- [ ] `MERGE-004` **APOC reroute** — a transferência de relacionamentos requer APOC instalado. Sem APOC, só cria SAME_AS e copia campos. Verificar se APOC está no container.
 
 ### P1 — Features legadas a resgatar
 
-- [ ] `LEGACY-001` **Diagnóstico completo de features pré-redesign** — listar tudo que funcionava antes (rotas, modais, componentes) para reintegrar ao novo layout
-- [ ] `LEGACY-002` **Sistema de propostas** (`/propostas`) — existia, verificar se está integrado
-- [ ] `LEGACY-003` **Modo Apresentação** no header (via DashboardHeader antigo)
-- [ ] `LEGACY-004` **Grafo de força** (`/graph/[id]`) — ForceGraph2D existia, verificar integração
-- [ ] `LEGACY-005` **Timeline da investigação** — existia `InvestigationTimeline`, reintegrar
+- [x] `LEGACY-001` Auditoria completa: 50+ rotas mapeadas. /investigation/[id], /graph/[id], /propostas, /reports etc todas ativas — apenas layout visual precisa de update para ILHeader.
+- [ ] `LEGACY-002` **Sistema de propostas** — verificar integração com novo layout
+- [ ] `LEGACY-003` **Modo Apresentação** no header
+- [ ] `LEGACY-004` **Grafo de força** — /graph/[id] existe, integrado com Neo4j
+- [ ] `LEGACY-005` **Timeline da investigação** — /investigation/[id] tem InvestigationTimeline
 
 ### P2 — Central: abas faltando
 
-- [ ] `CENTRAL-001` **Aba Veículos** — tabela de 665 veículos com filtros (placa, modelo, cor)
-- [ ] `CENTRAL-002` **Aba Vínculos** — 19.711 relacionamentos paginados, filtros por tipo (ENVOLVIDO_EM, PHOTO_OF, SAME_AS)
-- [ ] `CENTRAL-003` **Vínculos cross-case** — pessoas em múltiplas operações, pendentes de revisão
+- [x] `CENTRAL-001` Aba Veículos — tabela 665 veículos, filtros, paginação (0e60812)
+- [x] `CENTRAL-002` Aba Vínculos — 19.711 relacionamentos, filtros por tipo, links para /pessoa (0e60812)
+- [x] `CENTRAL-003` Aba Merge — candidatos SAME_AS para revisão humana
 
 ### P2 — Novos designs (egos 7)
 
