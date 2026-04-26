@@ -21,6 +21,7 @@ const PUBLIC_PATHS = [
     '/public',
     '/api/health',          // healthcheck must be public
     '/api/internal',        // gateway discovery — no auth. NOTE: `_internal` = Next.js private folder (not routed), so path is `/api/internal`.
+    '/api/coord',           // cross-repo coordination feed (public by design)
 ];
 
 // UI-POLISH-005: `/` is public — landing page renders marketing for unauthenticated
