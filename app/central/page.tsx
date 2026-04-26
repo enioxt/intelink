@@ -354,6 +354,203 @@ function FotosTab() {
   );
 }
 
+// ─── Veículos Tab ────────────────────────────────────────────────────────────
+function VeiculosTab() {
+  const [veiculos, setVeiculos] = useState<{id:string;placa:string|null;marca:string|null;modelo:string|null;cor:string|null;ano:string|null;envolvidos:number}[]>([]);
+  const [total, setTotal] = useState(0);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const LIMIT = 50;
+  const deb = useRef<number|undefined>(undefined);
+
+  const load = useCallback(async (q: string, off: number) => {
+    setLoading(true);
+    try {
+      const p = new URLSearchParams({ limit: String(LIMIT), offset: String(off) });
+      if (q) p.set('q', q);
+      const res = await fetch(`/api/neo4j/veiculos?${p}`);
+      if (res.ok) { const d = await res.json(); setVeiculos(d.veiculos ?? []); setTotal(d.total ?? 0); }
+    } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { clearTimeout(deb.current); deb.current = window.setTimeout(() => load(search, offset), 300); }, [search, offset, load]);
+
+  return (
+    <ILCard hover={false} style={{ padding: 0, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', gap: 8, padding: '12px 16px', borderBottom: `1px solid ${IL.border}` }}>
+        <input value={search} onChange={e => { setSearch(e.target.value); setOffset(0); }} placeholder="Buscar por placa, modelo, marca..." style={{ flex: 1, padding: '8px 12px', background: IL.bg2, border: `1px solid ${IL.border}`, borderRadius: 6, color: IL.ink, fontSize: 12, fontFamily: 'inherit', outline: 'none' }} />
+      </div>
+      {loading ? <div style={{ padding: 32, textAlign: 'center', color: IL.dim, fontFamily: 'var(--font-mono)', fontSize: 12 }}>Carregando…</div> : (
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead><tr style={{ background: IL.bg2 }}>
+            {['Placa', 'Marca', 'Modelo', 'Cor', 'Ano', 'Envolvidos', ''].map(h => <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 500, fontSize: 11, color: IL.ink2, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${IL.border}` }}>{h}</th>)}
+          </tr></thead>
+          <tbody>
+            {veiculos.map(v => (
+              <tr key={v.id} style={{ borderBottom: `1px solid ${IL.border}`, cursor: 'pointer' }}
+                onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = 'rgba(6,182,212,0.04)'}
+                onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'}>
+                <td style={{ padding: '8px 12px', color: IL.cyan, fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{v.placa ?? '—'}</td>
+                <td style={{ padding: '8px 12px', color: IL.ink2, fontSize: 12 }}>{v.marca ?? '—'}</td>
+                <td style={{ padding: '8px 12px', color: IL.ink2, fontSize: 12 }}>{v.modelo ?? '—'}</td>
+                <td style={{ padding: '8px 12px', color: IL.ink2, fontSize: 12 }}>{v.cor ?? '—'}</td>
+                <td style={{ padding: '8px 12px', color: IL.ink2, fontFamily: 'var(--font-mono)', fontSize: 12 }}>{v.ano ?? '—'}</td>
+                <td style={{ padding: '8px 12px', color: v.envolvidos > 0 ? IL.amber : IL.dim, fontFamily: 'var(--font-mono)' }}>{v.envolvidos}</td>
+                <td style={{ padding: '8px 12px' }}>
+                  <Link href={`/chat?q=${encodeURIComponent('Quem usa o veículo placa ' + (v.placa ?? v.id))}`} style={{ fontSize: 11, color: IL.dim, textDecoration: 'none' }}>chat →</Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderTop: `1px solid ${IL.border}` }}>
+        <span style={{ fontSize: 11, color: IL.dim, fontFamily: 'var(--font-mono)' }}>{Math.min(offset + LIMIT, total)} de {total.toLocaleString('pt-BR')} veículos</span>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button disabled={offset === 0} onClick={() => setOffset(o => Math.max(0, o - LIMIT))} style={{ padding: '5px 12px', background: IL.bg2, border: `1px solid ${IL.border}`, borderRadius: 6, color: offset === 0 ? IL.dim : IL.ink, cursor: offset === 0 ? 'not-allowed' : 'pointer', fontSize: 12, fontFamily: 'inherit' }}>← Anterior</button>
+          <button disabled={offset + LIMIT >= total} onClick={() => setOffset(o => o + LIMIT)} style={{ padding: '5px 12px', background: IL.bg2, border: `1px solid ${IL.border}`, borderRadius: 6, color: offset + LIMIT >= total ? IL.dim : IL.ink, cursor: offset + LIMIT >= total ? 'not-allowed' : 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Próxima →</button>
+        </div>
+      </div>
+    </ILCard>
+  );
+}
+
+// ─── Vínculos Tab ────────────────────────────────────────────────────────────
+function VinculosTab() {
+  const [vinculos, setVinculos] = useState<{a_id:string;a_name:string;a_type:string;tipo:string;b_id:string;b_name:string;b_type:string}[]>([]);
+  const [tipos, setTipos] = useState<{tipo:string;count:number}[]>([]);
+  const [tipoFilter, setTipoFilter] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const LIMIT = 50;
+
+  const load = useCallback(async (tipo: string, off: number) => {
+    setLoading(true);
+    try {
+      const p = new URLSearchParams({ limit: String(LIMIT), offset: String(off) });
+      if (tipo) p.set('tipo', tipo);
+      const res = await fetch(`/api/neo4j/vinculos?${p}`);
+      if (res.ok) {
+        const d = await res.json();
+        setVinculos(d.vinculos ?? []);
+        if (d.tipos?.length) setTipos(d.tipos);
+      }
+    } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(tipoFilter, offset); }, [tipoFilter, offset, load]);
+
+  const TIPO_COLOR: Record<string, string> = { ENVOLVIDO_EM: IL.amber, PHOTO_OF: IL.purple, SAME_AS: IL.cyan, VICTIM_IN: IL.red, OCORREU_EM: IL.blue };
+
+  return (
+    <ILCard hover={false} style={{ padding: 0, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', gap: 8, padding: '12px 16px', borderBottom: `1px solid ${IL.border}`, flexWrap: 'wrap' }}>
+        <FilterChip label="Todos" active={!tipoFilter} onClick={() => { setTipoFilter(''); setOffset(0); }} />
+        {tipos.slice(0, 8).map(t => <FilterChip key={t.tipo} label={`${t.tipo} (${t.count.toLocaleString('pt-BR')})`} active={tipoFilter === t.tipo} onClick={() => { setTipoFilter(tipoFilter === t.tipo ? '' : t.tipo); setOffset(0); }} />)}
+      </div>
+      {loading ? <div style={{ padding: 32, textAlign: 'center', color: IL.dim, fontSize: 12, fontFamily: 'var(--font-mono)' }}>Carregando…</div> : (
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead><tr style={{ background: IL.bg2 }}>
+            {['De', 'Tipo', 'Para', ''].map(h => <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 500, fontSize: 11, color: IL.ink2, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${IL.border}` }}>{h}</th>)}
+          </tr></thead>
+          <tbody>
+            {vinculos.map((v, i) => (
+              <tr key={i} style={{ borderBottom: `1px solid ${IL.border}` }}>
+                <td style={{ padding: '8px 12px', color: IL.ink, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <Link href={`/pessoa/${encodeURIComponent(v.a_id)}`} style={{ color: IL.ink, textDecoration: 'none' }}>{v.a_name || v.a_type}</Link>
+                </td>
+                <td style={{ padding: '8px 12px' }}><ILTag color={TIPO_COLOR[v.tipo] ?? IL.ink2}>{v.tipo}</ILTag></td>
+                <td style={{ padding: '8px 12px', color: IL.ink2, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {v.b_type === 'Person' ? <Link href={`/pessoa/${encodeURIComponent(v.b_id)}`} style={{ color: IL.ink2, textDecoration: 'none' }}>{v.b_name || v.b_type}</Link> : (v.b_name || v.b_type)}
+                </td>
+                <td style={{ padding: '8px 12px' }}>
+                  <Link href={`/chat?q=${encodeURIComponent('Analise o vínculo entre ' + v.a_name + ' e ' + v.b_name)}`} style={{ fontSize: 11, color: IL.dim, textDecoration: 'none' }}>chat →</Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderTop: `1px solid ${IL.border}` }}>
+        <span style={{ fontSize: 11, color: IL.dim, fontFamily: 'var(--font-mono)' }}>{vinculos.length} vínculos · 19.711 total no grafo</span>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button disabled={offset === 0} onClick={() => setOffset(o => Math.max(0, o - LIMIT))} style={{ padding: '5px 12px', background: IL.bg2, border: `1px solid ${IL.border}`, borderRadius: 6, color: offset === 0 ? IL.dim : IL.ink, cursor: offset === 0 ? 'not-allowed' : 'pointer', fontSize: 12, fontFamily: 'inherit' }}>← Anterior</button>
+          <button disabled={vinculos.length < LIMIT} onClick={() => setOffset(o => o + LIMIT)} style={{ padding: '5px 12px', background: IL.bg2, border: `1px solid ${IL.border}`, borderRadius: 6, color: vinculos.length < LIMIT ? IL.dim : IL.ink, cursor: vinculos.length < LIMIT ? 'not-allowed' : 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Próxima →</button>
+        </div>
+      </div>
+    </ILCard>
+  );
+}
+
+// ─── Merge Tab ────────────────────────────────────────────────────────────────
+function MergeTab() {
+  const [candidates, setCandidates] = useState<{a_id:string;a_name:string;a_cpf:string;a_source:string;b_id:string;b_name:string;b_cpf:string;b_source:string;confidence:number;reason:string}[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [merging, setMerging] = useState<string | null>(null);
+  const [done, setDone] = useState(new Set<string>());
+
+  useEffect(() => {
+    fetch('/api/neo4j/merge?limit=50')
+      .then(r => r.json())
+      .then(d => setCandidates(d.candidates ?? []))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function doMerge(primary_id: string, secondary_id: string, key: string) {
+    setMerging(key);
+    try {
+      const res = await fetch('/api/neo4j/merge', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ primary_id, secondary_id, reason: 'cpf_norm_manual' }),
+      });
+      if (res.ok) setDone(d => new Set([...d, key]));
+    } finally { setMerging(null); }
+  }
+
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: IL.dim, fontSize: 13, fontFamily: 'var(--font-mono)' }}>Carregando candidatos a merge…</div>;
+
+  const visible = candidates.filter(c => !done.has(`${c.a_id}:${c.b_id}`));
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16, padding: '12px 16px', background: IL.surf, border: `1px solid ${IL.amber}40`, borderRadius: 10, fontSize: 13, color: IL.ink2 }}>
+        <span style={{ color: IL.amber, fontWeight: 600 }}>⚠ {visible.length} candidatos</span> identificados por CPF normalizado que podem ser a mesma pessoa. Revise e confirme o merge.
+      </div>
+      {visible.length === 0 && <ILCard hover={false} style={{ padding: 48, textAlign: 'center' }}><div style={{ color: IL.dim }}>Nenhum candidato a merge pendente.</div></ILCard>}
+      {visible.map(c => {
+        const key = `${c.a_id}:${c.b_id}`;
+        return (
+          <ILCard key={key} hover={false} style={{ marginBottom: 12, padding: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 1fr auto', gap: 16, alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: IL.ink }}>{c.a_name}</div>
+                <div style={{ fontSize: 11, color: IL.ink2, fontFamily: 'var(--font-mono)' }}>CPF {c.a_cpf || '—'} · {c.a_source || 'desconhecido'}</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <ILTag color={c.confidence > 0.9 ? IL.cyan : IL.amber}>{Math.round(c.confidence * 100)}%</ILTag>
+                <div style={{ fontSize: 9, color: IL.dim, marginTop: 4, fontFamily: 'var(--font-mono)' }}>{c.reason}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: IL.ink }}>{c.b_name}</div>
+                <div style={{ fontSize: 11, color: IL.ink2, fontFamily: 'var(--font-mono)' }}>CPF {c.b_cpf || '—'} · {c.b_source || 'desconhecido'}</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <button onClick={() => doMerge(c.b_id, c.a_id, key)} disabled={merging === key} style={{ padding: '6px 12px', background: IL.cyan, color: IL.bg1, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  {merging === key ? '…' : 'Mesclar'}
+                </button>
+                <button onClick={() => setDone(d => new Set([...d, key]))} style={{ padding: '6px 12px', background: 'transparent', border: `1px solid ${IL.border}`, color: IL.ink2, borderRadius: 6, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Ignorar</button>
+              </div>
+            </div>
+          </ILCard>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 function CentralContent() {
   const searchParams = useSearchParams();
@@ -380,8 +577,9 @@ function CentralContent() {
     { id: 'ocorrencias',label: 'Ocorrências', count: neo4jStats.Occurrence },
     { id: 'fotos',      label: 'Fotos',       count: neo4jStats.Photo },
     { id: 'veiculos',   label: 'Veículos',    count: neo4jStats.Vehicle },
-    { id: 'operacoes',  label: 'Operações',   count: supaStats.investigations },
     { id: 'vinculos',   label: 'Vínculos',    count: neo4jStats.total_relationships },
+    { id: 'merge',      label: '⚠ Merge',     count: undefined },
+    { id: 'operacoes',  label: 'Operações',   count: supaStats.investigations },
   ];
 
   return (
@@ -413,14 +611,9 @@ function CentralContent() {
         {tab === 'pessoas'     && <PessoasTab />}
         {tab === 'ocorrencias' && <OcorrenciasTab />}
         {tab === 'fotos'       && <FotosTab />}
-        {(tab === 'veiculos' || tab === 'vinculos') && (
-          <ILCard hover={false} style={{ padding: 48, textAlign: 'center' }}>
-            <div style={{ fontSize: 14, color: IL.ink2, marginBottom: 12 }}>Aba <strong style={{ color: IL.ink }}>{TABS.find(t => t.id === tab)?.label}</strong> em desenvolvimento.</div>
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-              <Link href={`/chat?q=${encodeURIComponent('Analise ' + TABS.find(t => t.id === tab)?.label?.toLowerCase() + ' do sistema')}`} style={{ padding: '8px 16px', background: IL.bg2, border: `1px solid ${IL.border}`, color: IL.cyan, borderRadius: 8, fontSize: 13, textDecoration: 'none' }}>Chat IA →</Link>
-            </div>
-          </ILCard>
-        )}
+        {tab === 'veiculos'    && <VeiculosTab />}
+        {tab === 'vinculos'    && <VinculosTab />}
+        {tab === 'merge'       && <MergeTab />}
         {tab === 'operacoes' && (
           <ILCard hover={false} style={{ padding: 48, textAlign: 'center' }}>
             <div style={{ fontSize: 14, color: IL.ink2, marginBottom: 12 }}>Ver operações na lista principal.</div>
