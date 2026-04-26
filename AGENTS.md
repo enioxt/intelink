@@ -110,6 +110,8 @@ Canonical eval strategy: `docs/knowledge/AI_EVAL_STRATEGY.md` (being written —
 > **TYPE:** Intelligence Platform (Merge: Intelink + BR-ACC)
 > **URL:** https://inteligencia.egos.ia.br
 > **KERNEL SSOT:** `/home/enio/egos/docs/SSOT_REGISTRY.md`
+> **UPSTREAM:** [enioxt/egos](https://github.com/enioxt/egos) — see [`docs/UPSTREAM_KERNEL.md`](docs/UPSTREAM_KERNEL.md)
+> **COORDINATION:** Active entries in `egos/docs/COORDINATION.md` (kernel-side)
 
 ---
 
