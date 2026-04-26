@@ -11,6 +11,7 @@ import { ILTag } from '@/components/il/ILTag';
 import { ConfBadge } from '@/components/il/ConfBadge';
 import { ILHeader } from '@/components/il/ILHeader';
 import { GlobalSearch } from '@/components/il/GlobalSearch';
+import { DrillDownSheet } from '@/components/il/DrillDownSheet';
 import type { ConfidenceKind } from '@/lib/design/tokens';
 import { formatCPF, formatSource, isPlaceholderName } from '@/lib/normalize/identifiers';
 
@@ -64,6 +65,7 @@ function PessoasTab() {
   const [hasPhoto, setHasPhoto] = useState(false);
   const [source, setSource] = useState('');
   const [offset, setOffset] = useState(0);
+  const [sheetPerson, setSheetPerson] = useState<Neo4jPessoa | null>(null);
   const debounce = useRef<number | undefined>(undefined);
   const LIMIT = 50;
 
@@ -126,7 +128,7 @@ function PessoasTab() {
               <tr><td colSpan={9} style={{ padding: 32, textAlign: 'center', color: IL.dim, fontSize: 12 }}>Nenhuma pessoa encontrada.</td></tr>
             )}
             {!loading && pessoas.map(p => (
-              <tr key={p.id} onClick={() => window.location.href = `/pessoa/${encodeURIComponent(p.id)}`}
+              <tr key={p.id} onClick={() => setSheetPerson(p)}
                 style={{ cursor: 'pointer', borderBottom: `1px solid ${IL.border}` }}
                 onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = 'rgba(6,182,212,0.05)'}
                 onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'}>
@@ -164,6 +166,28 @@ function PessoasTab() {
           <button disabled={offset + LIMIT >= total} onClick={() => setOffset(o => o + LIMIT)} style={{ padding: '5px 12px', background: IL.bg2, border: `1px solid ${IL.border}`, borderRadius: 6, color: offset + LIMIT >= total ? IL.dim : IL.ink, cursor: offset + LIMIT >= total ? 'not-allowed' : 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Próxima →</button>
         </div>
       </div>
+
+      {/* Drill-down sheet — preserves search context */}
+      {sheetPerson && (
+        <DrillDownSheet
+          title={sheetPerson.name}
+          subtitle={sheetPerson.cpf ? `CPF ${formatCPF(sheetPerson.cpf)}` : 'Sem CPF'}
+          fullPageHref={`/pessoa/${encodeURIComponent(sheetPerson.id)}`}
+          onClose={() => setSheetPerson(null)}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, fontSize: 13, color: IL.ink2 }}>
+            {sheetPerson.mae && <div><span style={{ color: IL.dim, fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Mãe</span><div style={{ color: IL.ink, marginTop: 2 }}>{sheetPerson.mae}</div></div>}
+            {sheetPerson.rg && <div><span style={{ color: IL.dim, fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>RG</span><div style={{ color: IL.ink, marginTop: 2, fontFamily: 'var(--font-mono)' }}>{sheetPerson.rg}</div></div>}
+            {sheetPerson.data_nascimento && <div><span style={{ color: IL.dim, fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Nascimento</span><div style={{ color: IL.ink, marginTop: 2 }}>{sheetPerson.data_nascimento}</div></div>}
+            {sheetPerson.municipio && <div><span style={{ color: IL.dim, fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Município / Bairro</span><div style={{ color: IL.ink, marginTop: 2 }}>{sheetPerson.municipio}{sheetPerson.bairro ? ` · ${sheetPerson.bairro}` : ''}</div></div>}
+            {sheetPerson.source && <div><span style={{ color: IL.dim, fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Fonte</span><div style={{ marginTop: 4 }}><ILTag>{formatSource(sheetPerson.source)}</ILTag> <ConfBadge kind={sourceConf(sheetPerson.source)} withLabel /></div></div>}
+            <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+              <a href={`/pessoa/${encodeURIComponent(sheetPerson.id)}`} style={{ flex: 1, padding: '9px 12px', background: IL.cyan, color: IL.bg1, borderRadius: 8, fontSize: 12, fontWeight: 600, textAlign: 'center', textDecoration: 'none' }}>Abrir página completa</a>
+              <a href={`/chat?q=${encodeURIComponent('Quem é ' + sheetPerson.name)}`} style={{ flex: 1, padding: '9px 12px', background: IL.bg2, border: `1px solid ${IL.border}`, color: IL.cyan, borderRadius: 8, fontSize: 12, textAlign: 'center', textDecoration: 'none' }}>Chat IA</a>
+            </div>
+          </div>
+        </DrillDownSheet>
+      )}
     </ILCard>
   );
 }
