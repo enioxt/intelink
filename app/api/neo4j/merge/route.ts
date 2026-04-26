@@ -10,6 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import neo4j from 'neo4j-driver';
 import { runQuery } from '@/lib/neo4j/server';
 import { withSecurity, AuthContext } from '@/lib/api-security';
 
@@ -112,7 +113,8 @@ async function handlePost(req: NextRequest, auth: AuthContext): Promise<NextResp
  */
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
-    const limit = Math.min(parseInt(searchParams.get('limit') ?? '30'), 100);
+    const limitNum = Math.min(parseInt(searchParams.get('limit') ?? '30'), 100);
+    const limit = neo4j.int(limitNum);
 
     try {
         // Candidatos: conectados por SAME_AS (CPF normalizado identificou)
